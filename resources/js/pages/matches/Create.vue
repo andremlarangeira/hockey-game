@@ -56,9 +56,11 @@ const error = ref('');
 let recordedTransitions = 0;
 const wake = useWakeLock();
 const sound = useMatchAudio();
-const clock = useMatchClock(config.value, () => {
-    recordTransitions();
-});
+const clock = useMatchClock(
+    config.value,
+    () => recordTransitions(),
+    () => sound.countdown(),
+);
 const homeScore = computed(
     () => goals.value.filter((goal) => goal.team === 'home').length,
 );
@@ -85,7 +87,10 @@ const phaseLabel = computed(
     () =>
         ({
             idle: 'Pronto para jogar',
-            countdown: 'Preparem-se!',
+            countdown:
+                clock.state.period > 1
+                    ? `Preparem-se para o ${clock.state.period}º tempo!`
+                    : 'Preparem-se!',
             period: `${clock.state.period}º tempo`,
             rest: 'Descanso',
             finished: 'Fim de partida',
@@ -162,7 +167,8 @@ function prepare() {
     }
     showConfig.value = false;
 }
-function toggleMatch() {
+async function toggleMatch() {
+    await sound.unlock();
     if (clock.state.phase === 'idle') {
         clock.start();
         void wake.request();
@@ -174,7 +180,10 @@ function toggleMatch() {
         });
         if ((clock.state.phase as string) === 'countdown')
             recordClock('pre_start');
-        else recordClock('period_start');
+        else {
+            recordClock('period_start');
+            sound.play(sounds.value, 'start');
+        }
     } else {
         const wasPaused = clock.state.paused;
         clock.togglePause();
@@ -312,7 +321,9 @@ const pageHide = () => {
 };
 window.addEventListener('pagehide', pageHide);
 onBeforeUnmount(() => window.removeEventListener('pagehide', pageHide));
-function openGoal(team: 'home' | 'away') {
+async function openGoal(team: 'home' | 'away') {
+    if (clock.state.phase !== 'period' || clock.state.paused) return;
+    await sound.unlock();
     if (clock.state.phase !== 'period' || clock.state.paused) return;
     dialog.value = { team, scorer: null };
 }
@@ -341,6 +352,15 @@ function assist(player: Player | null) {
         elapsed_seconds: clock.state.elapsed,
         details: { scorer: current.scorer.name },
     });
+    if (clock.restartCountdown()) {
+        timeline.value.push({
+            at: new Date().toISOString(),
+            type: 'pre_start',
+            period: clock.state.period,
+            elapsed_seconds: clock.state.elapsed,
+            details: { motivo: 'gol' },
+        });
+    }
     dialog.value = null;
 }
 function undo() {
@@ -580,6 +600,11 @@ onBeforeUnmount(() => {
         </div>
         <div v-if="roster">
             <h2 class="font-black">Sons da partida</h2>
+            <p class="mt-1 text-xs text-slate-500">
+                Apito no início, buzzer grave no fim e bipes nos últimos 5
+                segundos de cada contagem. Seus arquivos substituem os sons de
+                início, fim e descanso.
+            </p>
             <div class="mt-2 space-y-3">
                 <div
                     v-for="(label, key) in {
@@ -661,7 +686,26 @@ onBeforeUnmount(() => {
                 </div>
             </div>
             <div
-                class="grid grid-cols-[1fr_auto_1fr] items-center gap-2 p-3 sm:gap-6 sm:p-5"
+                v-if="clock.state.phase === 'countdown'"
+                class="bg-amber-300 px-3 py-2 text-center"
+                data-test="contagem-gol"
+            >
+                <span
+                    class="block text-xs font-black tracking-widest text-amber-950 uppercase"
+                >
+                    {{ goals.length ? 'Após o gol' : 'Início da partida' }}
+                </span>
+                <strong
+                    class="block text-4xl font-black text-amber-950 tabular-nums"
+                >
+                    {{ clock.state.remaining }}
+                </strong>
+                <span class="text-xs font-bold text-amber-950">
+                    Preparem-se para o apito
+                </span>
+            </div>
+            <div
+                class="grid grid-cols-[1fr_auto_1fr] items-center gap-2 p-3 sm:gap-6 sm:p-5 landscape-short:gap-1 landscape-short:p-2"
             >
                 <div class="text-center">
                     <h2 class="truncate text-sm font-black sm:text-xl">

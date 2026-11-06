@@ -15,6 +15,31 @@ try {
     });
     page.setDefaultTimeout(6000);
     const errors = [];
+    await page.addInitScript(() => {
+        window.testBeeps = [];
+        window.testSounds = [];
+        const BaseAudioContext = window.AudioContext;
+        window.AudioContext = class extends BaseAudioContext {
+            createOscillator() {
+                const oscillator = super.createOscillator();
+                const setValue = oscillator.frequency.setValueAtTime.bind(
+                    oscillator.frequency,
+                );
+                oscillator.frequency.setValueAtTime = (frequency, ...args) => {
+                    if (frequency === 880) window.testBeeps.push(frequency);
+                    return setValue(frequency, ...args);
+                };
+                return oscillator;
+            }
+        };
+        const BaseAudio = window.Audio;
+        window.Audio = class extends BaseAudio {
+            play() {
+                window.testSounds.push(new URL(this.src).pathname);
+                return super.play();
+            }
+        };
+    });
     page.on('pageerror', (error) => errors.push(error.message));
     await page.goto(`${base}/login`);
     await page.locator('#email').fill('demo@naquadra.test');
@@ -23,6 +48,46 @@ try {
     await page.waitForURL('**/jogadores');
     assert.equal(await page.locator('[data-player-id]').count(), 16);
     await page.setViewportSize({ width: 390, height: 844 });
+    await page.screenshot({
+        path: `${shots}/05-jogadores-compactos-celular.png`,
+        fullPage: true,
+    });
+    const firstPresence = page
+        .locator('[data-player-id] input[type="checkbox"]')
+        .first();
+    const previousPresence = await firstPresence.isChecked();
+    const presenceResponse = page.waitForResponse(
+        (response) =>
+            response.url().endsWith('/presenca') &&
+            response.request().method() === 'PATCH',
+    );
+    await firstPresence.click();
+    await presenceResponse;
+    assert.equal(
+        await page
+            .locator('[data-player-id] input[type="checkbox"]')
+            .first()
+            .isChecked(),
+        !previousPresence,
+    );
+    const restorePresence = page.waitForResponse(
+        (response) =>
+            response.url().endsWith('/presenca') &&
+            response.request().method() === 'PATCH',
+    );
+    await page
+        .locator('[data-player-id] input[type="checkbox"]')
+        .first()
+        .click();
+    await restorePresence;
+    assert.equal(
+        await page
+            .locator('[data-player-id] input[type="checkbox"]')
+            .first()
+            .isChecked(),
+        previousPresence,
+    );
+    assert.equal(await page.locator('[data-player-id] svg').count(), 32);
     await page.screenshot({
         path: `${shots}/01-jogadores-celular.png`,
         fullPage: true,
@@ -88,15 +153,35 @@ try {
     await page.waitForURL('**/partida');
     await page.getByRole('button', { name: 'Confirmar equipes' }).waitFor();
     await page.getByRole('button', { name: 'Confirmar equipes' }).click();
-    await page.locator('[data-test="contagem"]').fill('0');
+    await page.locator('[data-test="contagem"]').fill('5');
     await page
         .getByRole('button', { name: 'Testar som: Início de tempo / partida' })
         .click();
+    await page
+        .getByRole('button', { name: 'Testar som: Fim de tempo / partida' })
+        .click();
+    assert.ok(
+        await page.evaluate(() =>
+            window.testSounds.includes('/sons/buzzer-fim.wav'),
+        ),
+        'O fim de período usa o buzzer grave sintetizado',
+    );
     await page.locator('[data-test="abrir-placar"]').click();
     await page.locator('[data-test="iniciar-cronometro"]').waitFor();
     await page.setViewportSize({ width: 844, height: 390 });
     await page.locator('[data-test="iniciar-cronometro"]').click();
-    await page.waitForTimeout(1100);
+    await page.waitForTimeout(6100);
+    assert.equal(
+        await page.evaluate(() => window.testBeeps.length),
+        5,
+        'A contagem inicial emite cinco bipes',
+    );
+    assert.ok(
+        await page.evaluate(() =>
+            window.testSounds.includes('/sons/apito-inicio.wav'),
+        ),
+        'A partida usa o apito sintetizado',
+    );
     assert.equal(
         await page.locator('[data-test="iniciar-cronometro"]').innerText(),
         'Pausar',
@@ -146,12 +231,50 @@ try {
     assert.equal(
         await page.locator('[data-test="iniciar-cronometro"]').innerText(),
         'Pausar',
-        'F5 mantém o jogo rodando',
+        'F5 mantém a contagem pós-gol rodando',
+    );
+    await page.locator('[data-test="contagem-gol"]').waitFor();
+    assert.ok(
+        (await page.locator('[data-test="contagem-gol"]').innerText()).includes(
+            'APÓS O GOL',
+        ),
+    );
+    // Após F5, uma nova interação libera o áudio nos navegadores mais restritos.
+    await page.locator('[data-test="iniciar-cronometro"]').click();
+    await page.locator('[data-test="iniciar-cronometro"]').click();
+    await page.waitForFunction(
+        () =>
+            document.querySelector('[data-test="gol-casa"]').disabled === false,
+    );
+    await page.locator('[data-test="gol-casa"]').click();
+    await page.locator('[data-scorer-id]').last().click();
+    await page.locator('[data-test="sem-assistencia"]').click();
+    await page.locator('[data-test="contagem-gol"]').waitFor();
+    await page.waitForFunction(() => window.testBeeps.length >= 10);
+    assert.ok(
+        (await page.evaluate(() => window.testBeeps.length)) < 15,
+        'Os bipes não são repetidos durante a contagem',
     );
     await page.screenshot({
-        path: `${shots}/03-placar-paisagem.png`,
+        path: `${shots}/07-placar-contagem-apos-gol-paisagem.png`,
         fullPage: true,
     });
+    await page.reload();
+    await page
+        .locator('[data-test="contagem-gol"]')
+        .waitFor({ timeout: 10000 });
+    assert.equal(
+        await page.locator('[data-test="placar-casa"]').innerText(),
+        '2',
+    );
+    await page.waitForFunction(
+        () => document.querySelector('[data-test="contagem-gol"]') === null,
+    );
+    await page.getByRole('button', { name: 'Desfazer gol' }).click();
+    assert.equal(
+        await page.locator('[data-test="placar-casa"]').innerText(),
+        '1',
+    );
     await page.locator('[data-test="gol-fora"]').click();
     await page.locator('[data-scorer-id]').last().click();
     await page.locator('[data-test="sem-assistencia"]').click();
@@ -185,7 +308,7 @@ try {
     assert.equal(await scorerStats.locator('td').nth(3).innerText(), '0');
     if (errors.length) throw new Error(errors.join('\n'));
     console.log(
-        'E2E OK: login, jogadores, sorteio, som, pausa, gol + assistência, F5, desfazer, salvar, histórico e estatísticas.',
+        'E2E OK: checkbox, cards sem estrelas, cinco bipes, apito, gols com contagem, F5, desfazer, salvar e estatísticas.',
     );
 } finally {
     await browser.close();

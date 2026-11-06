@@ -62,6 +62,27 @@ export class MatchClockCore {
         this.remaining = Math.ceil((this.current.end - now) / 1000);
         if (this.phase === 'period') this.playStartedAt = now;
     }
+    /** Insere uma pré-contagem sem consumir o tempo restante do período. */
+    restartCountdown(now = Date.now()): boolean {
+        if (this.phase !== 'period' || this.paused) return false;
+        this.tick(now);
+        if (this.phase !== 'period' || this.settings.countdown_seconds <= 0)
+            return false;
+        const duration = this.settings.countdown_seconds * 1000;
+        this.stopPlaying(now);
+        this.stages.splice(this.index, 0, {
+            phase: 'countdown',
+            number: this.period,
+            end: now + duration,
+        });
+        for (let i = this.index + 1; i < this.stages.length; i++)
+            this.stages[i].end += duration;
+        this.phase = 'countdown';
+        this.remaining = this.settings.countdown_seconds;
+        this.playStartedAt = null;
+        return true;
+    }
+
     togglePause(now = Date.now()): void {
         this.tick(now);
         if (!['countdown', 'period', 'rest'].includes(this.phase)) return;

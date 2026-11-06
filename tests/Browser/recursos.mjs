@@ -62,6 +62,13 @@ try {
     const created = page
         .locator('[data-player-id]')
         .filter({ has: page.getByRole('heading', { name: jogadorNome }) });
+    await page.locator('[data-test="novo-jogador"]').click();
+    await page.getByRole('radio', { name: '3,5 estrelas' }).click();
+    await page.screenshot({
+        path: `${process.env.SCREENSHOT_DIR || '../hockey-times-shots'}/06-formulario-nivel-estrelas.png`,
+        fullPage: true,
+    });
+    await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
     const photo = created.locator('img');
     assert.equal(await photo.count(), 1);
     assert.equal(
@@ -69,18 +76,24 @@ try {
         true,
         'A foto deve abrir com sucesso pelo storage público',
     );
-    assert.ok((await created.innerText()).includes('2,5 de 5'));
+    assert.ok(!(await created.innerText()).includes('2,5 de 5'));
+    assert.ok((await created.innerText()).includes(`#${numero}`));
     const clear = page.waitForResponse(
         (r) =>
             r.url() === `${base}/presenca` && r.request().method() === 'POST',
     );
     await page.getByRole('button', { name: 'Limpar', exact: true }).click();
     await clear;
+    await page.waitForFunction(
+        (name) =>
+            !document.querySelector(`input[aria-label="${name}"]`)?.checked,
+        `Presença de ${jogadorNome}`,
+    );
     assert.equal(
         await created
-            .getByRole('button', { name: 'Ausente — tocar para marcar' })
-            .getAttribute('aria-pressed'),
-        'false',
+            .getByRole('checkbox', { name: `Presença de ${jogadorNome}` })
+            .isChecked(),
+        false,
     );
     const all = page.waitForResponse(
         (r) =>
@@ -90,14 +103,19 @@ try {
         .getByRole('button', { name: 'Marcar todos', exact: true })
         .click();
     await all;
+    await page.waitForFunction(
+        (name) =>
+            document.querySelector(`input[aria-label="${name}"]`)?.checked,
+        `Presença de ${jogadorNome}`,
+    );
     assert.equal(
         await created
-            .getByRole('button', { name: 'Presente no sorteio' })
-            .getAttribute('aria-pressed'),
-        'true',
+            .getByRole('checkbox', { name: `Presença de ${jogadorNome}` })
+            .isChecked(),
+        true,
     );
     const eligibleIds = await page
-        .locator('[data-player-id]:has(button[aria-pressed="true"])')
+        .locator('[data-player-id]:has(input[type="checkbox"]:checked)')
         .evaluateAll((nodes) =>
             nodes
                 .map((node) => Number(node.dataset.playerId))

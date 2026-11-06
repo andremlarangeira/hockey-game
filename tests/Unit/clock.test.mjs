@@ -9,8 +9,13 @@ const source = readFileSync(
     `${cwd}/resources/js/lib/matchClockCore.ts`,
     'utf8',
 ).replace(
-    "import type { MatchSettings } from '@/types/hockey';",
-    'type MatchSettings = any;',
+    /import type \{ MatchSettings \} from ['"]@\/types\/hockey['"];/,
+    `type MatchSettings = {
+        minutes: number;
+        periods: number;
+        rest_seconds: number;
+        countdown_seconds: number;
+    };`,
 );
 writeFileSync(`${temp}/matchClockCore.ts`, source);
 execFileSync(`${cwd}/node_modules/typescript/bin/tsc`, [
@@ -123,6 +128,69 @@ restoredPaused.togglePause(100_000);
 restoredPaused.tick(110_000);
 assert.equal(restoredPaused.elapsed, 30);
 assert.equal(restoredPaused.remaining, 30);
+const afterGoal = new MatchClockCore({
+    minutes: 1,
+    periods: 1,
+    rest_seconds: 5,
+    countdown_seconds: 5,
+});
+afterGoal.start(0);
+assert.equal(afterGoal.restartCountdown(2_000), false);
+afterGoal.tick(6_000);
+assert.equal(afterGoal.restartCountdown(10_000), true);
+afterGoal.tick(12_000);
+assert.equal(afterGoal.phase, 'countdown');
+assert.equal(afterGoal.remaining, 3);
+assert.equal(afterGoal.elapsed, 5);
+const goalDraft = afterGoal.export();
+const restoredGoalDraft = new MatchClockCore({
+    minutes: 1,
+    periods: 1,
+    rest_seconds: 5,
+    countdown_seconds: 5,
+});
+restoredGoalDraft.restore(goalDraft);
+restoredGoalDraft.tick(15_000);
+assert.equal(restoredGoalDraft.phase, 'period');
+assert.equal(restoredGoalDraft.remaining, 55);
+assert.equal(restoredGoalDraft.elapsed, 5);
+restoredGoalDraft.tick(20_000);
+assert.equal(restoredGoalDraft.remaining, 50);
+assert.equal(restoredGoalDraft.elapsed, 10);
+restoredGoalDraft.togglePause(20_000);
+restoredGoalDraft.tick(40_000);
+assert.equal(restoredGoalDraft.elapsed, 10);
+restoredGoalDraft.togglePause(40_000);
+restoredGoalDraft.tick(90_000);
+assert.equal(restoredGoalDraft.phase, 'finished');
+assert.equal(restoredGoalDraft.elapsed, 60);
+afterGoal.togglePause(12_000);
+afterGoal.tick(30_000);
+assert.equal(afterGoal.phase, 'countdown');
+assert.equal(afterGoal.remaining, 3);
+afterGoal.togglePause(30_000);
+afterGoal.tick(33_000);
+assert.equal(afterGoal.phase, 'period');
+assert.equal(afterGoal.remaining, 55);
+assert.equal(afterGoal.restartCountdown(33_000), true);
+afterGoal.tick(39_000);
+assert.equal(afterGoal.elapsed, 6);
+assert.equal(afterGoal.remaining, 54);
+afterGoal.finish(39_000);
+assert.equal(afterGoal.restartCountdown(39_000), false);
+assert.equal(afterGoal.elapsed, 6);
+
+const noCountdown = new MatchClockCore({
+    minutes: 1,
+    periods: 1,
+    rest_seconds: 5,
+    countdown_seconds: 0,
+});
+noCountdown.start(0);
+noCountdown.tick(10_000);
+assert.equal(noCountdown.restartCountdown(10_000), false);
+assert.equal(noCountdown.remaining, 50);
+assert.equal(noCountdown.elapsed, 10);
 console.log(
-    'Relógio: pré-contagem, pausa, descanso, tempos, atraso e recuperação passaram.',
+    'Relógio: pré-contagem, pós-gol, pausa, descanso, tempos, atraso e recuperação passaram.',
 );

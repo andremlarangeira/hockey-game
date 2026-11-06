@@ -6,6 +6,7 @@ import { MatchClockCore } from '@/lib/matchClockCore';
 export function useMatchClock(
     settings: MatchSettings,
     onTransition: () => void,
+    onCountdown: (second: number) => void,
 ) {
     const clock = new MatchClockCore(settings);
     const state = reactive({
@@ -17,6 +18,7 @@ export function useMatchClock(
         startedAt: null as string | null,
     });
     let timer: ReturnType<typeof setInterval> | undefined;
+    let countdownSecond: number | null = null;
     const sync = () => {
         const previous = clock.transitions.length;
         clock.tick();
@@ -29,6 +31,19 @@ export function useMatchClock(
             startedAt: clock.startedAt,
         });
         if (previous !== clock.transitions.length) onTransition();
+        const second =
+            state.phase === 'countdown' && !state.paused
+                ? state.remaining
+                : null;
+        if (
+            second !== null &&
+            second > 0 &&
+            second <= 5 &&
+            second !== countdownSecond
+        ) {
+            onCountdown(second);
+        }
+        countdownSecond = second;
     };
     onMounted(() => {
         timer = setInterval(sync, 200);
@@ -65,6 +80,11 @@ export function useMatchClock(
         reset: () => {
             clock.reset();
             sync();
+        },
+        restartCountdown: () => {
+            const restarted = clock.restartCountdown();
+            sync();
+            return restarted;
         },
         tick: sync,
     });
