@@ -1,26 +1,26 @@
 <script setup lang="ts">
-import PlayerPhoto from "@/components/hockey/PlayerPhoto.vue";
-import StarRating from "@/components/hockey/StarRating.vue";
-import { Head, router, useForm } from "@inertiajs/vue3";
-import { Pencil, Plus, Search, Trash2, Users, X } from "lucide-vue-next";
-import { computed, ref } from "vue";
-import type { Player } from "@/types/hockey";
+import PlayerPhoto from '@/components/hockey/PlayerPhoto.vue';
+import StarRating from '@/components/hockey/StarRating.vue';
+import { Head, router, useForm } from '@inertiajs/vue3';
+import { Pencil, Plus, Search, Trash2, Users, X } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+import type { Player } from '@/types/hockey';
 
 const props = defineProps<{ players: Player[]; presentCount: number }>();
 const editing = ref<Player | null>(null);
 const showForm = ref(false);
-const search = ref("");
+const search = ref('');
 const photoPreview = ref<string | null>(null);
 const form = useForm<{
     name: string;
-    jersey_number: number | "";
+    jersey_number: number | '';
     level: number;
     present: boolean;
     photo: File | null;
     remove_photo: boolean;
 }>({
-    name: "",
-    jersey_number: "",
+    name: '',
+    jersey_number: '',
     level: 3,
     present: true,
     photo: null,
@@ -38,7 +38,7 @@ function openNew() {
     showForm.value = true;
     photoPreview.value = null;
     form.reset();
-    form.jersey_number = "";
+    form.jersey_number = '';
     form.level = 3;
 }
 function openEdit(player: Player) {
@@ -64,7 +64,7 @@ function preview(event: Event) {
 }
 function save() {
     if (editing.value) {
-        form.transform((data) => ({ ...data, _method: "patch" })).post(
+        form.transform((data) => ({ ...data, _method: 'patch' })).post(
             `/jogadores/${editing.value.id}`,
             {
                 forceFormData: true,
@@ -73,7 +73,7 @@ function save() {
             },
         );
     } else {
-        form.post("/jogadores", {
+        form.post('/jogadores', {
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => closeForm(),
@@ -81,7 +81,7 @@ function save() {
     }
 }
 function presenceAll(present: boolean) {
-    router.post("/presenca", { present }, { preserveScroll: true });
+    router.post('/presenca', { present }, { preserveScroll: true });
 }
 function toggle(player: Player) {
     router.patch(
@@ -191,7 +191,7 @@ function remove(player: Player) {
                                     : 'text-slate-500'
                             "
                         >
-                            {{ player.present ? "Presente" : "Ausente" }}
+                            {{ player.present ? 'Presente' : 'Ausente' }}
                         </span>
                     </div>
                     <strong
@@ -249,7 +249,7 @@ function remove(player: Player) {
             >
                 <div class="flex items-center justify-between">
                     <h2 class="text-xl font-black">
-                        {{ editing ? "Editar jogador" : "Novo jogador" }}
+                        {{ editing ? 'Editar jogador' : 'Novo jogador' }}
                     </h2>
                     <button
                         type="button"
@@ -269,7 +269,7 @@ function remove(player: Player) {
                     /><span
                         v-else
                         class="flex size-20 items-center justify-center rounded-2xl bg-slate-100 text-2xl font-black text-slate-400"
-                        >{{ form.jersey_number || "?" }}</span
+                        >{{ form.jersey_number || '?' }}</span
                     >
                     <div>
                         <label
@@ -350,7 +350,7 @@ function remove(player: Player) {
                         class="min-h-12 flex-1 rounded-xl bg-[var(--team-primary)] font-bold text-[var(--team-primary-text)] disabled:opacity-50"
                         :disabled="form.processing"
                     >
-                        {{ form.processing ? "Salvando…" : "Salvar jogador" }}
+                        {{ form.processing ? 'Salvando…' : 'Salvar jogador' }}
                     </button>
                 </div>
             </form>
