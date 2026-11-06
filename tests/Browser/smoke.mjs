@@ -153,6 +153,7 @@ try {
     await page.waitForURL('**/partida');
     await page.getByRole('button', { name: 'Confirmar equipes' }).waitFor();
     await page.getByRole('button', { name: 'Confirmar equipes' }).click();
+    await page.locator('[data-test="minutos"]').fill('2');
     await page.locator('[data-test="contagem"]').fill('5');
     await page
         .getByRole('button', { name: 'Testar som: Início de tempo / partida' })
@@ -168,6 +169,14 @@ try {
     );
     await page.locator('[data-test="abrir-placar"]').click();
     await page.locator('[data-test="iniciar-cronometro"]').waitFor();
+    assert.equal(
+        await page.locator('[data-test="cronometro"]').innerText(),
+        '02:00',
+        'O cronômetro reflete os 2 minutos configurados antes de iniciar',
+    );
+    await page.evaluate(() => {
+        window.testSounds = [];
+    });
     await page.setViewportSize({ width: 844, height: 390 });
     await page.locator('[data-test="iniciar-cronometro"]').click();
     await page.waitForTimeout(6100);
@@ -176,11 +185,10 @@ try {
         5,
         'A contagem inicial emite cinco bipes',
     );
-    assert.ok(
-        await page.evaluate(() =>
-            window.testSounds.includes('/sons/apito-inicio.wav'),
-        ),
-        'A partida usa o apito sintetizado',
+    assert.deepEqual(
+        await page.evaluate(() => window.testSounds),
+        ['/sons/apito-inicio.wav'],
+        'A partida toca apenas o apito ao fim da contagem inicial',
     );
     assert.equal(
         await page.locator('[data-test="iniciar-cronometro"]').innerText(),
@@ -245,6 +253,11 @@ try {
     await page.waitForFunction(
         () =>
             document.querySelector('[data-test="gol-casa"]').disabled === false,
+    );
+    assert.equal(
+        await page.evaluate(() => window.testSounds.at(-1)),
+        '/sons/apito-inicio.wav',
+        'O apito toca ao final da contagem regressiva pós-gol',
     );
     await page.locator('[data-test="gol-casa"]').click();
     await page.locator('[data-scorer-id]').last().click();

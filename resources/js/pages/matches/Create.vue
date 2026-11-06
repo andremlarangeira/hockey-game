@@ -129,10 +129,16 @@ onMounted(() => {
             teams.value = [draft.roster.home, draft.roster.away];
             goals.value = draft.goals ?? [];
             timeline.value = draft.timeline ?? [];
-            config.value = draft.config;
-            recordedTransitions = 0;
+            Object.assign(config.value, draft.config);
+            clock.configure(config.value);
+            const savedClock = JSON.parse(draft.serializedClock ?? 'null') as {
+                transitions?: unknown[];
+            } | null;
+            recordedTransitions = Array.isArray(savedClock?.transitions)
+                ? savedClock.transitions.length
+                : 0;
             clock.restore(draft.serializedClock);
-            recordedTransitions = clock.transitions.length;
+            clock.configure(config.value);
             recordTransitions();
             if (clock.state.phase !== 'idle') showConfig.value = false;
         }
@@ -165,11 +171,13 @@ function prepare() {
         error.value = 'Volte ao sorteio para escolher as equipes.';
         return;
     }
+    clock.configure(config.value);
     showConfig.value = false;
 }
 async function toggleMatch() {
-    await sound.unlock();
+    await sound.unlock(sounds.value);
     if (clock.state.phase === 'idle') {
+        clock.configure(config.value);
         clock.start();
         void wake.request();
         timeline.value.push({
@@ -209,16 +217,19 @@ function recordTransitions() {
                 period,
                 elapsed_seconds: event.elapsed,
             });
-            sound.play(sounds.value, 'end');
+            if (!restoring.value) sound.play(sounds.value, 'end');
         }
-        if (ended === 'rest')
+        if (ended === 'rest') {
             timeline.value.push({
                 at: event.at,
                 type: 'rest_end',
                 period,
                 elapsed_seconds: event.elapsed,
             });
-        if (ended === 'countdown') sound.play(sounds.value, 'start');
+            if (!restoring.value) sound.play(sounds.value, 'rest_end');
+        }
+        if (ended === 'countdown' && !restoring.value)
+            sound.play(sounds.value, 'start');
         if (event.started === 'period') {
             timeline.value.push({
                 at: event.at,
@@ -226,7 +237,6 @@ function recordTransitions() {
                 period: event.period,
                 elapsed_seconds: event.elapsed,
             });
-            sound.play(sounds.value, 'rest_end');
         }
         if (event.started === 'rest')
             timeline.value.push({
@@ -263,6 +273,7 @@ function resetMatch() {
         )
     )
         return;
+    clock.configure(config.value);
     clock.reset();
     localStorage.removeItem(draftKey);
     roster.value = null;
@@ -279,6 +290,13 @@ watch(
     (running) => {
         if (running && !clock.state.paused) void wake.request();
     },
+);
+watch(
+    config,
+    (value) => {
+        clock.configure(value);
+    },
+    { deep: true },
 );
 watch(
     [roster, goals, timeline, config],
@@ -323,7 +341,7 @@ window.addEventListener('pagehide', pageHide);
 onBeforeUnmount(() => window.removeEventListener('pagehide', pageHide));
 async function openGoal(team: 'home' | 'away') {
     if (clock.state.phase !== 'period' || clock.state.paused) return;
-    await sound.unlock();
+    await sound.unlock(sounds.value);
     if (clock.state.phase !== 'period' || clock.state.paused) return;
     dialog.value = { team, scorer: null };
 }
@@ -333,6 +351,7 @@ function scorer(player: Player) {
 function assist(player: Player | null) {
     const current = dialog.value;
     if (!current?.scorer || !roster.value) return;
+    void sound.unlock(sounds.value);
     goals.value.push({
         id: crypto.randomUUID(),
         team: current.team,
@@ -633,7 +652,11 @@ onBeforeUnmount(() => {
                         type="button"
                         class="flex min-h-10 items-center gap-1 rounded-lg bg-slate-900 px-3 text-xs font-bold text-white"
                         :aria-label="`Testar som: ${label}`"
-                        @click="sound.play(sounds, key)"
+                        @click="
+                            sound
+                                .unlock(sounds)
+                                .then(() => sound.play(sounds, key))
+                        "
                     >
                         <Volume2 class="size-4" />Testar
                     </button>
