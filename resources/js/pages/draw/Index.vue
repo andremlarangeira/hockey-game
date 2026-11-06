@@ -1,49 +1,48 @@
 <script setup lang="ts">
-import PlayerPhoto from '@/components/hockey/PlayerPhoto.vue';
-import StarRating from '@/components/hockey/StarRating.vue';
-import { Head, Link, router } from '@inertiajs/vue3';
-import { ArrowRight, GripVertical, RotateCcw, Shuffle } from 'lucide-vue-next';
-import draggable from 'vuedraggable';
-import { computed, ref } from 'vue';
-import type { DrawResult, DrawTeam, Player } from '@/types/hockey';
+import PlayerPhoto from "@/components/hockey/PlayerPhoto.vue";
+import { Head, Link, router } from "@inertiajs/vue3";
+import { ArrowRight, GripVertical, RotateCcw, Shuffle } from "lucide-vue-next";
+import draggable from "vuedraggable";
+import { computed, ref } from "vue";
+import type { DrawResult, DrawTeam, Player } from "@/types/hockey";
 
 const props = defineProps<{
     players: Player[];
     result: DrawResult;
-    mode: 'players' | 'teams';
+    mode: "players" | "teams";
     size: number;
     error?: string;
 }>();
 const teams = ref<DrawTeam[]>(props.result.teams.map((team) => ({ ...team })));
 const reserves = ref<Player[]>(props.result.reserves ?? []);
-const mode = ref<'players' | 'teams'>(props.mode);
+const mode = ref<"players" | "teams">(props.mode);
 const size = ref(props.size);
 const loading = ref(false);
-const error = ref(props.error || '');
+const error = ref(props.error || "");
 const options = computed(() =>
-    mode.value === 'players' ? [2, 3, 4, 5, 6, 7, 8] : [2, 3, 4, 5, 6, 7, 8],
+    mode.value === "players" ? [2, 3, 4, 5, 6, 7, 8] : [2, 3, 4, 5, 6, 7, 8],
 );
 const total = (players: Player[]) =>
     players.reduce((sum, player) => sum + Number(player.level), 0);
 const average = (players: Player[]) =>
     players.length
-        ? (total(players) / players.length).toLocaleString('pt-BR', {
+        ? (total(players) / players.length).toLocaleString("pt-BR", {
               maximumFractionDigits: 2,
           })
-        : '0';
+        : "0";
 async function draw() {
     loading.value = true;
-    error.value = '';
+    error.value = "";
     try {
         const csrf =
             document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
-                ?.content ?? '';
-        const response = await fetch('/sorteio', {
-            method: 'POST',
+                ?.content ?? "";
+        const response = await fetch("/sorteio", {
+            method: "POST",
             headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrf,
-                Accept: 'application/json',
+                "Content-Type": "application/json",
+                "X-CSRF-TOKEN": csrf,
+                Accept: "application/json",
             },
             body: JSON.stringify({ mode: mode.value, size: size.value }),
         });
@@ -52,30 +51,30 @@ async function draw() {
             error.value =
                 data.errors?.size?.[0] ||
                 data.message ||
-                'Não foi possível sortear.';
+                "Não foi possível sortear.";
             return;
         }
         const result = data as DrawResult;
         teams.value = result.teams;
         reserves.value = result.reserves;
-        sessionStorage.removeItem('hockey-match');
+        sessionStorage.removeItem("hockey-match");
     } finally {
         loading.value = false;
     }
 }
 function totals(team: DrawTeam) {
     team.total = total(team.players);
-    team.average = Number(average(team.players).replace(',', '.'));
+    team.average = Number(average(team.players).replace(",", "."));
 }
 function update() {
     teams.value.forEach(totals);
 }
 function goToMatch() {
     sessionStorage.setItem(
-        'hockey-teams',
+        "hockey-teams",
         JSON.stringify({ teams: teams.value, reserves: reserves.value }),
     );
-    router.visit('/partida');
+    router.visit("/partida");
 }
 </script>
 
@@ -116,9 +115,9 @@ function goToMatch() {
         <div class="mt-4 flex flex-wrap items-end gap-3">
             <label class="flex-1 text-sm font-bold"
                 >{{
-                    mode === 'players'
-                        ? 'Jogadores em cada equipe'
-                        : 'Quantidade de equipes'
+                    mode === "players"
+                        ? "Jogadores em cada equipe"
+                        : "Quantidade de equipes"
                 }}<select
                     v-model.number="size"
                     class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3"
@@ -139,10 +138,10 @@ function goToMatch() {
             >
                 <Shuffle class="size-5" />{{
                     loading
-                        ? 'Sorteando…'
+                        ? "Sorteando…"
                         : teams.length
-                          ? 'Sortear novamente'
-                          : 'Sortear equipes'
+                          ? "Sortear novamente"
+                          : "Sortear equipes"
                 }}
             </button>
         </div>
@@ -177,7 +176,7 @@ function goToMatch() {
                 <div class="text-right text-xs font-bold text-slate-500">
                     <span class="text-base text-slate-900"
                         >{{
-                            total(team.players).toLocaleString('pt-BR')
+                            total(team.players).toLocaleString("pt-BR")
                         }}
                         ★</span
                     >
@@ -205,12 +204,12 @@ function goToMatch() {
                         /><PlayerPhoto :player="player" size="size-10" /><span
                             class="min-w-0 flex-1 truncate text-sm font-bold"
                             >{{ player.name }}</span
-                        ><StarRating
-                            :model-value="Number(player.level)"
-                            readonly
-                            compact
-                        /></div></template
-            ></draggable>
+                        ><strong class="shrink-0 text-lg font-black"
+                            >#{{ player.jersey_number }}</strong
+                        >
+                    </div></template
+                ></draggable
+            >
         </section>
         <section
             class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4"
@@ -240,12 +239,12 @@ function goToMatch() {
                         /><PlayerPhoto :player="player" size="size-10" /><span
                             class="min-w-0 flex-1 truncate text-sm font-bold"
                             >{{ player.name }}</span
-                        ><StarRating
-                            :model-value="Number(player.level)"
-                            readonly
-                            compact
-                        /></div></template
-            ></draggable>
+                        ><strong class="shrink-0 text-lg font-black"
+                            >#{{ player.jersey_number }}</strong
+                        >
+                    </div></template
+                ></draggable
+            >
         </section>
     </div>
     <div

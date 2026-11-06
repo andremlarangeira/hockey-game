@@ -1,26 +1,26 @@
 <script setup lang="ts">
-import PlayerPhoto from '@/components/hockey/PlayerPhoto.vue';
-import StarRating from '@/components/hockey/StarRating.vue';
-import { Head, router, useForm } from '@inertiajs/vue3';
-import { Check, Pencil, Plus, Search, Trash2, Users, X } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
-import type { Player } from '@/types/hockey';
+import PlayerPhoto from "@/components/hockey/PlayerPhoto.vue";
+import StarRating from "@/components/hockey/StarRating.vue";
+import { Head, router, useForm } from "@inertiajs/vue3";
+import { Pencil, Plus, Search, Trash2, Users, X } from "lucide-vue-next";
+import { computed, ref } from "vue";
+import type { Player } from "@/types/hockey";
 
 const props = defineProps<{ players: Player[]; presentCount: number }>();
 const editing = ref<Player | null>(null);
 const showForm = ref(false);
-const search = ref('');
+const search = ref("");
 const photoPreview = ref<string | null>(null);
 const form = useForm<{
     name: string;
-    jersey_number: number | '';
+    jersey_number: number | "";
     level: number;
     present: boolean;
     photo: File | null;
     remove_photo: boolean;
 }>({
-    name: '',
-    jersey_number: '',
+    name: "",
+    jersey_number: "",
     level: 3,
     present: true,
     photo: null,
@@ -38,7 +38,7 @@ function openNew() {
     showForm.value = true;
     photoPreview.value = null;
     form.reset();
-    form.jersey_number = '';
+    form.jersey_number = "";
     form.level = 3;
 }
 function openEdit(player: Player) {
@@ -64,7 +64,7 @@ function preview(event: Event) {
 }
 function save() {
     if (editing.value) {
-        form.transform((data) => ({ ...data, _method: 'patch' })).post(
+        form.transform((data) => ({ ...data, _method: "patch" })).post(
             `/jogadores/${editing.value.id}`,
             {
                 forceFormData: true,
@@ -73,7 +73,7 @@ function save() {
             },
         );
     } else {
-        form.post('/jogadores', {
+        form.post("/jogadores", {
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => closeForm(),
@@ -81,7 +81,7 @@ function save() {
     }
 }
 function presenceAll(present: boolean) {
-    router.post('/presenca', { present }, { preserveScroll: true });
+    router.post("/presenca", { present }, { preserveScroll: true });
 }
 function toggle(player: Player) {
     router.patch(
@@ -159,69 +159,63 @@ function remove(player: Player) {
         <article
             v-for="player in filteredPlayers"
             :key="player.id"
-            class="relative overflow-hidden rounded-2xl border bg-white"
+            class="rounded-xl border bg-white transition-colors"
             :class="
                 player.present
                     ? 'border-green-300'
-                    : 'border-slate-200 opacity-70'
+                    : 'border-slate-200 bg-slate-50/60'
             "
             :data-player-id="player.id"
         >
-            <div class="flex gap-3 p-4">
-                <PlayerPhoto :player="player" size="size-16" />
-                <div class="min-w-0 flex-1">
-                    <div class="flex items-start justify-between">
-                        <h2 class="truncate pr-2 font-bold">
+            <div class="flex items-center gap-1 p-2.5">
+                <label
+                    class="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5"
+                >
+                    <input
+                        type="checkbox"
+                        class="size-5 shrink-0 accent-green-700"
+                        :checked="player.present"
+                        :aria-label="`Presença de ${player.name}`"
+                        @change="toggle(player)"
+                    />
+                    <PlayerPhoto :player="player" size="size-12" />
+                    <div class="min-w-0 flex-1">
+                        <h2 class="truncate text-sm font-bold">
                             {{ player.name }}
                         </h2>
-                        <span class="text-xs text-slate-400"
-                            >#{{ player.jersey_number }}</span
+                        <span
+                            class="text-xs"
+                            :class="
+                                player.present
+                                    ? 'font-bold text-green-700'
+                                    : 'text-slate-500'
+                            "
                         >
+                            {{ player.present ? "Presente" : "Ausente" }}
+                        </span>
                     </div>
-                    <StarRating
-                        :model-value="Number(player.level)"
-                        readonly
-                        compact
-                    />
-                    <p class="mt-1 text-xs text-slate-500">
-                        {{ Number(player.level).toLocaleString('pt-BR') }} de 5
-                    </p>
-                    <div class="mt-2 flex gap-1">
-                        <button
-                            class="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
-                            :aria-label="`Editar ${player.name}`"
-                            @click="openEdit(player)"
-                        >
-                            <Pencil class="size-4" /></button
-                        ><button
-                            class="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-600"
-                            :aria-label="`Remover ${player.name}`"
-                            @click="remove(player)"
-                        >
-                            <Trash2 class="size-4" />
-                        </button>
-                    </div>
+                    <strong
+                        class="shrink-0 text-3xl leading-none font-black tracking-tight text-slate-800"
+                        >#{{ player.jersey_number }}</strong
+                    >
+                </label>
+                <div class="flex shrink-0">
+                    <button
+                        class="flex size-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
+                        :aria-label="`Editar ${player.name}`"
+                        @click="openEdit(player)"
+                    >
+                        <Pencil class="size-4" />
+                    </button>
+                    <button
+                        class="flex size-8 items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600"
+                        :aria-label="`Remover ${player.name}`"
+                        @click="remove(player)"
+                    >
+                        <Trash2 class="size-4" />
+                    </button>
                 </div>
             </div>
-            <button
-                class="flex min-h-12 w-full items-center justify-center gap-2 border-t text-sm font-bold"
-                :class="
-                    player.present
-                        ? 'border-green-200 bg-green-50 text-green-800'
-                        : 'border-slate-200 bg-slate-50 text-slate-500'
-                "
-                :aria-pressed="player.present"
-                @click="toggle(player)"
-            >
-                <Check v-if="player.present" class="size-5" /><X
-                    v-else
-                    class="size-5"
-                />{{
-                    player.present
-                        ? 'Presente no sorteio'
-                        : 'Ausente — tocar para marcar'
-                }}
-            </button>
         </article>
     </div>
     <div
@@ -255,7 +249,7 @@ function remove(player: Player) {
             >
                 <div class="flex items-center justify-between">
                     <h2 class="text-xl font-black">
-                        {{ editing ? 'Editar jogador' : 'Novo jogador' }}
+                        {{ editing ? "Editar jogador" : "Novo jogador" }}
                     </h2>
                     <button
                         type="button"
@@ -275,7 +269,7 @@ function remove(player: Player) {
                     /><span
                         v-else
                         class="flex size-20 items-center justify-center rounded-2xl bg-slate-100 text-2xl font-black text-slate-400"
-                        >{{ form.jersey_number || '?' }}</span
+                        >{{ form.jersey_number || "?" }}</span
                     >
                     <div>
                         <label
@@ -356,7 +350,7 @@ function remove(player: Player) {
                         class="min-h-12 flex-1 rounded-xl bg-[var(--team-primary)] font-bold text-[var(--team-primary-text)] disabled:opacity-50"
                         :disabled="form.processing"
                     >
-                        {{ form.processing ? 'Salvando…' : 'Salvar jogador' }}
+                        {{ form.processing ? "Salvando…" : "Salvar jogador" }}
                     </button>
                 </div>
             </form>
