@@ -11,7 +11,7 @@ Aplicativo para organizar times de hockey informal: elenco e presença, sorteio 
 - Partida: duração e quantidade de tempos, descanso, contagem inicial, pausa, retomada, reinício e transições automáticas. O relógio usa timestamps, não apenas intervalos.
 - Cards compactos de jogadores com checkbox de presença, foto e número da camisa em destaque. As estrelas aparecem somente no cadastro/edição e continuam sendo usadas no equilíbrio.
 - Botões grandes de gol: primeiro o autor, depois a assistência ou “Sem assistência”. Ao confirmar, o cronômetro é pausado e reinicia com a contagem configurada; o tempo jogado é preservado. Desfazer apaga o último gol e deixa um evento na cronologia, sem retroceder o cronômetro.
-- Bipes nos últimos 5 segundos de cada contagem, apito original de árbitro no início e buzzer grave no fim. Opção de áudio local para esses eventos e botões de teste.
+- Bipes nos últimos 5 segundos de cada contagem, gravação real de apito de árbitro no início (e após a contagem de gol) e buzzer grave no fim. Opção de áudio local para esses eventos e botões de teste.
 - Tela cheia, tentativa de travar orientação em paisagem e Wake Lock durante a partida.
 - Salvamento dos elencos, resultado, gols, assistências, períodos, cronômetro e cronologia. Recuperação do rascunho no mesmo navegador após F5/fechamento acidental.
 - Histórico de partidas e estatísticas de jogos, gols e assistências.
@@ -83,3 +83,7 @@ npm run test:e2e
 - O rascunho em andamento fica no armazenamento deste navegador, por conta. Não é sincronização online nem backup multi-dispositivo. Limpar os dados do navegador descarta esse rascunho; partidas salvas ficam no banco.
 - Recuperar um rascunho não toca os sons de transições ocorridas enquanto a página estava fechada; o cronômetro ainda acerta o tempo e o histórico registra os limites pelo horário planejado.
 - O toque curto em itens do sorteio não move jogadores: é preciso arrastá-los para outra lista. Um jogador pode ser enviado para reservas manualmente mesmo no modo número de equipes.
+
+## Créditos e licença de áudio
+
+- `public/sons/apito-inicio.wav`: gravação real de apito de árbitro em ginásio (_Referee's whistle blowing inside a gymnasium_), gravada por **SpliceSound**, obtida do [Wikimedia Commons — File:218318 splicesound referee-whistle-blow-gymnasium.wav](https://commons.wikimedia.org/wiki/File:218318_splicesound_referee-whistle-blow-gymnasium.wav) (origem no [Freesound #218318](https://freesound.org/people/SpliceSound/sounds/218318/)), sob licença **CC0 1.0 Universal (Domínio Público)** — [creativecommons.org/publicdomain/zero/1.0/](https://creativecommons.org/publicdomain/zero/1.0/deed.pt_BR). Convertida para WAV mono 22.050 Hz de 1,0 s normalizado.

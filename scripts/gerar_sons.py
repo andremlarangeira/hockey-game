@@ -1,9 +1,16 @@
-"""Gera os efeitos originais do Na Quadra, sem amostras externas."""
+"""Gera os efeitos sonoros do Na Quadra.
+
+O arquivo `public/sons/apito-inicio.wav` padrão provém de uma gravação real de
+apito de árbitro em domínio público (CC0 1.0) no Wikimedia Commons:
+https://commons.wikimedia.org/wiki/File:218318_splicesound_referee-whistle-blow-gymnasium.wav
+Passe `--sintetizar-apito` apenas se quiser recriar um apito de ervilha sintético.
+"""
 from array import array
 import math
 from pathlib import Path
 import random
 import struct
+import sys
 import wave
 
 RATE = 22_050
@@ -21,25 +28,30 @@ def salvar(nome: str, amostras: list[float]) -> None:
 
 def apito() -> None:
     rng = random.Random(20261106)
-    ruido = 0.0
+    bp_prev1 = 0.0
+    bp_prev2 = 0.0
     amostras = []
-    duracao = 0.90
+    duracao = 0.95
+    fase1 = 0.0
+    fase2 = 0.0
     for i in range(round(RATE * duracao)):
         t = i / RATE
-        # Três sopros curtos, harmonicas agudas e turbulência de um apito de árbitro.
-        envelopes = ((0.00, 0.22), (0.27, 0.49), (0.54, 0.88))
-        env = 0.0
-        for inicio, fim in envelopes:
-            if inicio <= t < fim:
-                local = (t - inicio) / (fim - inicio)
-                env = min(1.0, local * 45, (1 - local) * 30)
-                break
-        ruido = 0.72 * ruido + 0.28 * rng.uniform(-1, 1)
-        vibrato = 35 * math.sin(2 * math.pi * 24 * t)
-        freq = 2350 + vibrato
-        fase = 2 * math.pi * freq * t
-        tom = math.sin(fase) + 0.34 * math.sin(2.01 * fase) + 0.16 * math.sin(3.02 * fase)
-        amostras.append(0.52 * env * (0.72 * tom + 0.28 * ruido))
+        ataque = min(1.0, t / 0.008)
+        cauda = min(1.0, max(0.0, (duracao - t) / 0.14))
+        env = ataque * cauda
+        # Trilo rápido da ervilha (~30 Hz) modulando amplitude e frequência.
+        trilo = 0.68 + 0.32 * math.sin(2 * math.pi * 30.0 * t + 0.25 * math.sin(2 * math.pi * 7.5 * t))
+        f1 = 2840.0 + 55.0 * trilo
+        f2 = 3120.0 + 62.0 * trilo
+        fase1 += 2 * math.pi * f1 / RATE
+        fase2 += 2 * math.pi * f2 / RATE
+        tom = 0.62 * math.sin(fase1) + 0.38 * math.sin(fase2) + 0.18 * math.sin(2 * fase1)
+        # Ruído de sopro filtrado em torno da faixa aguda do apito.
+        branco = rng.uniform(-1.0, 1.0)
+        bp = 0.22 * branco + 0.52 * bp_prev1 - 0.38 * bp_prev2
+        bp_prev2 = bp_prev1
+        bp_prev1 = bp
+        amostras.append(0.78 * env * (trilo * tom + 0.22 * bp))
     salvar("apito-inicio.wav", amostras)
 
 
@@ -60,5 +72,6 @@ def buzzer() -> None:
 
 if __name__ == "__main__":
     DESTINO.mkdir(parents=True, exist_ok=True)
-    apito()
+    if "--sintetizar-apito" in sys.argv or not (DESTINO / "apito-inicio.wav").exists():
+        apito()
     buzzer()
