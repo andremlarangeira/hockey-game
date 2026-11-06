@@ -26,7 +26,57 @@ export class MatchClockCore {
     private pausedAt: number | null = null;
     private stages: Stage[] = [];
     constructor(private settings: MatchSettings) {
-        this.remaining = settings.minutes * 60;
+        this.remaining = this.settings.minutes * 60;
+    }
+    configure(settings: MatchSettings, now = Date.now()): void {
+        const minutes =
+            Number.isFinite(settings.minutes) && settings.minutes > 0
+                ? Math.floor(settings.minutes)
+                : this.settings.minutes;
+        const periods =
+            Number.isFinite(settings.periods) && settings.periods > 0
+                ? Math.floor(settings.periods)
+                : this.settings.periods;
+        const rest_seconds =
+            Number.isFinite(settings.rest_seconds) && settings.rest_seconds > 0
+                ? Math.floor(settings.rest_seconds)
+                : this.settings.rest_seconds;
+        const countdown_seconds =
+            Number.isFinite(settings.countdown_seconds) &&
+            settings.countdown_seconds >= 0
+                ? Math.floor(settings.countdown_seconds)
+                : this.settings.countdown_seconds;
+        Object.assign(this.settings, {
+            minutes,
+            periods,
+            rest_seconds,
+            countdown_seconds,
+        });
+        if (this.phase === 'idle') {
+            this.remaining = this.settings.minutes * 60;
+            return;
+        }
+        if (this.phase === 'finished' || this.index < 0) return;
+        if (this.phase === 'countdown' && this.playedMs === 0) {
+            this.rebuildStagesFrom(1, this.current.end);
+            return;
+        }
+        if (
+            this.phase === 'period' &&
+            this.playedMs === 0 &&
+            this.elapsed === 0
+        ) {
+            const base = this.paused
+                ? (this.pausedAt ?? now)
+                : (this.playStartedAt ?? now);
+            this.current.end = base + this.settings.minutes * 60000;
+            this.remaining = this.settings.minutes * 60;
+            this.rebuildStagesFrom(this.period + 1, this.current.end);
+            return;
+        }
+        if (this.phase === 'rest') {
+            this.rebuildStagesFrom(this.period + 1, this.current.end);
+        }
     }
     start(now = Date.now()): void {
         if (this.phase !== 'idle') return;
@@ -100,7 +150,11 @@ export class MatchClockCore {
         }
     }
     tick(now = Date.now()): number {
-        if (this.paused || this.phase === 'idle') return this.remaining;
+        if (this.phase === 'idle') {
+            this.remaining = this.settings.minutes * 60;
+            return this.remaining;
+        }
+        if (this.paused) return this.remaining;
         while (this.current.end <= now) {
             const previous = this.phase;
             if (previous === 'finished') return 0;
@@ -162,9 +216,12 @@ export class MatchClockCore {
     }
     restore(serialized: string): void {
         const saved = JSON.parse(serialized);
+        if (!saved || typeof saved !== 'object') return;
+        if (saved.phase === 'idle') {
+            this.reset();
+            return;
+        }
         if (
-            !saved ||
-            typeof saved !== 'object' ||
             !Array.isArray(saved.stages) ||
             !Number.isInteger(saved.index) ||
             saved.index < 0 ||
@@ -205,6 +262,33 @@ export class MatchClockCore {
         this.transitions = [];
         this.index = -1;
         this.pausedAt = null;
+    }
+    private rebuildStagesFrom(startPeriod: number, fromTime: number): void {
+        let at = fromTime;
+        const nextStages: Stage[] = [];
+        for (let i = startPeriod; i <= this.settings.periods; i++) {
+            nextStages.push({
+                phase: 'period',
+                number: i,
+                end: (at += this.settings.minutes * 60000),
+            });
+            if (i < this.settings.periods)
+                nextStages.push({
+                    phase: 'rest',
+                    number: i,
+                    end: (at += this.settings.rest_seconds * 1000),
+                });
+        }
+        nextStages.push({
+            phase: 'finished',
+            number: this.settings.periods,
+            end: at,
+        });
+        this.stages.splice(
+            this.index + 1,
+            this.stages.length - (this.index + 1),
+            ...nextStages,
+        );
     }
     private get current(): Stage {
         if (this.index < 0)

@@ -61,6 +61,10 @@ export function useMatchClock(
             ['countdown', 'period', 'rest'].includes(state.phase),
         ),
         formatted: computed(() => formatClock(state.remaining)),
+        configure: (nextSettings: MatchSettings) => {
+            clock.configure(nextSettings);
+            sync();
+        },
         start: () => {
             clock.start();
             sync();

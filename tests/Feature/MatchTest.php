@@ -58,4 +58,15 @@ test('oferece apito e buzzer grave como sons padrão da partida', function () {
         ->component('matches/Create')
         ->where('sounds.start.file', '/sons/apito-inicio.wav')
         ->where('sounds.end.file', '/sons/buzzer-fim.wav'));
+    expect(public_path('sons/apito-inicio.wav'))->toBeFile();
+});
+
+test('salva partida com tempo por período personalizado configurado no placar', function () {
+    [$team, $scorer] = $this->teamWithPlayer();
+    $payload = matchPayload($team, $scorer);
+    $payload['settings']['minutes'] = 2;
+    $payload['goals'][0]['remaining_seconds'] = 95;
+    $this->actingAs($team)->post('/partidas', $payload)->assertRedirect();
+    $match = HockeyMatch::withoutGlobalScopes()->latest('id')->firstOrFail();
+    expect($match->settings->minutes)->toBe(2);
 });

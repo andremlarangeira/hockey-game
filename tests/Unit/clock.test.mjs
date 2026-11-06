@@ -191,6 +191,70 @@ noCountdown.tick(10_000);
 assert.equal(noCountdown.restartCountdown(10_000), false);
 assert.equal(noCountdown.remaining, 50);
 assert.equal(noCountdown.elapsed, 10);
+
+// Atualizar configuração (ex.: de 10 min para 2 min) antes de iniciar, em rascunho idle e durante a pré-contagem.
+const configuredClock = new MatchClockCore({
+    minutes: 10,
+    periods: 2,
+    rest_seconds: 120,
+    countdown_seconds: 5,
+});
+assert.equal(configuredClock.remaining, 600);
+configuredClock.configure({
+    minutes: 2,
+    periods: 2,
+    rest_seconds: 120,
+    countdown_seconds: 5,
+});
+assert.equal(configuredClock.remaining, 120);
+const idleSnapshot = configuredClock.export();
+const restoredIdle = new MatchClockCore({
+    minutes: 10,
+    periods: 2,
+    rest_seconds: 120,
+    countdown_seconds: 5,
+});
+restoredIdle.configure({
+    minutes: 2,
+    periods: 2,
+    rest_seconds: 120,
+    countdown_seconds: 5,
+});
+restoredIdle.restore(idleSnapshot);
+assert.equal(restoredIdle.phase, 'idle');
+assert.equal(restoredIdle.remaining, 120);
+restoredIdle.start(0);
+assert.equal(restoredIdle.phase, 'countdown');
+assert.equal(restoredIdle.remaining, 5);
+restoredIdle.tick(5_000);
+assert.equal(restoredIdle.phase, 'period');
+assert.equal(restoredIdle.remaining, 120);
+
+const countdownReconfigured = new MatchClockCore({
+    minutes: 10,
+    periods: 2,
+    rest_seconds: 60,
+    countdown_seconds: 5,
+});
+countdownReconfigured.start(0);
+countdownReconfigured.tick(2_000);
+assert.equal(countdownReconfigured.phase, 'countdown');
+countdownReconfigured.configure(
+    {
+        minutes: 2,
+        periods: 2,
+        rest_seconds: 30,
+        countdown_seconds: 5,
+    },
+    2_000,
+);
+countdownReconfigured.tick(5_000);
+assert.equal(countdownReconfigured.phase, 'period');
+assert.equal(countdownReconfigured.remaining, 120);
+countdownReconfigured.tick(125_000);
+assert.equal(countdownReconfigured.phase, 'rest');
+assert.equal(countdownReconfigured.remaining, 30);
+
 console.log(
-    'Relógio: pré-contagem, pós-gol, pausa, descanso, tempos, atraso e recuperação passaram.',
+    'Relógio: pré-contagem, pós-gol, pausa, descanso, tempos, atraso, configuração e recuperação passaram.',
 );
