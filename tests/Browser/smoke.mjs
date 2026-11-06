@@ -36,12 +36,57 @@ try {
     await page.locator('[data-test="sortear"]').click();
     await drawResponse;
     await page.waitForTimeout(300);
+    const drawIds = await page
+        .locator('[data-player-id]')
+        .evaluateAll((nodes) =>
+            nodes.map((node) => Number(node.dataset.playerId)),
+        );
+    assert.equal(drawIds.length, 14);
+    assert.equal(
+        new Set(drawIds).size,
+        14,
+        'Cada presente deve entrar exatamente uma vez',
+    );
+    const lastReserve = page.locator('.cursor-grab').last();
+    await lastReserve.scrollIntoViewIfNeeded();
+    const layout = await page.evaluate(() => {
+        const reserve = [
+            ...document.querySelectorAll(
+                '[data-test="reservas"] [data-player-id]',
+            ),
+        ].at(-1);
+        const button = document.querySelector(
+            '[data-test="iniciar-partida"]',
+        ).parentElement;
+        const nav = document.querySelector('nav.fixed');
+        return {
+            reserveBottom: reserve.getBoundingClientRect().bottom,
+            barTop: button.getBoundingClientRect().top,
+            barBottom: button.getBoundingClientRect().bottom,
+            barPosition: getComputedStyle(button).position,
+            navigationTop: nav.getBoundingClientRect().top,
+            navigationPosition: getComputedStyle(nav).position,
+        };
+    });
+    assert.equal(layout.barPosition, 'sticky');
+    assert.equal(layout.navigationPosition, 'fixed');
+    assert.ok(
+        layout.reserveBottom <= layout.barTop,
+        'A barra de preparar partida não pode cobrir o último reserva',
+    );
+    assert.ok(
+        layout.barBottom <= layout.navigationTop,
+        'A barra não pode ficar coberta pela navegação no final da página',
+    );
+    await page.screenshot({ path: `${shots}/02-sorteio-viewport.png` });
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
     await page.screenshot({
         path: `${shots}/02-sorteio-celular.png`,
         fullPage: true,
     });
     await page.locator('[data-test="iniciar-partida"]').click();
     await page.waitForURL('**/partida');
+    await page.getByRole('button', { name: 'Confirmar equipes' }).waitFor();
     await page.getByRole('button', { name: 'Confirmar equipes' }).click();
     await page.locator('[data-test="contagem"]').fill('0');
     await page
@@ -74,6 +119,15 @@ try {
     await page.locator('[data-test="gol-casa"]').click();
     const scorer = page.locator('[data-scorer-id]').first();
     const scorerId = await scorer.getAttribute('data-scorer-id');
+    await page.goto(`${base}/estatisticas`);
+    const goalsBefore = Number(
+        await page
+            .locator(`tbody tr[data-player-id="${scorerId}"] td`)
+            .nth(2)
+            .innerText(),
+    );
+    await page.goBack();
+    await page.locator('[data-test="gol-casa"]').click();
     await scorer.click();
     const assistant = page.locator('[data-assist-id]').first();
     const assistId = await assistant.getAttribute('data-assist-id');
@@ -123,9 +177,12 @@ try {
         true,
     );
     await page.goto(`${base}/estatisticas`);
-    assert.ok(
-        (await page.locator('tbody tr').first().innerText()).includes('1'),
+    const scorerStats = page.locator(`tbody tr[data-player-id="${scorerId}"]`);
+    assert.equal(
+        await scorerStats.locator('td').nth(2).innerText(),
+        String(goalsBefore + 1),
     );
+    assert.equal(await scorerStats.locator('td').nth(3).innerText(), '0');
     if (errors.length) throw new Error(errors.join('\n'));
     console.log(
         'E2E OK: login, jogadores, sorteio, som, pausa, gol + assistência, F5, desfazer, salvar, histórico e estatísticas.',

@@ -35,6 +35,19 @@ test('rejeita uma equipe incompleta no modo por quantidade', function () {
     expect(fn () => (new BalancedDraw)->draw(drawPlayers(5), 'teams', 4))->toThrow(InvalidArgumentException::class);
 });
 
+test('cada presente aparece uma única vez entre equipes e reservas', function () {
+    foreach ([[14, 'players', 4], [18, 'players', 4], [15, 'teams', 3]] as [$count, $mode, $size])
+    {
+        $players = drawPlayers($count);
+        $result = (new BalancedDraw)->draw($players, $mode, $size);
+        $distributed = collect($result['teams'])->pluck('players')->flatten(1)->concat($result['reserves']);
+        expect($distributed->pluck('id')->all())
+            ->each->toBeIn($players->where('present', true)->pluck('id')->all());
+        expect($distributed->count())->toBe($players->count());
+        expect($distributed->pluck('id')->unique()->count())->toBe($players->count());
+    }
+});
+
 test('sorteios repetidos têm grupos diferentes', function () {
     $service = new BalancedDraw;
     $first = collect($service->draw(drawPlayers(), 'players', 4)['teams'])->pluck('players')->flatten(1)->pluck('id')->all();

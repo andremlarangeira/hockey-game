@@ -32,6 +32,7 @@ defineProps<{
                 <tr
                     v-for="player in players"
                     :key="player.id"
+                    :data-player-id="player.id"
                     class="border-t border-slate-100"
                 >
                     <td class="p-3">

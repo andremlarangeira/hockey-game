@@ -44,6 +44,7 @@ class BalancedDraw
 
         $best = null;
         $bestScore = PHP_FLOAT_MAX;
+        $reserves = collect();
         for ($attempt = 0; $attempt < 240; $attempt++)
         {
             $participants = $present->shuffle()->take($participantCount)
@@ -74,6 +75,8 @@ class BalancedDraw
                 $shuffle = range(0, $teamCount - 1);
                 shuffle($shuffle);
                 $best = array_map(fn (int $index): array => $teams[$index], $shuffle);
+                $drawnIds = $participants->pluck('id')->all();
+                $reserves = $present->reject(fn (array $player): bool => in_array($player['id'], $drawnIds, true))->values();
                 $bestScore = $score;
             }
         }
@@ -92,7 +95,7 @@ class BalancedDraw
                 'total' => (float) array_sum(array_column($team, 'level')),
                 'average' => round(array_sum(array_column($team, 'level')) / count($team), 2),
             ])->values()->all(),
-            'reserves' => $present->shuffle()->take($present->count() - $participantCount)->values()->all(),
+            'reserves' => $reserves->all(),
         ];
     }
 }

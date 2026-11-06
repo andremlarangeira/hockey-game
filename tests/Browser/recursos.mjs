@@ -96,6 +96,13 @@ try {
             .getAttribute('aria-pressed'),
         'true',
     );
+    const eligibleIds = await page
+        .locator('[data-player-id]:has(button[aria-pressed="true"])')
+        .evaluateAll((nodes) =>
+            nodes
+                .map((node) => Number(node.dataset.playerId))
+                .sort((a, b) => a - b),
+        );
     await page.goto(`${base}/sorteio`);
     await page
         .getByRole('button', { name: 'Número de equipes', exact: true })
@@ -109,7 +116,25 @@ try {
     await page
         .getByRole('button', { name: 'Jogadores por equipe', exact: true })
         .click();
+    await page.locator('select').selectOption('3');
     await sortear();
+
+    const uniquePlayers = async () => {
+        const ids = await page
+            .locator('[data-player-id]')
+            .evaluateAll((nodes) =>
+                nodes
+                    .map((node) => Number(node.dataset.playerId))
+                    .sort((a, b) => a - b),
+            );
+        assert.deepEqual(
+            ids,
+            eligibleIds,
+            'Cada presente deve aparecer exatamente uma vez',
+        );
+    };
+    await uniquePlayers();
+
     const source = page
         .locator('section')
         .filter({
@@ -119,52 +144,31 @@ try {
         .first();
     const playerId = await source.getAttribute('data-player-id');
     const dest = page.locator('section[data-test="reservas"]');
+    const player = dest.locator(`[data-player-id="${playerId}"]`);
+    const start = await source.boundingBox();
+    if (!start) throw new Error('Origem do arraste ausente');
+    await page.mouse.move(start.x + 30, start.y + 30);
+    await page.mouse.down();
+    await page.waitForTimeout(250);
+    await page.mouse.move(start.x + 35, start.y - 40, { steps: 5 });
     await dest.scrollIntoViewIfNeeded();
-    await source.scrollIntoViewIfNeeded();
-    const dropArea = dest.locator(':scope > div').last();
-    await dropArea.scrollIntoViewIfNeeded();
-    await source.scrollIntoViewIfNeeded();
-    const box = await source.boundingBox();
-    const destBox = await dropArea.boundingBox();
-    if (!box || !destBox) throw new Error('Alvos de arrastar não encontrados');
-    console.log(
-        `Arraste ${playerId}: ${JSON.stringify(box)} para ${JSON.stringify(destBox)}`,
-    );
-    const cdp = await page.context().newCDPSession(page);
-    await cdp.send('Input.dispatchTouchEvent', {
-        type: 'touchStart',
-        touchPoints: [{ x: box.x + box.width / 2, y: box.y + box.height / 2 }],
+    const target = await dest.boundingBox();
+    if (!target) throw new Error('Destino dos reservas ausente');
+    const targetY = Math.min(target.y + 120, 770);
+    await page.mouse.move(target.x + target.width / 2, targetY, {
+        steps: 20,
     });
-    await page.waitForTimeout(300);
-    await cdp.send('Input.dispatchTouchEvent', {
-        type: 'touchMove',
-        touchPoints: [{ x: box.x + box.width / 2, y: box.y - 30 }],
-    });
-    await cdp.send('Input.dispatchTouchEvent', {
-        type: 'touchMove',
-        touchPoints: [
-            {
-                x: destBox.x + Math.min(destBox.width / 2, 100),
-                y: destBox.y + Math.min(destBox.height / 2, 50),
-            },
-        ],
-    });
-    await cdp.send('Input.dispatchTouchEvent', {
-        type: 'touchEnd',
-        touchPoints: [],
-    });
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(350);
+    await page.mouse.up();
+
     assert.equal(
         await source.locator(`[data-player-id="${playerId}"]`).count(),
         0,
     );
+    await player.waitFor({ state: 'visible' });
+    await uniquePlayers();
     console.log(
-        'Cadastro, foto, meia estrela, presença em lote, os dois modos e gesto de toque concluídos.',
-    );
-    assert.equal(
-        (await dest.locator(`[data-player-id="${playerId}"]`).count()) > 0,
-        true,
-        `O jogador arrastado deve aparecer nos reservas: ${playerId}`,
+        'Cadastro, foto, meia estrela, presença em lote, os dois modos e drag-and-drop concluídos, sem duplicatas.',
     );
 } finally {
     await browser.close();

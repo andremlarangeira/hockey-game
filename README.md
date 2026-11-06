@@ -73,7 +73,7 @@ O smoke test de navegador exige o app servido com o seed de demonstração e Chr
 npm run test:e2e
 ```
 
-`APP_URL` e `SCREENSHOT_DIR` podem parametrizar o teste. Ele faz login real no demo, sorteia, controla o relógio, registra gol e assistência, recarrega a partida e salva o histórico. Por isso, o banco demo receberá uma partida a cada execução; não rode contra um banco de produção.
+`APP_URL` e `SCREENSHOT_DIR` podem parametrizar o teste. Ele gera capturas full-page e a `02-sorteio-viewport.png` com os elementos sticky/fixed na posição real do viewport. Ele faz login real no demo, sorteia, controla o relógio, registra gol e assistência, recarrega a partida e salva o histórico. Por isso, o banco demo receberá uma partida a cada execução; não rode contra um banco de produção.
 
 ## Limites dos navegadores e privacidade
 
