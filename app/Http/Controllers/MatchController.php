@@ -36,7 +36,7 @@ class MatchController extends Controller
             'settings' => ['minutes' => 10, 'periods' => 2, 'rest_seconds' => 120, 'countdown_seconds' => 5],
             'sounds' => [
                 'start' => ['type' => 'builtin', 'file' => '/sons/apito-inicio.wav'],
-                'end' => ['type' => 'builtin', 'file' => '/sons/apito-fim.wav'],
+                'end' => ['type' => 'builtin', 'file' => '/sons/buzzer-fim.wav'],
                 'rest_end' => ['type' => 'builtin', 'file' => '/sons/bip-fim-descanso.wav'],
             ],
         ]);

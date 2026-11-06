@@ -9,8 +9,9 @@ Aplicativo para organizar times de hockey informal: elenco e presença, sorteio 
 - Jogadores: foto, número único por time, nível de 1 a 5 estrelas em incrementos de meia estrela e presença em lote.
 - Sorteio aleatório equilibrado por estrelas, por **jogadores por equipe** (padrão) ou por **número de equipes**. Reservas e ajustes por arrastar e soltar, com suporte a toque. No modo número de equipes, todos os presentes são distribuídos e cada equipe precisa ter pelo menos dois jogadores. No outro modo, somente os jogadores excedentes ficam nos reservas.
 - Partida: duração e quantidade de tempos, descanso, contagem inicial, pausa, retomada, reinício e transições automáticas. O relógio usa timestamps, não apenas intervalos.
-- Botões grandes de gol: primeiro o autor, depois a assistência ou “Sem assistência”. Desfazer apaga o último gol e deixa um evento na cronologia.
-- Sons já incluídos, opção de áudio local para cada evento e botões de teste.
+- Cards compactos de jogadores com checkbox de presença, foto e número da camisa em destaque. As estrelas aparecem somente no cadastro/edição e continuam sendo usadas no equilíbrio.
+- Botões grandes de gol: primeiro o autor, depois a assistência ou “Sem assistência”. Ao confirmar, o cronômetro é pausado e reinicia com a contagem configurada; o tempo jogado é preservado. Desfazer apaga o último gol e deixa um evento na cronologia, sem retroceder o cronômetro.
+- Bipes nos últimos 5 segundos de cada contagem, apito original de árbitro no início e buzzer grave no fim. Opção de áudio local para esses eventos e botões de teste.
 - Tela cheia, tentativa de travar orientação em paisagem e Wake Lock durante a partida.
 - Salvamento dos elencos, resultado, gols, assistências, períodos, cronômetro e cronologia. Recuperação do rascunho no mesmo navegador após F5/fechamento acidental.
 - Histórico de partidas e estatísticas de jogos, gols e assistências.
@@ -77,7 +78,7 @@ npm run test:e2e
 
 ## Limites dos navegadores e privacidade
 
-- Áudio, Fullscreen, travar orientação e Wake Lock dependem do navegador/sistema. O áudio é liberado pela primeira interação; o iPhone não oferece todas essas APIs. O aplicativo funciona sem travar orientação.
+- Áudio, Fullscreen, travar orientação e Wake Lock dependem do navegador/sistema. O contexto de áudio é liberado ao iniciar a partida ou abrir o modal de gol. No iPhone/Safari, após recarregar, use o botão de pausa/continuar para habilitar os bipes novamente se o navegador bloquear a retomada automática. O aplicativo funciona sem travar orientação.
 - Sons personalizados são arquivos locais no navegador e ficam como URLs temporárias (`blob:`). Não são enviados ao servidor nem às partidas salvas.
 - O rascunho em andamento fica no armazenamento deste navegador, por conta. Não é sincronização online nem backup multi-dispositivo. Limpar os dados do navegador descarta esse rascunho; partidas salvas ficam no banco.
 - Recuperar um rascunho não toca os sons de transições ocorridas enquanto a página estava fechada; o cronômetro ainda acerta o tempo e o histórico registra os limites pelo horário planejado.

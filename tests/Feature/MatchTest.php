@@ -51,3 +51,11 @@ test('estatísticas contam gols e assistências', function () {
     expect($stats->firstWhere('id', $scorer->id)['goals'])->toBe(1)->and($stats->firstWhere('id', $assist->id)['assists'])->toBe(1)
         ->and($stats->firstWhere('id', $scorer->id)['games'])->toBe(1);
 });
+
+test('oferece apito e buzzer grave como sons padrão da partida', function () {
+    [$team] = $this->teamWithPlayer();
+    $this->actingAs($team)->get('/partida')->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->component('matches/Create')
+        ->where('sounds.start.file', '/sons/apito-inicio.wav')
+        ->where('sounds.end.file', '/sons/buzzer-fim.wav'));
+});
