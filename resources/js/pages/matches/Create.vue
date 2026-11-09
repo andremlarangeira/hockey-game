@@ -4,6 +4,7 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import {
     Clock3,
     Expand,
+    Shrink,
     Pause,
     Play,
     RotateCcw,
@@ -393,6 +394,14 @@ function undo() {
             details: { scorer: goal.scorer_name },
         });
 }
+const isFullscreen = ref(false);
+function syncFullscreen() {
+    isFullscreen.value = Boolean(document.fullscreenElement);
+}
+onMounted(() => document.addEventListener('fullscreenchange', syncFullscreen));
+onBeforeUnmount(() =>
+    document.removeEventListener('fullscreenchange', syncFullscreen),
+);
 async function toggleFullscreen() {
     try {
         if (document.fullscreenElement) await document.exitFullscreen();
@@ -475,7 +484,7 @@ onBeforeUnmount(() => {
 
 <template>
     <Head title="Cronômetro e placar" />
-    <div class="mb-4 flex items-start justify-between gap-3">
+    <div v-if="!isFullscreen" class="mb-4 flex items-start justify-between gap-3">
         <div>
             <p
                 class="text-xs font-bold tracking-widest text-slate-500 uppercase"
@@ -674,7 +683,12 @@ onBeforeUnmount(() => {
     </section>
     <template v-if="!showConfig && roster">
         <section
-            class="overflow-hidden rounded-2xl bg-slate-950 text-white shadow-2xl"
+            class="overflow-hidden bg-slate-950 text-white shadow-2xl"
+            :class="
+                isFullscreen
+                    ? 'fixed inset-0 z-[45] flex flex-col'
+                    : 'rounded-2xl'
+            "
             data-test="placar"
         >
             <div
@@ -704,7 +718,11 @@ onBeforeUnmount(() => {
                         data-test="tela-cheia"
                         @click="toggleFullscreen"
                     >
-                        <Expand class="size-4" />Tela cheia
+                        <template v-if="isFullscreen"
+                            ><Shrink class="size-4" />Sair da tela cheia</template
+                        ><template v-else
+                            ><Expand class="size-4" />Tela cheia</template
+                        >
                     </button>
                 </div>
             </div>
@@ -729,20 +747,38 @@ onBeforeUnmount(() => {
             </div>
             <div
                 class="grid grid-cols-[1fr_auto_1fr] items-center gap-2 p-3 sm:gap-6 sm:p-5 landscape-short:gap-1 landscape-short:p-2"
+                :class="{ 'flex-1': isFullscreen }"
             >
                 <div class="text-center">
-                    <h2 class="truncate text-sm font-black sm:text-xl">
+                    <h2
+                        class="truncate font-black"
+                        :class="
+                            isFullscreen
+                                ? 'text-[min(6vh,4vw)]'
+                                : 'text-sm sm:text-xl'
+                        "
+                    >
                         {{ roster.home.name }}
                     </h2>
                     <strong
-                        class="block text-6xl font-black tabular-nums sm:text-8xl"
+                        class="block font-black tabular-nums"
+                        :class="
+                            isFullscreen
+                                ? 'text-[min(40vh,22vw)] leading-none'
+                                : 'text-6xl sm:text-8xl'
+                        "
                         data-test="placar-casa"
                         >{{ homeScore }}</strong
                     >
                 </div>
                 <div class="text-center">
                     <p
-                        class="text-4xl font-black text-amber-300 tabular-nums sm:text-6xl"
+                        class="font-black text-amber-300 tabular-nums"
+                        :class="
+                            isFullscreen
+                                ? 'text-[min(24vh,14vw)] leading-none'
+                                : 'text-4xl sm:text-6xl'
+                        "
                         data-test="cronometro"
                     >
                         {{ formattedTime }}
@@ -752,11 +788,23 @@ onBeforeUnmount(() => {
                     >
                 </div>
                 <div class="text-center">
-                    <h2 class="truncate text-sm font-black sm:text-xl">
+                    <h2
+                        class="truncate font-black"
+                        :class="
+                            isFullscreen
+                                ? 'text-[min(6vh,4vw)]'
+                                : 'text-sm sm:text-xl'
+                        "
+                    >
                         {{ roster.away.name }}
                     </h2>
                     <strong
-                        class="block text-6xl font-black tabular-nums sm:text-8xl"
+                        class="block font-black tabular-nums"
+                        :class="
+                            isFullscreen
+                                ? 'text-[min(40vh,22vw)] leading-none'
+                                : 'text-6xl sm:text-8xl'
+                        "
                         data-test="placar-fora"
                         >{{ awayScore }}</strong
                     >
@@ -818,7 +866,7 @@ onBeforeUnmount(() => {
                 </button>
             </div>
         </section>
-        <div class="mt-3 flex gap-2">
+        <div v-if="!isFullscreen" class="mt-3 flex gap-2">
             <button
                 class="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white text-sm font-bold disabled:opacity-50"
                 :disabled="saving"
@@ -829,7 +877,10 @@ onBeforeUnmount(() => {
                 <Save class="size-5" />Salvar partida
             </button>
         </div>
-        <section class="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+        <section
+            v-if="!isFullscreen"
+            class="mt-4 rounded-2xl border border-slate-200 bg-white p-4"
+        >
             <h2 class="font-black">Gols marcados</h2>
             <p v-if="!goals.length" class="mt-3 text-sm text-slate-500">
                 Os gols aparecem aqui com autor, assistência e tempo.
