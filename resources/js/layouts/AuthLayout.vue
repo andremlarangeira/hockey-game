@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Goal } from 'lucide-vue-next';
 defineProps<{ title?: string; description?: string }>();
 </script>
 
@@ -9,10 +8,7 @@ defineProps<{ title?: string; description?: string }>();
     >
         <div class="mx-auto w-full max-w-md">
             <div class="mb-7 flex items-center gap-3 text-white">
-                <span
-                    class="flex size-12 items-center justify-center rounded-2xl bg-green-600"
-                    ><Goal class="size-7"
-                /></span>
+                <img src="/logo.png" alt="" class="size-14 shrink-0" />
                 <div>
                     <p class="text-2xl font-black">Na Quadra</p>
                     <p class="text-xs text-slate-400">

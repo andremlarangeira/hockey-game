@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { Goal } from 'lucide-vue-next';
 
 withDefaults(
     defineProps<{
@@ -27,8 +26,8 @@ withDefaults(
         />
         <span
             v-else
-            class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[var(--team-primary)] text-[var(--team-primary-text)]"
-            ><Goal class="size-6"
+            class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white p-1"
+            ><img src="/logo.png" alt="" class="size-full object-contain"
         /></span>
         <span
             v-if="!compact"
