@@ -8,7 +8,6 @@ use App\Championships\Data\StandingRow;
 use App\Championships\Enums\GamePhase;
 use App\Championships\Enums\GameStatus;
 use App\Championships\Enums\TieBreakCriterion;
-use App\Models\Championship;
 use App\Models\ChampionshipGame;
 use App\Models\ChampionshipTeam;
 
@@ -16,7 +15,6 @@ final class StandingsCalculator
 {
     /**
      * Pure calculation of group standings from rules, enrolled teams, group games, and manual tie resolutions.
-     * Also accepts a Championship model directly for convenience.
      *
      * @param  iterable<int, ChampionshipTeam>  $teams
      * @param  iterable<int, ChampionshipGame>  $games
@@ -24,25 +22,11 @@ final class StandingsCalculator
      * @return array<string, GroupStandings>
      */
     public function calculate(
-        ChampionshipRules|Championship $rules,
+        ChampionshipRules $rules,
         iterable $teams = [],
         iterable $games = [],
         array $manualResolutions = [],
     ): array {
-        if ($rules instanceof Championship)
-        {
-            $championship = $rules;
-            $rules = $championship->rules;
-            $teams = $championship->relationLoaded('teams')
-                ? $championship->teams
-                : $championship->teams()->whereNotNull('group_code')->get();
-            $games = $championship->relationLoaded('games')
-                ? $championship->games
-                : $championship->games()->where('phase', GamePhase::Group)->get();
-            $manualResolutions = is_array($championship->manual_tie_resolutions)
-                ? $championship->manual_tie_resolutions
-                : [];
-        }
 
         /** @var array<string, list<ChampionshipTeam>> $teamsByGroup */
         $teamsByGroup = [];

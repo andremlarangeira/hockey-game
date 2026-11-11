@@ -95,8 +95,8 @@ test('cria campeonato, atualiza detalhes e trava edição de regras após o sort
         name: 'Copa Municipal Na Quadra',
         city: 'Campinas',
         venue: 'Arena Central',
-        startsOn: '2026-11-16',
-        endsOn: '2026-11-23',
+        startsOn: CarbonImmutable::parse('2026-11-16'),
+        endsOn: CarbonImmutable::parse('2026-11-23'),
     );
 
     expect($championship->fresh()->name)->toBe('Copa Municipal Na Quadra')
@@ -391,10 +391,14 @@ test('agenda, inicia partida, valida regras de gols e assistências, recalcula p
 
     [$tigresData, $lobosData, $falcoesData, $ursosData] = enrollFourTeamsWithRosters($engine, $championship);
 
-    $engine->drawGroups($championship, [
-        'A' => [$tigresData['team']->id, $lobosData['team']->id],
-        'B' => [$falcoesData['team']->id, $ursosData['team']->id],
-    ], actorId: $user->id);
+    $engine->drawGroups(
+        championship: $championship,
+        actor: $user,
+        explicitGroups: [
+            'A' => [$tigresData['team']->id, $lobosData['team']->id],
+            'B' => [$falcoesData['team']->id, $ursosData['team']->id],
+        ],
+    );
 
     $gameA = $championship->games()->where('group_code', 'A')->firstOrFail();
 
@@ -433,22 +437,21 @@ test('agenda, inicia partida, valida regras de gols e assistências, recalcula p
     expect(fn () => $engine->recordGoal($gameA, new GoalCommand(
         side: TeamSide::Home,
         scorerId: $homePlayers[0]->id,
-        firstAssistId: $homePlayers[0]->id,
+        assistIds: [$homePlayers[0]->id],
     )))->toThrow(DomainException::class, 'próprio gol');
 
     // Rejects 2 assists when maxAssistsPerGoal == 1
     expect(fn () => $engine->recordGoal($gameA, new GoalCommand(
         side: TeamSide::Home,
         scorerId: $homePlayers[0]->id,
-        firstAssistId: $homePlayers[1]->id,
-        secondAssistId: $homePlayers[2]->id,
+        assistIds: [$homePlayers[1]->id, $homePlayers[2]->id],
     )))->toThrow(DomainException::class, 'no máximo 1 assistência');
 
     // Valid goal with 1 assist
     $goal1 = $engine->recordGoal($gameA, new GoalCommand(
         side: TeamSide::Home,
         scorerId: $homePlayers[0]->id,
-        firstAssistId: $homePlayers[1]->id,
+        assistIds: [$homePlayers[1]->id],
         period: 1,
         elapsedSeconds: 110,
         remainingSeconds: 490,
@@ -498,10 +501,14 @@ test('executa ciclo completo com desempate manual auditado, mata-mata, shootout 
     $falcoes = $falcoesData['team'];
     $ursos = $ursosData['team'];
 
-    $engine->drawGroups($championship, [
-        'A' => [$tigres->id, $lobos->id],
-        'B' => [$falcoes->id, $ursos->id],
-    ], actorId: $user->id);
+    $engine->drawGroups(
+        championship: $championship,
+        actor: $user,
+        explicitGroups: [
+            'A' => [$tigres->id, $lobos->id],
+            'B' => [$falcoes->id, $ursos->id],
+        ],
+    );
 
     $gameA = $championship->games()->where('group_code', 'A')->firstOrFail();
     $gameB = $championship->games()->where('group_code', 'B')->firstOrFail();
@@ -518,7 +525,7 @@ test('executa ciclo completo com desempate manual auditado, mata-mata, shootout 
         side: TeamSide::Home,
         shooterId: $tigresData['players'][0]->id,
         scored: true,
-        roundNumber: 1,
+        round: 1,
     )))->toThrow(DomainException::class, 'não utilizam disputa de shootout');
 
     $homeSideA = (int) $gameA->home_team_id === (int) $tigres->id ? TeamSide::Home : TeamSide::Away;
@@ -535,7 +542,7 @@ test('executa ciclo completo com desempate manual auditado, mata-mata, shootout 
     $engine->recordGoal($gameA, new GoalCommand(
         side: $awaySideA,
         scorerId: $lobosData['players'][0]->id,
-        firstAssistId: $lobosData['players'][1]->id,
+        assistIds: [$lobosData['players'][1]->id],
         period: 2,
         elapsedSeconds: 300,
         remainingSeconds: 300,
@@ -552,7 +559,7 @@ test('executa ciclo completo com desempate manual auditado, mata-mata, shootout 
     $engine->recordGoal($gameB, new GoalCommand(
         side: $falcoesSide,
         scorerId: $falcoesData['players'][0]->id,
-        firstAssistId: $falcoesData['players'][1]->id,
+        assistIds: [$falcoesData['players'][1]->id],
         period: 1,
     ));
     $engine->recordGoal($gameB, new GoalCommand(
@@ -639,13 +646,13 @@ test('executa ciclo completo com desempate manual auditado, mata-mata, shootout 
         side: TeamSide::Home,
         shooterId: $homePlayersFinal[0]->id,
         scored: true,
-        roundNumber: 1,
+        round: 1,
     ));
     $engine->recordShootoutAttempt($final, new ShootoutAttemptCommand(
         side: TeamSide::Away,
         shooterId: $awayPlayersFinal[0]->id,
         scored: false,
-        roundNumber: 1,
+        round: 1,
     ));
 
     expect($soEvent1->period)->toBeNull()
@@ -712,7 +719,7 @@ test('avança vencedores e perdedores (3º lugar), resolve byes automaticamente 
         }
     }
 
-    $engine->drawGroups($championship, $groupsInput, actorId: $user->id);
+    $engine->drawGroups($championship, actor: $user, explicitGroups: $groupsInput);
 
     // Play and finish all 3 group games (home wins 2x0 in each)
     foreach ($championship->games()->where('phase', GamePhase::Group)->get() as $groupGame)
@@ -822,10 +829,14 @@ test('mantém o fluxo de pelada e a rota /estatisticas totalmente isolados dos g
     $championship = $engine->createChampionship($clubUser, 'Copa Isolamento', 'Campinas');
     [$tigresData, $lobosData, $falcoesData, $ursosData] = enrollFourTeamsWithRosters($engine, $championship);
 
-    $engine->drawGroups($championship, [
-        'A' => [$tigresData['team']->id, $lobosData['team']->id],
-        'B' => [$falcoesData['team']->id, $ursosData['team']->id],
-    ], actorId: $clubUser->id);
+    $engine->drawGroups(
+        championship: $championship,
+        actor: $clubUser,
+        explicitGroups: [
+            'A' => [$tigresData['team']->id, $lobosData['team']->id],
+            'B' => [$falcoesData['team']->id, $ursosData['team']->id],
+        ],
+    );
 
     $gameA = $championship->games()->where('group_code', 'A')->firstOrFail();
     $engine->startGame($gameA, $clubUser);

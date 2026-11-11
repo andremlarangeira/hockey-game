@@ -25,7 +25,6 @@ use App\Models\ChampionshipPlayer;
 use App\Models\ChampionshipTeam;
 use App\Models\User;
 use Carbon\CarbonImmutable;
-use Carbon\CarbonInterface;
 use DomainException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
@@ -39,54 +38,15 @@ final readonly class TournamentEngine
         private BracketPlanner $bracketPlanner = new BracketPlanner,
     ) {}
 
-    /**
-     * @param  User|int|array<string, mixed>  $user
-     * @param  string|array<string, mixed>  $name
-     * @param  ChampionshipRules|array<string, mixed>|null  $rules
-     */
     public function createChampionship(
-        User|int|array $user,
-        string|array $name = '',
-        string $city = '',
+        User $user,
+        string $name,
+        string $city,
         ?string $venue = null,
-        CarbonInterface|string|null $startsOn = null,
-        CarbonInterface|string|null $endsOn = null,
-        ChampionshipRules|array|null $rules = null,
+        ?CarbonImmutable $startsOn = null,
+        ?CarbonImmutable $endsOn = null,
+        ChampionshipRules $rules = new ChampionshipRules,
     ): Championship {
-        if (is_array($user))
-        {
-            $payload = $user;
-            $resolvedUserId = isset($payload['user_id'])
-                ? (int) $payload['user_id']
-                : (int) (auth()->id() ?? 0);
-            $name = (string) ($payload['name'] ?? '');
-            $city = (string) ($payload['city'] ?? '');
-            $venue = isset($payload['venue']) ? (string) $payload['venue'] : null;
-            $startsOn = $payload['starts_on'] ?? $payload['startsOn'] ?? null;
-            $endsOn = $payload['ends_on'] ?? $payload['endsOn'] ?? null;
-            $rules = $payload['rules'] ?? null;
-        }
-        elseif (is_array($name))
-        {
-            $payload = $name;
-            $resolvedUserId = $user instanceof User ? (int) $user->id : $user;
-            $name = (string) ($payload['name'] ?? '');
-            $city = (string) ($payload['city'] ?? $city);
-            $venue = array_key_exists('venue', $payload) ? ($payload['venue'] !== null ? (string) $payload['venue'] : null) : $venue;
-            $startsOn = $payload['starts_on'] ?? $payload['startsOn'] ?? $startsOn;
-            $endsOn = $payload['ends_on'] ?? $payload['endsOn'] ?? $endsOn;
-            $rules = $payload['rules'] ?? $rules;
-        }
-        else
-        {
-            $resolvedUserId = $user instanceof User ? (int) $user->id : $user;
-        }
-
-        if ($resolvedUserId <= 0)
-        {
-            throw new DomainException('Usuário organizador inválido para criação do campeonato.');
-        }
-
         $trimmedName = trim($name);
         $trimmedCity = trim($city);
         $trimmedVenue = $venue !== null && trim($venue) !== '' ? trim($venue) : null;
@@ -101,35 +61,34 @@ final readonly class TournamentEngine
             throw new DomainException('Informe a cidade do campeonato.');
         }
 
-        $parsedStartsOn = $this->parseDate($startsOn);
-        $parsedEndsOn = $this->parseDate($endsOn);
+        $normalizedStartsOn = $startsOn?->startOfDay();
+        $normalizedEndsOn = $endsOn?->startOfDay();
 
-        if ($parsedStartsOn !== null && $parsedEndsOn !== null && $parsedEndsOn->lt($parsedStartsOn))
+        if ($normalizedStartsOn !== null && $normalizedEndsOn !== null && $normalizedEndsOn->lt($normalizedStartsOn))
         {
             throw new DomainException('A data de encerramento não pode ser anterior à data de início.');
         }
 
-        $resolvedRules = $this->normalizeRules($rules);
-        $this->validateRules($resolvedRules);
+        $this->validateRules($rules);
 
         return DB::transaction(function () use (
-            $resolvedUserId,
+            $user,
             $trimmedName,
             $trimmedCity,
             $trimmedVenue,
-            $parsedStartsOn,
-            $parsedEndsOn,
-            $resolvedRules,
+            $normalizedStartsOn,
+            $normalizedEndsOn,
+            $rules,
         ): Championship {
             $championship = Championship::withoutGlobalScope('team')->create([
-                'user_id' => $resolvedUserId,
+                'user_id' => (int) $user->id,
                 'name' => $trimmedName,
                 'city' => $trimmedCity,
                 'venue' => $trimmedVenue,
-                'starts_on' => $parsedStartsOn?->toDateString(),
-                'ends_on' => $parsedEndsOn?->toDateString(),
+                'starts_on' => $normalizedStartsOn?->toDateString(),
+                'ends_on' => $normalizedEndsOn?->toDateString(),
                 'status' => ChampionshipStatus::Draft,
-                'rules' => $resolvedRules,
+                'rules' => $rules,
                 'manual_tie_resolutions' => [],
             ]);
 
@@ -137,47 +96,22 @@ final readonly class TournamentEngine
         });
     }
 
-    /**
-     * @param  string|array<string, mixed>  $name
-     */
     public function updateDetails(
         Championship $championship,
-        string|array $name,
-        ?string $city = null,
+        string $name,
+        string $city,
         ?string $venue = null,
-        CarbonInterface|string|null $startsOn = null,
-        CarbonInterface|string|null $endsOn = null,
+        ?CarbonImmutable $startsOn = null,
+        ?CarbonImmutable $endsOn = null,
     ): Championship {
         return DB::transaction(function () use ($championship, $name, $city, $venue, $startsOn, $endsOn): Championship {
             $locked = $this->lockChampionship($championship);
 
-            if (is_array($name))
-            {
-                $payload = $name;
-                $resolvedName = array_key_exists('name', $payload) ? (string) $payload['name'] : $locked->name;
-                $resolvedCity = array_key_exists('city', $payload) ? (string) $payload['city'] : $locked->city;
-                $resolvedVenue = array_key_exists('venue', $payload)
-                    ? ($payload['venue'] !== null ? (string) $payload['venue'] : null)
-                    : $locked->venue;
-                $resolvedStartsOn = array_key_exists('starts_on', $payload) || array_key_exists('startsOn', $payload)
-                    ? $this->parseDate($payload['starts_on'] ?? $payload['startsOn'] ?? null)
-                    : $locked->starts_on;
-                $resolvedEndsOn = array_key_exists('ends_on', $payload) || array_key_exists('endsOn', $payload)
-                    ? $this->parseDate($payload['ends_on'] ?? $payload['endsOn'] ?? null)
-                    : $locked->ends_on;
-            }
-            else
-            {
-                $resolvedName = $name;
-                $resolvedCity = $city ?? $locked->city;
-                $resolvedVenue = $venue;
-                $resolvedStartsOn = $startsOn !== null ? $this->parseDate($startsOn) : $locked->starts_on;
-                $resolvedEndsOn = $endsOn !== null ? $this->parseDate($endsOn) : $locked->ends_on;
-            }
-
-            $trimmedName = trim($resolvedName);
-            $trimmedCity = trim($resolvedCity);
-            $trimmedVenue = $resolvedVenue !== null && trim($resolvedVenue) !== '' ? trim($resolvedVenue) : null;
+            $trimmedName = trim($name);
+            $trimmedCity = trim($city);
+            $trimmedVenue = $venue !== null && trim($venue) !== '' ? trim($venue) : null;
+            $normalizedStartsOn = $startsOn?->startOfDay() ?? $locked->starts_on;
+            $normalizedEndsOn = $endsOn?->startOfDay() ?? $locked->ends_on;
 
             if ($trimmedName === '')
             {
@@ -189,7 +123,7 @@ final readonly class TournamentEngine
                 throw new DomainException('Informe a cidade do campeonato.');
             }
 
-            if ($resolvedStartsOn !== null && $resolvedEndsOn !== null && $resolvedEndsOn->lt($resolvedStartsOn))
+            if ($normalizedStartsOn !== null && $normalizedEndsOn !== null && $normalizedEndsOn->lt($normalizedStartsOn))
             {
                 throw new DomainException('A data de encerramento não pode ser anterior à data de início.');
             }
@@ -197,8 +131,8 @@ final readonly class TournamentEngine
             $locked->name = $trimmedName;
             $locked->city = $trimmedCity;
             $locked->venue = $trimmedVenue;
-            $locked->starts_on = $resolvedStartsOn;
-            $locked->ends_on = $resolvedEndsOn;
+            $locked->starts_on = $normalizedStartsOn;
+            $locked->ends_on = $normalizedEndsOn;
             $locked->save();
 
             $this->syncModel($championship, $locked);
@@ -207,10 +141,7 @@ final readonly class TournamentEngine
         });
     }
 
-    /**
-     * @param  ChampionshipRules|array<string, mixed>  $rules
-     */
-    public function updateRules(Championship $championship, ChampionshipRules|array $rules): Championship
+    public function updateRules(Championship $championship, ChampionshipRules $rules): Championship
     {
         return DB::transaction(function () use ($championship, $rules): Championship {
             $locked = $this->lockChampionship($championship);
@@ -220,10 +151,9 @@ final readonly class TournamentEngine
                 throw new DomainException('As regras do campeonato estão travadas e só podem ser editadas antes do sorteio dos grupos.');
             }
 
-            $resolvedRules = $this->normalizeRules($rules);
-            $this->validateRules($resolvedRules);
+            $this->validateRules($rules);
 
-            $locked->rules = $resolvedRules;
+            $locked->rules = $rules;
             $locked->save();
 
             $this->syncModel($championship, $locked);
@@ -232,12 +162,9 @@ final readonly class TournamentEngine
         });
     }
 
-    /**
-     * @param  string|array<string, mixed>  $name
-     */
     public function enrollTeam(
         Championship $championship,
-        string|array $name,
+        string $name,
         ?string $shortName = null,
         string $primaryColor = '#2563eb',
         string $secondaryColor = '#ffffff',
@@ -260,44 +187,20 @@ final readonly class TournamentEngine
                 throw new DomainException('Não é possível inscrever novas equipes após o sorteio dos grupos.');
             }
 
-            if (is_array($name))
-            {
-                $payload = $name;
-                $resolvedName = (string) ($payload['name'] ?? '');
-                $resolvedShortName = isset($payload['short_name']) || isset($payload['shortName'])
-                    ? (string) ($payload['short_name'] ?? $payload['shortName'])
-                    : $shortName;
-                $resolvedPrimaryColor = (string) ($payload['primary_color'] ?? $payload['primaryColor'] ?? $primaryColor);
-                $resolvedSecondaryColor = (string) ($payload['secondary_color'] ?? $payload['secondaryColor'] ?? $secondaryColor);
-                $resolvedLogo = ($payload['logo'] ?? null) instanceof UploadedFile ? $payload['logo'] : $logo;
-                $resolvedSeedPot = isset($payload['seed_pot']) || isset($payload['seedPot'])
-                    ? (int) ($payload['seed_pot'] ?? $payload['seedPot'])
-                    : $seedPot;
-            }
-            else
-            {
-                $resolvedName = $name;
-                $resolvedShortName = $shortName;
-                $resolvedPrimaryColor = $primaryColor;
-                $resolvedSecondaryColor = $secondaryColor;
-                $resolvedLogo = $logo;
-                $resolvedSeedPot = $seedPot;
-            }
-
-            $trimmedName = trim($resolvedName);
+            $trimmedName = trim($name);
             if ($trimmedName === '')
             {
                 throw new DomainException('Informe o nome da equipe.');
             }
 
-            $trimmedShortName = $resolvedShortName !== null && trim($resolvedShortName) !== ''
-                ? trim($resolvedShortName)
+            $trimmedShortName = $shortName !== null && trim($shortName) !== ''
+                ? trim($shortName)
                 : null;
 
-            $this->validateHexColor($resolvedPrimaryColor, 'primária');
-            $this->validateHexColor($resolvedSecondaryColor, 'secundária');
+            $this->validateHexColor($primaryColor, 'primária');
+            $this->validateHexColor($secondaryColor, 'secundária');
 
-            if ($resolvedSeedPot !== null && $resolvedSeedPot < 1)
+            if ($seedPot !== null && $seedPot < 1)
             {
                 throw new DomainException('O pote de sorteio deve ser um número inteiro positivo.');
             }
@@ -313,10 +216,10 @@ final readonly class TournamentEngine
             }
 
             $logoPath = null;
-            if ($resolvedLogo !== null)
+            if ($logo !== null)
             {
-                $this->assertRasterLogo($resolvedLogo);
-                $stored = $resolvedLogo->store("championships/{$locked->user_id}/logos", 'public');
+                $this->assertRasterLogo($logo);
+                $stored = $logo->store("championships/{$locked->user_id}/logos", 'public');
                 if ($stored === false)
                 {
                     throw new DomainException('Não foi possível salvar o escudo da equipe.');
@@ -329,31 +232,24 @@ final readonly class TournamentEngine
                 'championship_id' => $locked->id,
                 'name' => $trimmedName,
                 'short_name' => $trimmedShortName,
-                'primary_color' => $resolvedPrimaryColor,
-                'secondary_color' => $resolvedSecondaryColor,
+                'primary_color' => $primaryColor,
+                'secondary_color' => $secondaryColor,
                 'logo_path' => $logoPath,
-                'seed_pot' => $resolvedSeedPot,
+                'seed_pot' => $seedPot,
             ]);
         });
     }
 
-    /**
-     * @param  ChampionshipTeam|string|array<string, mixed>|null  $name
-     * @param  string|array<string, mixed>|null  $shortName
-     */
     public function updateTeam(
-        ChampionshipTeam|Championship $team,
-        ChampionshipTeam|string|array|null $name = null,
-        string|array|null $shortName = null,
+        ChampionshipTeam $team,
+        ?string $name = null,
+        ?string $shortName = null,
         ?string $primaryColor = null,
         ?string $secondaryColor = null,
         ?UploadedFile $logo = null,
         ?int $seedPot = null,
         bool $removeLogo = false,
-        ?Championship $championship = null,
     ): ChampionshipTeam {
-        $extraArgs = func_get_args();
-
         return DB::transaction(function () use (
             $team,
             $name,
@@ -363,45 +259,13 @@ final readonly class TournamentEngine
             $logo,
             $seedPot,
             $removeLogo,
-            $championship,
-            $extraArgs,
         ): ChampionshipTeam {
-            if ($team instanceof Championship)
-            {
-                if (! $name instanceof ChampionshipTeam)
-                {
-                    throw new DomainException('Equipe inválida para atualização.');
-                }
-
-                $targetChampionship = $team;
-                $targetTeam = $name;
-                $rawName = $shortName;
-                $rawShortName = $primaryColor;
-                $rawPrimaryColor = $secondaryColor;
-                $rawSecondaryColor = isset($extraArgs[5]) && is_string($extraArgs[5]) ? $extraArgs[5] : null;
-                $rawLogo = ($extraArgs[6] ?? null) instanceof UploadedFile ? $extraArgs[6] : $logo;
-                $rawSeedPot = isset($extraArgs[7]) && is_int($extraArgs[7]) ? $extraArgs[7] : $seedPot;
-                $rawRemoveLogo = isset($extraArgs[8]) && is_bool($extraArgs[8]) ? $extraArgs[8] : $removeLogo;
-            }
-            else
-            {
-                $targetTeam = $team;
-                $targetChampionship = $championship;
-                $rawName = $name;
-                $rawShortName = is_string($shortName) ? $shortName : null;
-                $rawPrimaryColor = $primaryColor;
-                $rawSecondaryColor = $secondaryColor;
-                $rawLogo = $logo;
-                $rawSeedPot = $seedPot;
-                $rawRemoveLogo = $removeLogo;
-            }
-
-            $locked = $this->lockChampionship($targetChampionship ?? (int) $targetTeam->championship_id);
+            $locked = $this->lockChampionship((int) $team->championship_id);
 
             /** @var ChampionshipTeam|null $lockedTeam */
             $lockedTeam = ChampionshipTeam::withoutGlobalScope('team')
                 ->where('championship_id', $locked->id)
-                ->whereKey($targetTeam->id)
+                ->whereKey($team->id)
                 ->lockForUpdate()
                 ->first();
 
@@ -410,48 +274,10 @@ final readonly class TournamentEngine
                 throw new DomainException('A equipe informada não pertence a este campeonato.');
             }
 
-            $seedPotProvided = false;
-
-            if (is_array($rawName))
-            {
-                $payload = $rawName;
-                $resolvedName = array_key_exists('name', $payload) ? (string) $payload['name'] : $lockedTeam->name;
-                $resolvedShortName = array_key_exists('short_name', $payload) || array_key_exists('shortName', $payload)
-                    ? ($payload['short_name'] ?? $payload['shortName'])
-                    : $lockedTeam->short_name;
-                $resolvedPrimaryColor = (string) ($payload['primary_color'] ?? $payload['primaryColor'] ?? $lockedTeam->primary_color);
-                $resolvedSecondaryColor = (string) ($payload['secondary_color'] ?? $payload['secondaryColor'] ?? $lockedTeam->secondary_color);
-                $resolvedLogo = ($payload['logo'] ?? null) instanceof UploadedFile ? $payload['logo'] : $rawLogo;
-                if (array_key_exists('seed_pot', $payload) || array_key_exists('seedPot', $payload))
-                {
-                    $seedPotProvided = true;
-                    $rawPotVal = $payload['seed_pot'] ?? $payload['seedPot'];
-                    $resolvedSeedPot = $rawPotVal !== null ? (int) $rawPotVal : null;
-                }
-                else
-                {
-                    $resolvedSeedPot = $lockedTeam->seed_pot;
-                }
-                $resolvedRemoveLogo = (bool) ($payload['remove_logo'] ?? $payload['removeLogo'] ?? $rawRemoveLogo);
-            }
-            else
-            {
-                $resolvedName = is_string($rawName) ? $rawName : $lockedTeam->name;
-                $resolvedShortName = $rawShortName !== null ? $rawShortName : $lockedTeam->short_name;
-                $resolvedPrimaryColor = $rawPrimaryColor ?? $lockedTeam->primary_color;
-                $resolvedSecondaryColor = $rawSecondaryColor ?? $lockedTeam->secondary_color;
-                $resolvedLogo = $rawLogo;
-                if ($rawSeedPot !== null)
-                {
-                    $seedPotProvided = true;
-                    $resolvedSeedPot = $rawSeedPot;
-                }
-                else
-                {
-                    $resolvedSeedPot = $lockedTeam->seed_pot;
-                }
-                $resolvedRemoveLogo = $rawRemoveLogo;
-            }
+            $resolvedName = $name ?? $lockedTeam->name;
+            $resolvedShortName = $shortName ?? $lockedTeam->short_name;
+            $resolvedPrimaryColor = $primaryColor ?? $lockedTeam->primary_color;
+            $resolvedSecondaryColor = $secondaryColor ?? $lockedTeam->secondary_color;
 
             $trimmedName = trim($resolvedName);
             if ($trimmedName === '')
@@ -459,14 +285,14 @@ final readonly class TournamentEngine
                 throw new DomainException('Informe o nome da equipe.');
             }
 
-            $trimmedShortName = $resolvedShortName !== null && trim((string) $resolvedShortName) !== ''
-                ? trim((string) $resolvedShortName)
+            $trimmedShortName = $resolvedShortName !== null && trim($resolvedShortName) !== ''
+                ? trim($resolvedShortName)
                 : null;
 
             $this->validateHexColor($resolvedPrimaryColor, 'primária');
             $this->validateHexColor($resolvedSecondaryColor, 'secundária');
 
-            if ($seedPotProvided && $resolvedSeedPot !== null && $resolvedSeedPot < 1)
+            if ($seedPot !== null && $seedPot < 1)
             {
                 throw new DomainException('O pote de sorteio deve ser um número inteiro positivo.');
             }
@@ -483,10 +309,10 @@ final readonly class TournamentEngine
             }
 
             $logoPath = $lockedTeam->logo_path;
-            if ($resolvedLogo !== null)
+            if ($logo !== null)
             {
-                $this->assertRasterLogo($resolvedLogo);
-                $stored = $resolvedLogo->store("championships/{$locked->user_id}/logos", 'public');
+                $this->assertRasterLogo($logo);
+                $stored = $logo->store("championships/{$locked->user_id}/logos", 'public');
                 if ($stored === false)
                 {
                     throw new DomainException('Não foi possível salvar o escudo da equipe.');
@@ -499,7 +325,7 @@ final readonly class TournamentEngine
 
                 $logoPath = $stored;
             }
-            elseif ($resolvedRemoveLogo && $lockedTeam->logo_path !== null && $lockedTeam->logo_path !== '')
+            elseif ($removeLogo && $lockedTeam->logo_path !== null && $lockedTeam->logo_path !== '')
             {
                 Storage::disk('public')->delete($lockedTeam->logo_path);
                 $logoPath = null;
@@ -510,39 +336,22 @@ final readonly class TournamentEngine
             $lockedTeam->primary_color = $resolvedPrimaryColor;
             $lockedTeam->secondary_color = $resolvedSecondaryColor;
             $lockedTeam->logo_path = $logoPath;
-            if ($locked->status === ChampionshipStatus::Draft && $seedPotProvided)
+            if ($locked->status === ChampionshipStatus::Draft && $seedPot !== null)
             {
-                $lockedTeam->seed_pot = $resolvedSeedPot;
+                $lockedTeam->seed_pot = $seedPot;
             }
             $lockedTeam->save();
 
-            $this->syncModel($targetTeam, $lockedTeam);
+            $this->syncModel($team, $lockedTeam);
 
             return $lockedTeam;
         });
     }
 
-    public function removeTeam(
-        ChampionshipTeam|Championship $team,
-        ?ChampionshipTeam $targetTeam = null,
-    ): void {
-        DB::transaction(function () use ($team, $targetTeam): void {
-            if ($team instanceof Championship)
-            {
-                if ($targetTeam === null)
-                {
-                    throw new DomainException('Equipe inválida para remoção.');
-                }
-                $championship = $team;
-                $resolvedTeam = $targetTeam;
-            }
-            else
-            {
-                $championship = null;
-                $resolvedTeam = $team;
-            }
-
-            $locked = $this->lockChampionship($championship ?? (int) $resolvedTeam->championship_id);
+    public function removeTeam(ChampionshipTeam $team): void
+    {
+        DB::transaction(function () use ($team): void {
+            $locked = $this->lockChampionship((int) $team->championship_id);
 
             if ($locked->status !== ChampionshipStatus::Draft)
             {
@@ -552,7 +361,7 @@ final readonly class TournamentEngine
             /** @var ChampionshipTeam|null $lockedTeam */
             $lockedTeam = ChampionshipTeam::withoutGlobalScope('team')
                 ->where('championship_id', $locked->id)
-                ->whereKey($resolvedTeam->id)
+                ->whereKey($team->id)
                 ->lockForUpdate()
                 ->first();
 
@@ -574,18 +383,12 @@ final readonly class TournamentEngine
         });
     }
 
-    /**
-     * @param  ChampionshipTeam|string|array<string, mixed>  $name
-     * @param  int|string|array<string, mixed>  $jerseyNumber
-     */
     public function addPlayer(
-        ChampionshipTeam|Championship $team,
-        ChampionshipTeam|string|array $name = '',
-        int|string|array $jerseyNumber = 0,
-        PlayerPosition|string|int $position = PlayerPosition::Universal,
-        bool|PlayerPosition|string $isGoalkeeper = false,
-        bool $goalkeeperFlag = false,
-        ?Championship $championship = null,
+        ChampionshipTeam $team,
+        string $name,
+        int $jerseyNumber,
+        PlayerPosition $position = PlayerPosition::Universal,
+        bool $isGoalkeeper = false,
     ): ChampionshipPlayer {
         return DB::transaction(function () use (
             $team,
@@ -593,38 +396,8 @@ final readonly class TournamentEngine
             $jerseyNumber,
             $position,
             $isGoalkeeper,
-            $goalkeeperFlag,
-            $championship,
         ): ChampionshipPlayer {
-            if ($team instanceof Championship)
-            {
-                if (! $name instanceof ChampionshipTeam)
-                {
-                    throw new DomainException('Equipe inválida para inscrição do jogador.');
-                }
-
-                $targetChampionship = $team;
-                $targetTeam = $name;
-                $rawName = $jerseyNumber;
-                $rawJersey = is_int($position) ? $position : 0;
-                $rawPosition = ($isGoalkeeper instanceof PlayerPosition || is_string($isGoalkeeper))
-                    ? $isGoalkeeper
-                    : PlayerPosition::Universal;
-                $rawGoalkeeper = is_bool($isGoalkeeper) ? $isGoalkeeper : $goalkeeperFlag;
-            }
-            else
-            {
-                $targetTeam = $team;
-                $targetChampionship = $championship;
-                $rawName = $name;
-                $rawJersey = is_int($jerseyNumber) ? $jerseyNumber : (is_numeric($jerseyNumber) ? (int) $jerseyNumber : 0);
-                $rawPosition = $position instanceof PlayerPosition || is_string($position)
-                    ? $position
-                    : PlayerPosition::Universal;
-                $rawGoalkeeper = is_bool($isGoalkeeper) ? $isGoalkeeper : $goalkeeperFlag;
-            }
-
-            $locked = $this->lockChampionship($targetChampionship ?? (int) $targetTeam->championship_id);
+            $locked = $this->lockChampionship((int) $team->championship_id);
 
             if ($locked->status === ChampionshipStatus::Completed)
             {
@@ -634,7 +407,7 @@ final readonly class TournamentEngine
             /** @var ChampionshipTeam|null $lockedTeam */
             $lockedTeam = ChampionshipTeam::withoutGlobalScope('team')
                 ->where('championship_id', $locked->id)
-                ->whereKey($targetTeam->id)
+                ->whereKey($team->id)
                 ->first();
 
             if ($lockedTeam === null)
@@ -642,46 +415,25 @@ final readonly class TournamentEngine
                 throw new DomainException('A equipe informada não pertence a este campeonato.');
             }
 
-            if (is_array($rawName))
-            {
-                $payload = $rawName;
-                $resolvedName = (string) ($payload['name'] ?? '');
-                $resolvedJersey = (int) ($payload['jersey_number'] ?? $payload['jerseyNumber'] ?? 0);
-                $posVal = $payload['position'] ?? PlayerPosition::Universal;
-                $resolvedPosition = $posVal instanceof PlayerPosition
-                    ? $posVal
-                    : PlayerPosition::from((string) $posVal);
-                $resolvedGoalkeeper = (bool) ($payload['is_goalkeeper'] ?? $payload['isGoalkeeper'] ?? ($resolvedPosition === PlayerPosition::Goalkeeper));
-            }
-            else
-            {
-                $resolvedName = (string) $rawName;
-                $resolvedJersey = $rawJersey;
-                $resolvedPosition = $rawPosition instanceof PlayerPosition
-                    ? $rawPosition
-                    : PlayerPosition::from((string) $rawPosition);
-                $resolvedGoalkeeper = $rawGoalkeeper || $resolvedPosition === PlayerPosition::Goalkeeper;
-            }
-
-            $trimmedName = trim($resolvedName);
+            $trimmedName = trim($name);
             if ($trimmedName === '')
             {
                 throw new DomainException('Informe o nome do jogador.');
             }
 
-            if ($resolvedJersey < 0 || $resolvedJersey > 999)
+            if ($jerseyNumber < 0 || $jerseyNumber > 999)
             {
                 throw new DomainException('O número da camisa deve estar entre 0 e 999.');
             }
 
             $jerseyInUse = ChampionshipPlayer::withoutGlobalScope('team')
                 ->where('championship_team_id', $lockedTeam->id)
-                ->where('jersey_number', $resolvedJersey)
+                ->where('jersey_number', $jerseyNumber)
                 ->exists();
 
             if ($jerseyInUse)
             {
-                throw new DomainException("A camisa #{$resolvedJersey} já está em uso nesta equipe.");
+                throw new DomainException("A camisa #{$jerseyNumber} já está em uso nesta equipe.");
             }
 
             return ChampionshipPlayer::withoutGlobalScope('team')->create([
@@ -689,105 +441,33 @@ final readonly class TournamentEngine
                 'championship_id' => $locked->id,
                 'championship_team_id' => $lockedTeam->id,
                 'name' => $trimmedName,
-                'jersey_number' => $resolvedJersey,
-                'position' => $resolvedPosition,
-                'is_goalkeeper' => $resolvedGoalkeeper,
+                'jersey_number' => $jerseyNumber,
+                'position' => $position,
+                'is_goalkeeper' => $isGoalkeeper || $position === PlayerPosition::Goalkeeper,
             ]);
         });
     }
 
-    /**
-     * @param  ChampionshipTeam|string|array<string, mixed>  $team
-     */
-    public function enrollPlayer(
-        Championship|ChampionshipTeam $championship,
-        ChampionshipTeam|string|array $team = '',
-        string|int $name = '',
-        int|PlayerPosition|string $jerseyNumber = 0,
-        PlayerPosition|string|bool $position = PlayerPosition::Universal,
-        bool $isGoalkeeper = false,
-    ): ChampionshipPlayer {
-        if ($championship instanceof ChampionshipTeam)
-        {
-            return $this->addPlayer(
-                team: $championship,
-                name: $team,
-                jerseyNumber: is_int($name) ? $name : 0,
-                position: $jerseyNumber instanceof PlayerPosition || is_string($jerseyNumber) ? $jerseyNumber : PlayerPosition::Universal,
-                isGoalkeeper: is_bool($position) ? $position : $isGoalkeeper,
-            );
-        }
-
-        if (! $team instanceof ChampionshipTeam)
-        {
-            throw new DomainException('Equipe inválida para inscrição do jogador.');
-        }
-
-        return $this->addPlayer(
-            team: $team,
-            name: (string) $name,
-            jerseyNumber: is_int($jerseyNumber) ? $jerseyNumber : 0,
-            position: $position instanceof PlayerPosition || is_string($position) ? $position : PlayerPosition::Universal,
-            isGoalkeeper: $isGoalkeeper,
-            championship: $championship,
-        );
-    }
-
-    /**
-     * @param  ChampionshipPlayer|string|array<string, mixed>|null  $name
-     * @param  int|string|array<string, mixed>|null  $jerseyNumber
-     */
     public function updatePlayer(
-        ChampionshipPlayer|Championship $player,
-        ChampionshipPlayer|string|array|null $name = null,
-        int|string|array|null $jerseyNumber = null,
-        PlayerPosition|string|int|null $position = null,
+        ChampionshipPlayer $player,
+        ?string $name = null,
+        ?int $jerseyNumber = null,
+        ?PlayerPosition $position = null,
         ?bool $isGoalkeeper = null,
-        ?Championship $championship = null,
     ): ChampionshipPlayer {
-        $extraArgs = func_get_args();
-
         return DB::transaction(function () use (
             $player,
             $name,
             $jerseyNumber,
             $position,
             $isGoalkeeper,
-            $championship,
-            $extraArgs,
         ): ChampionshipPlayer {
-            if ($player instanceof Championship)
-            {
-                if (! $name instanceof ChampionshipPlayer)
-                {
-                    throw new DomainException('Jogador inválido para atualização.');
-                }
-
-                $targetChampionship = $player;
-                $targetPlayer = $name;
-                $rawName = $jerseyNumber;
-                $rawJersey = is_int($position) ? $position : null;
-                $rawPosition = isset($extraArgs[4]) && ($extraArgs[4] instanceof PlayerPosition || is_string($extraArgs[4]))
-                    ? $extraArgs[4]
-                    : null;
-                $rawGoalkeeper = isset($extraArgs[5]) && is_bool($extraArgs[5]) ? $extraArgs[5] : $isGoalkeeper;
-            }
-            else
-            {
-                $targetPlayer = $player;
-                $targetChampionship = $championship;
-                $rawName = $name;
-                $rawJersey = is_int($jerseyNumber) ? $jerseyNumber : (is_numeric($jerseyNumber) ? (int) $jerseyNumber : null);
-                $rawPosition = $position instanceof PlayerPosition || is_string($position) ? $position : null;
-                $rawGoalkeeper = $isGoalkeeper;
-            }
-
-            $locked = $this->lockChampionship($targetChampionship ?? (int) $targetPlayer->championship_id);
+            $locked = $this->lockChampionship((int) $player->championship_id);
 
             /** @var ChampionshipPlayer|null $lockedPlayer */
             $lockedPlayer = ChampionshipPlayer::withoutGlobalScope('team')
                 ->where('championship_id', $locked->id)
-                ->whereKey($targetPlayer->id)
+                ->whereKey($player->id)
                 ->lockForUpdate()
                 ->first();
 
@@ -796,37 +476,10 @@ final readonly class TournamentEngine
                 throw new DomainException('O jogador informado não pertence a este campeonato.');
             }
 
-            if (is_array($rawName))
-            {
-                $payload = $rawName;
-                $resolvedName = array_key_exists('name', $payload) ? (string) $payload['name'] : $lockedPlayer->name;
-                $resolvedJersey = array_key_exists('jersey_number', $payload) || array_key_exists('jerseyNumber', $payload)
-                    ? (int) ($payload['jersey_number'] ?? $payload['jerseyNumber'])
-                    : $lockedPlayer->jersey_number;
-                if (array_key_exists('position', $payload) && $payload['position'] !== null)
-                {
-                    $posVal = $payload['position'];
-                    $resolvedPosition = $posVal instanceof PlayerPosition
-                        ? $posVal
-                        : PlayerPosition::from((string) $posVal);
-                }
-                else
-                {
-                    $resolvedPosition = $lockedPlayer->position;
-                }
-                $resolvedGoalkeeper = array_key_exists('is_goalkeeper', $payload) || array_key_exists('isGoalkeeper', $payload)
-                    ? (bool) ($payload['is_goalkeeper'] ?? $payload['isGoalkeeper'])
-                    : ($resolvedPosition === PlayerPosition::Goalkeeper ? true : $lockedPlayer->is_goalkeeper);
-            }
-            else
-            {
-                $resolvedName = is_string($rawName) ? $rawName : $lockedPlayer->name;
-                $resolvedJersey = $rawJersey ?? $lockedPlayer->jersey_number;
-                $resolvedPosition = $rawPosition !== null
-                    ? ($rawPosition instanceof PlayerPosition ? $rawPosition : PlayerPosition::from((string) $rawPosition))
-                    : $lockedPlayer->position;
-                $resolvedGoalkeeper = $rawGoalkeeper ?? ($resolvedPosition === PlayerPosition::Goalkeeper ? true : $lockedPlayer->is_goalkeeper);
-            }
+            $resolvedName = $name ?? $lockedPlayer->name;
+            $resolvedJersey = $jerseyNumber ?? $lockedPlayer->jersey_number;
+            $resolvedPosition = $position ?? $lockedPlayer->position;
+            $resolvedGoalkeeper = $isGoalkeeper ?? ($resolvedPosition === PlayerPosition::Goalkeeper ? true : $lockedPlayer->is_goalkeeper);
 
             $trimmedName = trim($resolvedName);
             if ($trimmedName === '')
@@ -856,38 +509,21 @@ final readonly class TournamentEngine
             $lockedPlayer->is_goalkeeper = $resolvedGoalkeeper;
             $lockedPlayer->save();
 
-            $this->syncModel($targetPlayer, $lockedPlayer);
+            $this->syncModel($player, $lockedPlayer);
 
             return $lockedPlayer;
         });
     }
 
-    public function removePlayer(
-        ChampionshipPlayer|Championship $player,
-        ?ChampionshipPlayer $targetPlayer = null,
-    ): void {
-        DB::transaction(function () use ($player, $targetPlayer): void {
-            if ($player instanceof Championship)
-            {
-                if ($targetPlayer === null)
-                {
-                    throw new DomainException('Jogador inválido para remoção.');
-                }
-                $championship = $player;
-                $resolvedPlayer = $targetPlayer;
-            }
-            else
-            {
-                $championship = null;
-                $resolvedPlayer = $player;
-            }
-
-            $locked = $this->lockChampionship($championship ?? (int) $resolvedPlayer->championship_id);
+    public function removePlayer(ChampionshipPlayer $player): void
+    {
+        DB::transaction(function () use ($player): void {
+            $locked = $this->lockChampionship((int) $player->championship_id);
 
             /** @var ChampionshipPlayer|null $lockedPlayer */
             $lockedPlayer = ChampionshipPlayer::withoutGlobalScope('team')
                 ->where('championship_id', $locked->id)
-                ->whereKey($resolvedPlayer->id)
+                ->whereKey($player->id)
                 ->lockForUpdate()
                 ->first();
 
@@ -919,18 +555,14 @@ final readonly class TournamentEngine
      * Randomly (with optional seed pots) or explicitly assigns teams to groups and creates
      * single/double round-robin group games with deterministic slot keys.
      *
-     * @param  User|int|array<string, list<int>>|null  $actor
-     * @param  array<string, list<int>>|string|null  $explicitGroups
+     * @param  array<string, list<int>>|null  $explicitGroups
      */
     public function drawGroups(
         Championship $championship,
-        User|int|array|null $actor = null,
-        bool|int|User $redraw = false,
-        string|bool|null $reason = null,
-        array|string|null $explicitGroups = null,
-        User|int|null $actorId = null,
-        ?bool $forceRedraw = null,
-        ?string $redrawReason = null,
+        User $actor,
+        bool $redraw = false,
+        ?string $reason = null,
+        ?array $explicitGroups = null,
     ): Championship {
         return DB::transaction(function () use (
             $championship,
@@ -938,30 +570,8 @@ final readonly class TournamentEngine
             $redraw,
             $reason,
             $explicitGroups,
-            $actorId,
-            $forceRedraw,
-            $redrawReason,
         ): Championship {
             $locked = $this->lockChampionship($championship);
-
-            if (is_array($actor))
-            {
-                $resolvedExplicitGroups = $actor;
-                $resolvedActorId = $this->resolveActorId(
-                    ($redraw instanceof User || is_int($redraw)) ? $redraw : $actorId,
-                    $locked->user_id,
-                );
-                $resolvedRedraw = $forceRedraw ?? (is_bool($reason) ? $reason : (is_bool($redraw) ? $redraw : false));
-                $resolvedReason = $redrawReason
-                    ?? (is_string($explicitGroups) ? $explicitGroups : (is_string($reason) ? $reason : null));
-            }
-            else
-            {
-                $resolvedExplicitGroups = is_array($explicitGroups) ? $explicitGroups : null;
-                $resolvedActorId = $this->resolveActorId($actor ?? $actorId, $locked->user_id);
-                $resolvedRedraw = $forceRedraw ?? (is_bool($redraw) ? $redraw : false);
-                $resolvedReason = $reason !== null && is_string($reason) ? $reason : $redrawReason;
-            }
 
             $rules = $locked->rules;
             $this->validateRules($rules);
@@ -994,9 +604,9 @@ final readonly class TournamentEngine
 
             if ($isAlreadyDrawn)
             {
-                if (! $resolvedRedraw)
+                if (! $redraw)
                 {
-                    if ($resolvedExplicitGroups === null || $this->matchesCurrentGroupAssignment($teams, $resolvedExplicitGroups))
+                    if ($explicitGroups === null || $this->matchesCurrentGroupAssignment($teams, $explicitGroups))
                     {
                         $this->syncModel($championship, $locked);
 
@@ -1006,7 +616,6 @@ final readonly class TournamentEngine
                     throw new DomainException('Os grupos já foram sorteados. Confirme a opção de refazer sorteio e informe o motivo.');
                 }
 
-                // Redraw requested: verify no game started and bracket not generated
                 $hasStartedOrKnockoutGames = $locked->status !== ChampionshipStatus::GroupStage
                     || $locked->bracket_generated_at !== null
                     || $existingGames->contains(
@@ -1024,7 +633,7 @@ final readonly class TournamentEngine
                     throw new DomainException('Não é possível refazer o sorteio após o início dos jogos.');
                 }
 
-                if ($resolvedReason === null || trim($resolvedReason) === '')
+                if ($reason === null || trim($reason) === '')
                 {
                     throw new DomainException('Informe o motivo para refazer o sorteio dos grupos.');
                 }
@@ -1032,11 +641,10 @@ final readonly class TournamentEngine
 
             $beforeGroups = $this->currentGroupMap($teams);
 
-            $assignedGroups = $resolvedExplicitGroups !== null
-                ? $this->validateAndNormalizeExplicitGroups($teams, $resolvedExplicitGroups, $rules)
+            $assignedGroups = $explicitGroups !== null
+                ? $this->validateAndNormalizeExplicitGroups($teams, $explicitGroups, $rules)
                 : $this->performRandomSeededGroupDraw($teams, $rules->groupsCount);
 
-            // Validate minimum group size vs qualifiersPerGroup
             $minGroupSize = PHP_INT_MAX;
             foreach ($assignedGroups as $groupTeams)
             {
@@ -1120,9 +728,9 @@ final readonly class TournamentEngine
                 'user_id' => $locked->user_id,
                 'championship_id' => $locked->id,
                 'championship_game_id' => null,
-                'actor_user_id' => $resolvedActorId,
+                'actor_user_id' => (int) $actor->id,
                 'action' => $isAlreadyDrawn ? 'groups_redrawn' : 'groups_drawn',
-                'reason' => $resolvedReason !== null && trim($resolvedReason) !== '' ? trim($resolvedReason) : null,
+                'reason' => $reason !== null && trim($reason) !== '' ? trim($reason) : null,
                 'before_snapshot' => $isAlreadyDrawn ? ['groups' => $beforeGroups] : null,
                 'after_snapshot' => [
                     'status' => $locked->status->value,
@@ -1139,59 +747,12 @@ final readonly class TournamentEngine
     }
 
     public function scheduleGame(
-        ChampionshipGame|Championship $game,
-        ChampionshipGame|GameScheduleCommand|string|null $venue = null,
-        GameScheduleCommand|CarbonInterface|string|null $datetime = null,
-        CarbonInterface|string|null $scheduledAt = null,
-        ?Championship $championship = null,
-        ?GameScheduleCommand $command = null,
+        ChampionshipGame $game,
+        GameScheduleCommand $command,
     ): ChampionshipGame {
-        return DB::transaction(function () use ($game, $venue, $datetime, $scheduledAt, $championship, $command): ChampionshipGame {
-            if ($game instanceof Championship)
-            {
-                if (! $venue instanceof ChampionshipGame)
-                {
-                    throw new DomainException('Partida inválida para agendamento.');
-                }
-
-                $targetChampionship = $game;
-                $targetGame = $venue;
-
-                if ($datetime instanceof GameScheduleCommand)
-                {
-                    $resolvedVenue = $datetime->venue;
-                    $resolvedScheduledAt = $datetime->scheduledAt;
-                }
-                else
-                {
-                    $resolvedVenue = is_string($datetime) ? $datetime : null;
-                    $resolvedScheduledAt = $this->parseDateTime($scheduledAt);
-                }
-            }
-            else
-            {
-                $targetGame = $game;
-                $targetChampionship = $championship;
-
-                if ($venue instanceof GameScheduleCommand)
-                {
-                    $resolvedVenue = $venue->venue;
-                    $resolvedScheduledAt = $venue->scheduledAt;
-                }
-                elseif ($command instanceof GameScheduleCommand)
-                {
-                    $resolvedVenue = $command->venue;
-                    $resolvedScheduledAt = $command->scheduledAt;
-                }
-                else
-                {
-                    $resolvedVenue = is_string($venue) ? $venue : null;
-                    $resolvedScheduledAt = $this->parseDateTime($datetime ?? $scheduledAt);
-                }
-            }
-
-            $locked = $this->lockChampionship($targetChampionship ?? (int) $targetGame->championship_id);
-            $lockedGame = $this->lockGame($locked, $targetGame);
+        return DB::transaction(function () use ($game, $command): ChampionshipGame {
+            $locked = $this->lockChampionship((int) $game->championship_id);
+            $lockedGame = $this->lockGame($locked, $game);
 
             if ($lockedGame->is_bye)
             {
@@ -1203,40 +764,26 @@ final readonly class TournamentEngine
                 throw new DomainException('Não é possível alterar o agendamento de uma partida já encerrada.');
             }
 
-            $lockedGame->venue = $resolvedVenue !== null && trim($resolvedVenue) !== '' ? trim($resolvedVenue) : null;
-            $lockedGame->scheduled_at = $resolvedScheduledAt;
+            $lockedGame->venue = $command->venue !== null && trim($command->venue) !== ''
+                ? trim($command->venue)
+                : null;
+            $lockedGame->scheduled_at = $command->scheduledAt;
             $lockedGame->save();
 
-            $this->syncModel($targetGame, $lockedGame);
+            $this->syncModel($game, $lockedGame);
 
             return $lockedGame;
         });
     }
 
     public function startGame(
-        ChampionshipGame|Championship $game,
-        ChampionshipGame|User|int|null $actor = null,
-        ?CarbonInterface $startedAt = null,
-        ?Championship $championship = null,
+        ChampionshipGame $game,
+        User $actor,
+        ?CarbonImmutable $startedAt = null,
     ): ChampionshipGame {
-        return DB::transaction(function () use ($game, $actor, $startedAt, $championship): ChampionshipGame {
-            if ($game instanceof Championship)
-            {
-                if (! $actor instanceof ChampionshipGame)
-                {
-                    throw new DomainException('Partida inválida para iniciar.');
-                }
-                $targetChampionship = $game;
-                $targetGame = $actor;
-            }
-            else
-            {
-                $targetGame = $game;
-                $targetChampionship = $championship;
-            }
-
-            $locked = $this->lockChampionship($targetChampionship ?? (int) $targetGame->championship_id);
-            $lockedGame = $this->lockGame($locked, $targetGame);
+        return DB::transaction(function () use ($game, $startedAt): ChampionshipGame {
+            $locked = $this->lockChampionship((int) $game->championship_id);
+            $lockedGame = $this->lockGame($locked, $game);
 
             if ($lockedGame->is_bye)
             {
@@ -1256,46 +803,23 @@ final readonly class TournamentEngine
             if ($lockedGame->status === GameStatus::Scheduled)
             {
                 $lockedGame->status = GameStatus::Live;
-                $lockedGame->started_at = $lockedGame->started_at
-                    ?? ($startedAt !== null ? CarbonImmutable::instance($startedAt) : CarbonImmutable::now());
+                $lockedGame->started_at = $lockedGame->started_at ?? ($startedAt ?? CarbonImmutable::now());
                 $lockedGame->save();
             }
 
-            $this->syncModel($targetGame, $lockedGame);
+            $this->syncModel($game, $lockedGame);
 
             return $lockedGame;
         });
     }
 
     public function recordGoal(
-        ChampionshipGame|Championship $game,
-        ChampionshipGame|GoalCommand $command,
-        ?GoalCommand $goalCommand = null,
+        ChampionshipGame $game,
+        GoalCommand $command,
     ): ChampionshipGameEvent {
-        return DB::transaction(function () use ($game, $command, $goalCommand): ChampionshipGameEvent {
-            if ($game instanceof Championship)
-            {
-                if (! $command instanceof ChampionshipGame || ! $goalCommand instanceof GoalCommand)
-                {
-                    throw new DomainException('Parâmetros inválidos para registro de gol.');
-                }
-                $targetChampionship = $game;
-                $targetGame = $command;
-                $resolvedCommand = $goalCommand;
-            }
-            else
-            {
-                if (! $command instanceof GoalCommand)
-                {
-                    throw new DomainException('Comando de gol inválido.');
-                }
-                $targetChampionship = null;
-                $targetGame = $game;
-                $resolvedCommand = $command;
-            }
-
-            $locked = $this->lockChampionship($targetChampionship ?? (int) $targetGame->championship_id);
-            $lockedGame = $this->lockGame($locked, $targetGame);
+        return DB::transaction(function () use ($game, $command): ChampionshipGameEvent {
+            $locked = $this->lockChampionship((int) $game->championship_id);
+            $lockedGame = $this->lockGame($locked, $game);
 
             if ($lockedGame->is_bye)
             {
@@ -1314,7 +838,7 @@ final readonly class TournamentEngine
 
             $rules = $locked->rules;
 
-            if ($resolvedCommand->isOvertime)
+            if ($command->overtime)
             {
                 if ($lockedGame->phase === GamePhase::Group && ! $rules->allowGroupOvertimeOrShootout)
                 {
@@ -1327,65 +851,39 @@ final readonly class TournamentEngine
                 }
             }
 
-            if ($resolvedCommand->period < 1)
+            if ($command->period < 1)
             {
                 throw new DomainException('O período do gol deve ser maior ou igual a 1.');
             }
 
-            $teamId = $resolvedCommand->side === TeamSide::Home
+            $teamId = $command->side === TeamSide::Home
                 ? (int) $lockedGame->home_team_id
                 : (int) $lockedGame->away_team_id;
 
             $maxAssists = $rules->maxAssistsPerGoal;
-            $assistIds = $resolvedCommand->assistIds;
-            $firstAssistId = $resolvedCommand->firstAssistId;
-            $secondAssistId = $resolvedCommand->secondAssistId;
+            $assistIds = array_values($command->assistIds);
 
             if (count($assistIds) > $maxAssists)
             {
+                if ($maxAssists === 0)
+                {
+                    throw new DomainException('As regras deste campeonato não permitem assistências.');
+                }
+
                 throw new DomainException("As regras deste campeonato permitem no máximo {$maxAssists} assistência(s) por gol.");
             }
 
-            if ($maxAssists < 1 && ($firstAssistId !== null || $secondAssistId !== null))
+            if (in_array($command->scorerId, $assistIds, true))
             {
-                throw new DomainException('As regras deste campeonato não permitem assistências.');
-            }
-
-            if ($maxAssists < 2 && $secondAssistId !== null)
-            {
-                throw new DomainException('As regras deste campeonato permitem no máximo 1 assistência por gol.');
-            }
-
-            if ($firstAssistId === null && $secondAssistId !== null)
-            {
-                $firstAssistId = $secondAssistId;
-                $secondAssistId = null;
-            }
-
-            if (
-                $firstAssistId === $resolvedCommand->scorerId
-                || $secondAssistId === $resolvedCommand->scorerId
-                || in_array($resolvedCommand->scorerId, $assistIds, true)
-            ) {
                 throw new DomainException('O autor do gol não pode dar assistência para o próprio gol.');
             }
 
-            if (
-                ($firstAssistId !== null && $secondAssistId !== null && $firstAssistId === $secondAssistId)
-                || count($assistIds) !== count(array_unique($assistIds))
-            ) {
+            if (count($assistIds) !== count(array_unique($assistIds)))
+            {
                 throw new DomainException('As assistências de um gol devem ser de jogadores distintos.');
             }
 
-            $playerIdsToValidate = [$resolvedCommand->scorerId];
-            if ($firstAssistId !== null)
-            {
-                $playerIdsToValidate[] = $firstAssistId;
-            }
-            if ($secondAssistId !== null)
-            {
-                $playerIdsToValidate[] = $secondAssistId;
-            }
+            $playerIdsToValidate = [$command->scorerId, ...$assistIds];
 
             $validPlayersCount = ChampionshipPlayer::withoutGlobalScope('team')
                 ->where('championship_id', $locked->id)
@@ -1393,7 +891,7 @@ final readonly class TournamentEngine
                 ->whereIn('id', $playerIdsToValidate)
                 ->count();
 
-            if ($validPlayersCount !== count(array_unique($playerIdsToValidate)))
+            if ($validPlayersCount !== count($playerIdsToValidate))
             {
                 throw new DomainException('O autor do gol e os assistentes devem pertencer ao elenco da equipe na partida.');
             }
@@ -1403,54 +901,32 @@ final readonly class TournamentEngine
                 'championship_id' => $locked->id,
                 'championship_game_id' => $lockedGame->id,
                 'type' => GameEventType::Goal,
-                'side' => $resolvedCommand->side,
+                'side' => $command->side,
                 'team_id' => $teamId,
-                'primary_player_id' => $resolvedCommand->scorerId,
-                'first_assist_player_id' => $firstAssistId,
-                'second_assist_player_id' => $secondAssistId,
-                'period' => $resolvedCommand->period,
-                'is_overtime' => $resolvedCommand->isOvertime,
-                'elapsed_seconds' => max(0, $resolvedCommand->elapsedSeconds),
-                'remaining_seconds' => max(0, $resolvedCommand->remainingSeconds),
+                'primary_player_id' => $command->scorerId,
+                'first_assist_player_id' => $assistIds[0] ?? null,
+                'second_assist_player_id' => $assistIds[1] ?? null,
+                'period' => $command->period,
+                'is_overtime' => $command->overtime,
+                'elapsed_seconds' => max(0, $command->elapsedSeconds),
+                'remaining_seconds' => max(0, $command->remainingSeconds),
                 'recorded_at' => CarbonImmutable::now(),
             ]);
 
             $this->recomputeGameScores($lockedGame);
-            $this->syncModel($targetGame, $lockedGame);
+            $this->syncModel($game, $lockedGame);
 
             return $event;
         });
     }
 
     public function recordShootoutAttempt(
-        ChampionshipGame|Championship $game,
-        ChampionshipGame|ShootoutAttemptCommand $command,
-        ?ShootoutAttemptCommand $shootoutCommand = null,
+        ChampionshipGame $game,
+        ShootoutAttemptCommand $command,
     ): ChampionshipGameEvent {
-        return DB::transaction(function () use ($game, $command, $shootoutCommand): ChampionshipGameEvent {
-            if ($game instanceof Championship)
-            {
-                if (! $command instanceof ChampionshipGame || ! $shootoutCommand instanceof ShootoutAttemptCommand)
-                {
-                    throw new DomainException('Parâmetros inválidos para cobrança de shootout.');
-                }
-                $targetChampionship = $game;
-                $targetGame = $command;
-                $resolvedCommand = $shootoutCommand;
-            }
-            else
-            {
-                if (! $command instanceof ShootoutAttemptCommand)
-                {
-                    throw new DomainException('Comando de cobrança de shootout inválido.');
-                }
-                $targetChampionship = null;
-                $targetGame = $game;
-                $resolvedCommand = $command;
-            }
-
-            $locked = $this->lockChampionship($targetChampionship ?? (int) $targetGame->championship_id);
-            $lockedGame = $this->lockGame($locked, $targetGame);
+        return DB::transaction(function () use ($game, $command): ChampionshipGameEvent {
+            $locked = $this->lockChampionship((int) $game->championship_id);
+            $lockedGame = $this->lockGame($locked, $game);
 
             if ($lockedGame->is_bye)
             {
@@ -1477,19 +953,19 @@ final readonly class TournamentEngine
                 throw new DomainException('A disputa de shootout só é permitida quando o placar regulamentar/prorrogação está empatado.');
             }
 
-            if ($resolvedCommand->roundNumber < 1)
+            if ($command->round < 1)
             {
                 throw new DomainException('A rodada do shootout deve ser maior ou igual a 1.');
             }
 
-            $teamId = $resolvedCommand->side === TeamSide::Home
+            $teamId = $command->side === TeamSide::Home
                 ? (int) $lockedGame->home_team_id
                 : (int) $lockedGame->away_team_id;
 
             $shooterBelongsToTeam = ChampionshipPlayer::withoutGlobalScope('team')
                 ->where('championship_id', $locked->id)
                 ->where('championship_team_id', $teamId)
-                ->whereKey($resolvedCommand->shooterId)
+                ->whereKey($command->shooterId)
                 ->exists();
 
             if (! $shooterBelongsToTeam)
@@ -1502,103 +978,43 @@ final readonly class TournamentEngine
                 'championship_id' => $locked->id,
                 'championship_game_id' => $lockedGame->id,
                 'type' => GameEventType::ShootoutAttempt,
-                'side' => $resolvedCommand->side,
+                'side' => $command->side,
                 'team_id' => $teamId,
-                'primary_player_id' => $resolvedCommand->shooterId,
+                'primary_player_id' => $command->shooterId,
                 'first_assist_player_id' => null,
                 'second_assist_player_id' => null,
                 'period' => null,
                 'is_overtime' => false,
                 'elapsed_seconds' => 0,
                 'remaining_seconds' => 0,
-                'shootout_round' => $resolvedCommand->roundNumber,
-                'shootout_scored' => $resolvedCommand->scored,
+                'shootout_round' => $command->round,
+                'shootout_scored' => $command->scored,
                 'recorded_at' => CarbonImmutable::now(),
             ]);
 
             $this->recomputeGameScores($lockedGame);
-            $this->syncModel($targetGame, $lockedGame);
+            $this->syncModel($game, $lockedGame);
 
             return $event;
         });
     }
 
     public function removeEvent(
-        ChampionshipGameEvent|ChampionshipGame|Championship $event,
-        ChampionshipGameEvent|ChampionshipGame|User|int|string|null $actor = null,
-        ChampionshipGameEvent|User|int|string|null $reason = null,
-        User|int|string|null $actorId = null,
-        ?string $removalReason = null,
+        ChampionshipGameEvent $event,
+        User $actor,
+        ?string $reason = null,
     ): void {
-        DB::transaction(function () use ($event, $actor, $reason, $actorId, $removalReason): void {
-            $targetChampionship = null;
-            $targetGame = null;
-            $targetEvent = null;
-            $rawActor = null;
-            $rawReason = null;
-
-            if ($event instanceof Championship)
-            {
-                $targetChampionship = $event;
-                if ($actor instanceof ChampionshipGame && $reason instanceof ChampionshipGameEvent)
-                {
-                    $targetGame = $actor;
-                    $targetEvent = $reason;
-                    $rawActor = $actorId;
-                    $rawReason = $removalReason;
-                }
-                elseif ($actor instanceof ChampionshipGameEvent)
-                {
-                    $targetEvent = $actor;
-                    $rawActor = $reason;
-                    $rawReason = is_string($actorId) ? $actorId : $removalReason;
-                }
-            }
-            elseif ($event instanceof ChampionshipGame)
-            {
-                $targetGame = $event;
-                if ($actor instanceof ChampionshipGameEvent)
-                {
-                    $targetEvent = $actor;
-                    $rawActor = $reason ?? $actorId;
-                    $rawReason = is_string($actorId) ? $actorId : (is_string($reason) ? $reason : $removalReason);
-                }
-            }
-            else
-            {
-                $targetEvent = $event;
-                if ($actor instanceof User || is_int($actor))
-                {
-                    $rawActor = $actor;
-                    $rawReason = is_string($reason) ? $reason : $removalReason;
-                }
-                elseif (is_string($actor))
-                {
-                    $rawActor = $actorId;
-                    $rawReason = $actor;
-                }
-                else
-                {
-                    $rawActor = $actorId;
-                    $rawReason = is_string($reason) ? $reason : $removalReason;
-                }
-            }
-
-            if (! $targetEvent instanceof ChampionshipGameEvent)
-            {
-                throw new DomainException('Evento de súmula inválido para remoção.');
-            }
-
-            $locked = $this->lockChampionship($targetChampionship ?? (int) $targetEvent->championship_id);
+        DB::transaction(function () use ($event, $actor, $reason): void {
+            $locked = $this->lockChampionship((int) $event->championship_id);
 
             /** @var ChampionshipGame|null $lockedGame */
             $lockedGame = ChampionshipGame::withoutGlobalScope('team')
                 ->where('championship_id', $locked->id)
-                ->whereKey($targetGame !== null ? $targetGame->id : $targetEvent->championship_game_id)
+                ->whereKey($event->championship_game_id)
                 ->lockForUpdate()
                 ->first();
 
-            if ($lockedGame === null || (int) $targetEvent->championship_game_id !== (int) $lockedGame->id)
+            if ($lockedGame === null)
             {
                 throw new DomainException('O evento informado não pertence a esta partida.');
             }
@@ -1612,7 +1028,7 @@ final readonly class TournamentEngine
             $lockedEvent = ChampionshipGameEvent::withoutGlobalScope('team')
                 ->withTrashed()
                 ->where('championship_game_id', $lockedGame->id)
-                ->whereKey($targetEvent->id)
+                ->whereKey($event->id)
                 ->lockForUpdate()
                 ->first();
 
@@ -1648,18 +1064,13 @@ final readonly class TournamentEngine
 
             $this->recomputeGameScores($lockedGame);
 
-            $resolvedActorId = $this->resolveActorId(
-                ($rawActor instanceof User || is_int($rawActor)) ? $rawActor : null,
-                $locked->user_id,
-            );
-
             ChampionshipAuditLog::withoutGlobalScope('team')->create([
                 'user_id' => $locked->user_id,
                 'championship_id' => $locked->id,
                 'championship_game_id' => $lockedGame->id,
-                'actor_user_id' => $resolvedActorId,
+                'actor_user_id' => (int) $actor->id,
                 'action' => 'event_removed',
-                'reason' => $rawReason !== null && trim($rawReason) !== '' ? trim($rawReason) : null,
+                'reason' => $reason !== null && trim($reason) !== '' ? trim($reason) : null,
                 'before_snapshot' => $beforeSnapshot,
                 'after_snapshot' => [
                     'home_regular_score' => $lockedGame->home_regular_score,
@@ -1672,62 +1083,22 @@ final readonly class TournamentEngine
                 'recorded_at' => CarbonImmutable::now(),
             ]);
 
-            if ($targetGame !== null)
-            {
-                $this->syncModel($targetGame, $lockedGame);
-            }
-            $this->syncModel($targetEvent, $lockedEvent);
+            $this->syncModel($event, $lockedEvent);
         });
     }
 
-    public function removeGameEvent(
-        Championship|ChampionshipGame|ChampionshipGameEvent $championship,
-        ChampionshipGame|ChampionshipGameEvent|User|int|null $game = null,
-        ChampionshipGameEvent|User|int|string|null $event = null,
-        User|int|string|null $actorId = null,
-        ?string $reason = null,
-    ): void {
-        $this->removeEvent($championship, $game, $event, $actorId, $reason);
-    }
-
     public function finishGame(
-        ChampionshipGame|Championship $game,
-        ChampionshipGame|User|int|CarbonInterface|null $actor = null,
-        CarbonInterface|User|int|null $finishedAt = null,
-        ?CarbonInterface $explicitFinishedAt = null,
+        ChampionshipGame $game,
+        User $actor,
+        ?CarbonImmutable $finishedAt = null,
     ): ChampionshipGame {
-        return DB::transaction(function () use ($game, $actor, $finishedAt, $explicitFinishedAt): ChampionshipGame {
-            if ($game instanceof Championship)
-            {
-                if (! $actor instanceof ChampionshipGame)
-                {
-                    throw new DomainException('Partida inválida para encerramento.');
-                }
-                $targetChampionship = $game;
-                $targetGame = $actor;
-                $rawActor = ($finishedAt instanceof User || is_int($finishedAt)) ? $finishedAt : null;
-                $rawFinishedAt = $finishedAt instanceof CarbonInterface ? $finishedAt : $explicitFinishedAt;
-            }
-            else
-            {
-                $targetChampionship = null;
-                $targetGame = $game;
-                $rawActor = ($actor instanceof User || is_int($actor)) ? $actor : null;
-                $rawFinishedAt = $actor instanceof CarbonInterface
-                    ? $actor
-                    : ($finishedAt instanceof CarbonInterface ? $finishedAt : $explicitFinishedAt);
-            }
-
-            $locked = $this->lockChampionship($targetChampionship ?? (int) $targetGame->championship_id);
-            $lockedGame = $this->lockGame($locked, $targetGame);
+        return DB::transaction(function () use ($game, $actor, $finishedAt): ChampionshipGame {
+            $locked = $this->lockChampionship((int) $game->championship_id);
+            $lockedGame = $this->lockGame($locked, $game);
 
             if ($lockedGame->status === GameStatus::Finished)
             {
-                $this->syncModel($targetGame, $lockedGame);
-                if ($targetChampionship !== null)
-                {
-                    $this->syncModel($targetChampionship, $locked);
-                }
+                $this->syncModel($game, $lockedGame);
 
                 return $lockedGame;
             }
@@ -1737,15 +1108,7 @@ final readonly class TournamentEngine
                 throw new DomainException('A partida precisa ter as duas equipes definidas para ser encerrada.');
             }
 
-            $hasAnyEventsInTable = ChampionshipGameEvent::withoutGlobalScope('team')
-                ->withTrashed()
-                ->where('championship_game_id', $lockedGame->id)
-                ->exists();
-
-            if ($hasAnyEventsInTable)
-            {
-                $this->recomputeGameScores($lockedGame);
-            }
+            $this->recomputeGameScores($lockedGame);
 
             $homeId = (int) $lockedGame->home_team_id;
             $awayId = (int) $lockedGame->away_team_id;
@@ -1784,7 +1147,7 @@ final readonly class TournamentEngine
                 }
             }
 
-            $now = $rawFinishedAt !== null ? CarbonImmutable::instance($rawFinishedAt) : CarbonImmutable::now();
+            $now = $finishedAt ?? CarbonImmutable::now();
 
             $lockedGame->status = GameStatus::Finished;
             $lockedGame->winner_team_id = $winnerTeamId;
@@ -1798,13 +1161,11 @@ final readonly class TournamentEngine
                 $this->checkAndCompleteChampionshipIfDone($locked, $now);
             }
 
-            $resolvedActorId = $this->resolveActorId($rawActor, $locked->user_id);
-
             ChampionshipAuditLog::withoutGlobalScope('team')->create([
                 'user_id' => $locked->user_id,
                 'championship_id' => $locked->id,
                 'championship_game_id' => $lockedGame->id,
-                'actor_user_id' => $resolvedActorId,
+                'actor_user_id' => (int) $actor->id,
                 'action' => 'game_finished',
                 'reason' => null,
                 'before_snapshot' => null,
@@ -1812,81 +1173,27 @@ final readonly class TournamentEngine
                 'recorded_at' => $now,
             ]);
 
-            $this->syncModel($targetGame, $lockedGame);
-            if ($targetChampionship !== null)
-            {
-                $this->syncModel($targetChampionship, $locked);
-            }
+            $this->syncModel($game, $lockedGame);
 
             return $lockedGame;
         });
     }
 
     public function reopenGame(
-        ChampionshipGame|Championship $game,
-        ChampionshipGame|User|int|string|null $actor = null,
-        string|User|int|null $reason = null,
-        bool|string $resetBracket = false,
-        bool $resetUnstartedBracket = false,
-        ?Championship $championship = null,
-        User|int|null $actorId = null,
-        ?bool $resetar_chave = null,
+        ChampionshipGame $game,
+        User $actor,
+        string $reason,
+        bool $resetBracket = false,
     ): ChampionshipGame {
-        return DB::transaction(function () use (
-            $game,
-            $actor,
-            $reason,
-            $resetBracket,
-            $resetUnstartedBracket,
-            $championship,
-            $actorId,
-            $resetar_chave,
-        ): ChampionshipGame {
-            if ($game instanceof Championship)
-            {
-                if (! $actor instanceof ChampionshipGame)
-                {
-                    throw new DomainException('Partida inválida para reabertura.');
-                }
-                $targetChampionship = $game;
-                $targetGame = $actor;
-                $rawActor = ($reason instanceof User || is_int($reason)) ? $reason : $actorId;
-                $rawReason = is_string($resetBracket) ? $resetBracket : (is_string($reason) ? $reason : '');
-                $resolvedResetBracket = (is_bool($resetBracket) && $resetBracket)
-                    || $resetUnstartedBracket
-                    || ($resetar_chave ?? false);
-            }
-            else
-            {
-                $targetChampionship = $championship;
-                $targetGame = $game;
-                if (is_string($actor) && ($reason === null || is_bool($reason)))
-                {
-                    $rawActor = $actorId;
-                    $rawReason = $actor;
-                    $resolvedResetBracket = (is_bool($reason) && $reason)
-                        || (is_bool($resetBracket) && $resetBracket)
-                        || $resetUnstartedBracket
-                        || ($resetar_chave ?? false);
-                }
-                else
-                {
-                    $rawActor = ($actor instanceof User || is_int($actor)) ? $actor : $actorId;
-                    $rawReason = is_string($reason) ? $reason : '';
-                    $resolvedResetBracket = (is_bool($resetBracket) && $resetBracket)
-                        || $resetUnstartedBracket
-                        || ($resetar_chave ?? false);
-                }
-            }
-
-            $trimmedReason = trim($rawReason);
+        return DB::transaction(function () use ($game, $actor, $reason, $resetBracket): ChampionshipGame {
+            $trimmedReason = trim($reason);
             if ($trimmedReason === '')
             {
                 throw new DomainException('O motivo é obrigatório para reabrir uma partida.');
             }
 
-            $locked = $this->lockChampionship($targetChampionship ?? (int) $targetGame->championship_id);
-            $lockedGame = $this->lockGame($locked, $targetGame);
+            $locked = $this->lockChampionship((int) $game->championship_id);
+            $lockedGame = $this->lockGame($locked, $game);
 
             if ($lockedGame->is_bye)
             {
@@ -1898,7 +1205,7 @@ final readonly class TournamentEngine
                 throw new DomainException('Apenas partidas já encerradas podem ser reabertas.');
             }
 
-            $resolvedActorId = $this->resolveActorId($rawActor, $locked->user_id);
+            $actorId = (int) $actor->id;
             $now = CarbonImmutable::now();
             $previousChampionshipStatus = $locked->status;
 
@@ -1933,7 +1240,7 @@ final readonly class TournamentEngine
 
                 if ($bracketExists)
                 {
-                    if (! $resolvedResetBracket)
+                    if (! $resetBracket)
                     {
                         throw new DomainException('A chave do mata-mata já foi gerada. Confirme o reinício da chave para reabrir este jogo.');
                     }
@@ -1963,7 +1270,7 @@ final readonly class TournamentEngine
                         'user_id' => $locked->user_id,
                         'championship_id' => $locked->id,
                         'championship_game_id' => $lockedGame->id,
-                        'actor_user_id' => $resolvedActorId,
+                        'actor_user_id' => $actorId,
                         'action' => 'bracket_reset',
                         'reason' => $trimmedReason,
                         'before_snapshot' => $bracketBeforeSnapshot,
@@ -2040,7 +1347,7 @@ final readonly class TournamentEngine
                 'user_id' => $locked->user_id,
                 'championship_id' => $locked->id,
                 'championship_game_id' => $lockedGame->id,
-                'actor_user_id' => $resolvedActorId,
+                'actor_user_id' => $actorId,
                 'action' => 'game_reopened',
                 'reason' => $trimmedReason,
                 'before_snapshot' => $beforeSnapshot,
@@ -2048,11 +1355,7 @@ final readonly class TournamentEngine
                 'recorded_at' => $now,
             ]);
 
-            $this->syncModel($targetGame, $lockedGame);
-            if ($targetChampionship !== null)
-            {
-                $this->syncModel($targetChampionship, $locked);
-            }
+            $this->syncModel($game, $lockedGame);
 
             return $lockedGame;
         });
@@ -2063,12 +1366,10 @@ final readonly class TournamentEngine
      */
     public function resolveTie(
         Championship $championship,
-        ?string $group = null,
-        array $orderedTeamIds = [],
-        User|int|null $actor = null,
-        ?string $reason = null,
-        ?string $groupCode = null,
-        User|int|null $actorId = null,
+        string $group,
+        array $orderedTeamIds,
+        User $actor,
+        string $reason,
     ): Championship {
         return DB::transaction(function () use (
             $championship,
@@ -2076,18 +1377,16 @@ final readonly class TournamentEngine
             $orderedTeamIds,
             $actor,
             $reason,
-            $groupCode,
-            $actorId,
         ): Championship {
             $locked = $this->lockChampionship($championship);
 
-            $resolvedGroup = trim((string) ($group ?? $groupCode ?? ''));
+            $resolvedGroup = trim($group);
             if ($resolvedGroup === '')
             {
                 throw new DomainException('Informe o grupo para registrar o desempate manual.');
             }
 
-            $trimmedReason = trim((string) $reason);
+            $trimmedReason = trim($reason);
             if ($trimmedReason === '')
             {
                 throw new DomainException('O motivo é obrigatório para registrar o desempate manual.');
@@ -2160,13 +1459,11 @@ final readonly class TournamentEngine
             $locked->manual_tie_resolutions = $currentResolutions;
             $locked->save();
 
-            $resolvedActorId = $this->resolveActorId($actor ?? $actorId, $locked->user_id);
-
             ChampionshipAuditLog::withoutGlobalScope('team')->create([
                 'user_id' => $locked->user_id,
                 'championship_id' => $locked->id,
                 'championship_game_id' => null,
-                'actor_user_id' => $resolvedActorId,
+                'actor_user_id' => (int) $actor->id,
                 'action' => 'tie_break_resolved',
                 'reason' => $trimmedReason,
                 'before_snapshot' => [
@@ -2186,39 +1483,11 @@ final readonly class TournamentEngine
         });
     }
 
-    /**
-     * @param  list<int>  $orderedTeamIds
-     */
-    public function resolveGroupTieManually(
-        Championship $championship,
-        string $groupCode,
-        array $orderedTeamIds,
-        User|int|null $actorId = null,
-        string $reason = '',
-        User|int|null $actor = null,
-    ): Championship {
-        return $this->resolveTie(
-            championship: $championship,
-            group: $groupCode,
-            orderedTeamIds: $orderedTeamIds,
-            actor: $actor ?? $actorId,
-            reason: $reason,
-        );
-    }
-
     public function generateBracket(
         Championship $championship,
-        User|int|null $actor = null,
-        bool $forceResetUnstarted = false,
-        ?string $resetReason = null,
-        User|int|null $actorId = null,
+        User $actor,
     ): Championship {
-        return DB::transaction(function () use (
-            $championship,
-            $actor,
-            $resetReason,
-            $actorId,
-        ): Championship {
+        return DB::transaction(function () use ($championship, $actor): Championship {
             $locked = $this->lockChampionship($championship);
 
             if ($locked->status === ChampionshipStatus::Draft)
@@ -2249,7 +1518,7 @@ final readonly class TournamentEngine
                 throw new DomainException('A chave do mata-mata já possui partidas iniciadas e não pode ser gerada novamente.');
             }
 
-            $standings = $this->computeStandingsForLocked($locked);
+            $standings = $this->standingsForLocked($locked);
 
             if ($standings === [])
             {
@@ -2350,7 +1619,6 @@ final readonly class TournamentEngine
                 }
             }
 
-            // Auto-advance first-round bye slots into their downstream winner:{slot_key} slots
             foreach ($upsertedBySlotKey as $slotKey => $slotGame)
             {
                 if ($slotGame->is_bye && $slotGame->winner_team_id !== null)
@@ -2364,15 +1632,13 @@ final readonly class TournamentEngine
             $locked->completed_at = null;
             $locked->save();
 
-            $resolvedActorId = $this->resolveActorId($actor ?? $actorId, $locked->user_id);
-
             ChampionshipAuditLog::withoutGlobalScope('team')->create([
                 'user_id' => $locked->user_id,
                 'championship_id' => $locked->id,
                 'championship_game_id' => null,
-                'actor_user_id' => $resolvedActorId,
+                'actor_user_id' => (int) $actor->id,
                 'action' => 'bracket_generated',
-                'reason' => $resetReason !== null && trim($resetReason) !== '' ? trim($resetReason) : null,
+                'reason' => null,
                 'before_snapshot' => null,
                 'after_snapshot' => [
                     'status' => $locked->status->value,
@@ -2399,21 +1665,6 @@ final readonly class TournamentEngine
         });
     }
 
-    public function generateKnockoutBracket(
-        Championship $championship,
-        User|int|null $actorId = null,
-        bool $forceResetUnstarted = false,
-        ?string $resetReason = null,
-        User|int|null $actor = null,
-    ): Championship {
-        return $this->generateBracket(
-            championship: $championship,
-            actor: $actor ?? $actorId,
-            forceResetUnstarted: $forceResetUnstarted,
-            resetReason: $resetReason,
-        );
-    }
-
     /**
      * @return array<string, GroupStandings>
      */
@@ -2421,22 +1672,14 @@ final readonly class TournamentEngine
     {
         $this->assertTenantAccess($championship);
 
-        return $this->computeStandingsForLocked($championship);
-    }
-
-    /**
-     * @return array<string, GroupStandings>
-     */
-    public function computeStandings(Championship $championship): array
-    {
-        return $this->standings($championship);
+        return $this->standingsForLocked($championship);
     }
 
     public function summary(Championship $championship): ChampionshipSummary
     {
         $this->assertTenantAccess($championship);
 
-        $standingsByGroup = $this->computeStandingsForLocked($championship);
+        $standingsByGroup = $this->standingsForLocked($championship);
 
         $teams = ChampionshipTeam::withoutGlobalScope('team')
             ->where('championship_id', $championship->id)
@@ -2595,7 +1838,7 @@ final readonly class TournamentEngine
             ] ?: strcmp($a->playerName, $b->playerName),
         );
 
-        $podium = $this->resolvePodium($championship, $allGames->all());
+        $podium = $this->resolvePodium($allGames->all());
 
         return new ChampionshipSummary(
             standingsByGroup: $standingsByGroup,
@@ -2609,15 +1852,10 @@ final readonly class TournamentEngine
         );
     }
 
-    public function computeSummary(Championship $championship): ChampionshipSummary
-    {
-        return $this->summary($championship);
-    }
-
     /**
      * @param  list<ChampionshipGame>  $allGames
      */
-    private function resolvePodium(Championship $championship, array $allGames): Podium
+    private function resolvePodium(array $allGames): Podium
     {
         $finalGame = null;
         $thirdPlaceGame = null;
@@ -2669,7 +1907,7 @@ final readonly class TournamentEngine
     /**
      * @return array<string, GroupStandings>
      */
-    private function computeStandingsForLocked(Championship $championship): array
+    private function standingsForLocked(Championship $championship): array
     {
         $teams = ChampionshipTeam::withoutGlobalScope('team')
             ->where('championship_id', $championship->id)
@@ -3031,7 +2269,6 @@ final readonly class TournamentEngine
                 ];
             }
 
-            // Rotate all except the fixed element at index 0
             $last = array_pop($rotation);
             array_splice($rotation, 1, 0, [$last]);
         }
@@ -3194,45 +2431,6 @@ final readonly class TournamentEngine
         }
     }
 
-    private function resolveActorId(User|int|null $actor, int $fallbackUserId): int
-    {
-        if ($actor instanceof User)
-        {
-            return (int) $actor->id;
-        }
-
-        if (is_int($actor) && $actor > 0)
-        {
-            return $actor;
-        }
-
-        $authId = auth()->id();
-        if ($authId !== null)
-        {
-            return (int) $authId;
-        }
-
-        return $fallbackUserId;
-    }
-
-    /**
-     * @param  ChampionshipRules|array<string, mixed>|null  $rules
-     */
-    private function normalizeRules(ChampionshipRules|array|null $rules): ChampionshipRules
-    {
-        if ($rules instanceof ChampionshipRules)
-        {
-            return $rules;
-        }
-
-        if (is_array($rules))
-        {
-            return ChampionshipRules::fromArray($rules);
-        }
-
-        return ChampionshipRules::defaults();
-    }
-
     private function validateRules(ChampionshipRules $rules): void
     {
         if ($rules->groupsCount < 1 || $rules->groupsCount > 8)
@@ -3304,46 +2502,6 @@ final readonly class TournamentEngine
         {
             throw new DomainException('Formato de imagem inválido para o escudo. Envie apenas JPG, PNG ou WEBP.');
         }
-    }
-
-    private function parseDate(CarbonInterface|string|null $value): ?CarbonImmutable
-    {
-        if ($value === null || $value === '')
-        {
-            return null;
-        }
-
-        if ($value instanceof CarbonImmutable)
-        {
-            return $value->startOfDay();
-        }
-
-        if ($value instanceof CarbonInterface)
-        {
-            return CarbonImmutable::instance($value)->startOfDay();
-        }
-
-        return CarbonImmutable::parse($value)->startOfDay();
-    }
-
-    private function parseDateTime(CarbonInterface|string|null $value): ?CarbonImmutable
-    {
-        if ($value === null || $value === '')
-        {
-            return null;
-        }
-
-        if ($value instanceof CarbonImmutable)
-        {
-            return $value;
-        }
-
-        if ($value instanceof CarbonInterface)
-        {
-            return CarbonImmutable::instance($value);
-        }
-
-        return CarbonImmutable::parse($value);
     }
 
     /**
