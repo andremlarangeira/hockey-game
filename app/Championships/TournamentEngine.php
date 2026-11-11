@@ -29,6 +29,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 final readonly class TournamentEngine
 {
@@ -155,6 +156,56 @@ final readonly class TournamentEngine
             $locked->rules = $rules;
             $locked->save();
 
+            $this->syncModel($championship, $locked);
+
+            return $locked;
+        });
+    }
+
+    public function enablePublicLink(Championship $championship, User $actor): Championship
+    {
+        return DB::transaction(function () use ($championship, $actor): Championship {
+            $locked = $this->lockChampionship($championship);
+
+            if ($locked->public_token === null)
+            {
+                $locked->public_token = Str::random(40);
+            }
+
+            $locked->public_enabled_at ??= CarbonImmutable::now();
+            $locked->save();
+
+            $this->recordPublicLinkAudit($locked, $actor, 'public_link_enabled');
+            $this->syncModel($championship, $locked);
+
+            return $locked;
+        });
+    }
+
+    public function regeneratePublicLink(Championship $championship, User $actor): Championship
+    {
+        return DB::transaction(function () use ($championship, $actor): Championship {
+            $locked = $this->lockChampionship($championship);
+            $locked->public_token = Str::random(40);
+            $locked->public_enabled_at = CarbonImmutable::now();
+            $locked->save();
+
+            $this->recordPublicLinkAudit($locked, $actor, 'public_link_regenerated');
+            $this->syncModel($championship, $locked);
+
+            return $locked;
+        });
+    }
+
+    public function disablePublicLink(Championship $championship, User $actor): Championship
+    {
+        return DB::transaction(function () use ($championship, $actor): Championship {
+            $locked = $this->lockChampionship($championship);
+            $locked->public_enabled_at = null;
+            $locked->public_token = null;
+            $locked->save();
+
+            $this->recordPublicLinkAudit($locked, $actor, 'public_link_disabled');
             $this->syncModel($championship, $locked);
 
             return $locked;
@@ -2435,6 +2486,21 @@ final readonly class TournamentEngine
         {
             throw new ChampionshipException('Este campeonato pertence a outra conta.');
         }
+    }
+
+    private function recordPublicLinkAudit(Championship $championship, User $actor, string $action): void
+    {
+        ChampionshipAuditLog::withoutGlobalScope('team')->create([
+            'user_id' => $championship->user_id,
+            'championship_id' => $championship->id,
+            'championship_game_id' => null,
+            'actor_user_id' => (int) $actor->id,
+            'action' => $action,
+            'reason' => null,
+            'before_snapshot' => null,
+            'after_snapshot' => ['public_link_enabled' => $championship->public_enabled_at !== null],
+            'recorded_at' => CarbonImmutable::now(),
+        ]);
     }
 
     private function validateRules(ChampionshipRules $rules): void

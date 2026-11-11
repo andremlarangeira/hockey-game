@@ -88,6 +88,12 @@ final readonly class ChampionshipPresenter
             'can_draw' => $statusFlags['can_draw'],
             'can_generate_bracket' => $statusFlags['can_generate_bracket'],
             'summary' => $summary,
+            'public_link' => [
+                'enabled' => $championship->public_enabled_at !== null && $championship->public_token !== null,
+                'url' => $championship->public_enabled_at !== null && $championship->public_token !== null
+                    ? route('public.championships.show', ['token' => $championship->public_token])
+                    : null,
+            ],
         ];
     }
 

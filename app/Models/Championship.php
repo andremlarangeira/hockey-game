@@ -27,6 +27,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property CarbonImmutable|null $drawn_at
  * @property CarbonImmutable|null $bracket_generated_at
  * @property CarbonImmutable|null $completed_at
+ * @property string|null $public_token
+ * @property CarbonImmutable|null $public_enabled_at
  */
 #[Fillable([
     'id',
@@ -42,6 +44,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'drawn_at',
     'bracket_generated_at',
     'completed_at',
+    'public_token',
+    'public_enabled_at',
 ])]
 class Championship extends Model
 {
@@ -66,6 +70,7 @@ class Championship extends Model
             'drawn_at' => 'immutable_datetime',
             'bracket_generated_at' => 'immutable_datetime',
             'completed_at' => 'immutable_datetime',
+            'public_enabled_at' => 'immutable_datetime',
         ];
     }
 

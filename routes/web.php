@@ -3,8 +3,10 @@
 use App\Http\Controllers\Championships\ChampionshipController;
 use App\Http\Controllers\Championships\ChampionshipGameController;
 use App\Http\Controllers\Championships\ChampionshipPlayerController;
+use App\Http\Controllers\Championships\ChampionshipPublicLinkController;
 use App\Http\Controllers\Championships\ChampionshipStageController;
 use App\Http\Controllers\Championships\ChampionshipTeamController;
+use App\Http\Controllers\Championships\PublicChampionshipController;
 use App\Http\Controllers\DrawController;
 use App\Http\Controllers\MatchController;
 use App\Http\Controllers\PlayerController;
@@ -39,6 +41,9 @@ Route::middleware(['auth'])->group(function () {
         Route::match(['put', 'patch'], '{championship}', [ChampionshipController::class, 'update'])->name('update');
         Route::match(['put', 'patch'], '{championship}/regras', [ChampionshipController::class, 'updateRules'])->name('rules.update');
         Route::get('{championship}/resumo', [ChampionshipController::class, 'summary'])->name('summary');
+        Route::post('{championship}/link-publico', [ChampionshipPublicLinkController::class, 'store'])->name('public-link.store');
+        Route::post('{championship}/link-publico/regenerar', [ChampionshipPublicLinkController::class, 'regenerate'])->name('public-link.regenerate');
+        Route::delete('{championship}/link-publico', [ChampionshipPublicLinkController::class, 'destroy'])->name('public-link.destroy');
 
         Route::post('{championship}/equipes', [ChampionshipTeamController::class, 'store'])->name('teams.store');
         Route::match(['put', 'patch', 'post'], '{championship}/equipes/{team}', [ChampionshipTeamController::class, 'update'])->name('teams.update');
@@ -74,5 +79,16 @@ Route::middleware(['auth'])->group(function () {
         Route::post('{championship}/jogos/{game}/reabrir', [ChampionshipGameController::class, 'reopen'])->name('games.reopen');
     });
 });
+
+Route::middleware(['throttle:120,1'])
+    ->prefix('p/campeonatos/{token}')
+    ->where(['token' => '[A-Za-z0-9]{40}'])
+    ->name('public.championships.')
+    ->group(function (): void {
+        Route::get('/', [PublicChampionshipController::class, 'show'])->name('show');
+        Route::get('/jogos/{game}', [PublicChampionshipController::class, 'game'])
+            ->whereNumber('game')
+            ->name('games.show');
+    });
 
 require __DIR__.'/settings.php';
