@@ -308,7 +308,7 @@ test('executa torneio determinístico completo de 8 equipes exclusivamente via H
     $this->get("/campeonatos/{$championship->id}/jogos/{$sf1->id}")
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('championships/GameLive', false)
+            ->component('championships/GameLive')
             ->where('game.id', $sf1->id)
             ->where('clock_settings.minutes', 12)
             ->where('clock_settings.periods', 2)
@@ -432,7 +432,7 @@ test('executa torneio determinístico completo de 8 equipes exclusivamente via H
     $summaryResponse = $this->get("/campeonatos/{$championship->id}/resumo")
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('championships/Summary', false)
+            ->component('championships/Summary')
             ->where('summary.podium.champion_team_id', $teamA1->id)
             ->where('summary.podium.runner_up_team_id', $teamB1->id)
             ->where('summary.podium.third_place_team_id', $teamB2->id)
@@ -493,7 +493,7 @@ test('executa torneio determinístico completo de 8 equipes exclusivamente via H
     $this->get("/campeonatos/{$championship->id}/resumo")
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('championships/Summary', false)
+            ->component('championships/Summary')
             ->where('summary.podium.champion_team_id', $teamB1->id)
             ->where('summary.podium.runner_up_team_id', $teamA1->id)
             ->where('summary.podium.third_place_team_id', $teamB2->id)

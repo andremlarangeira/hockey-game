@@ -15,7 +15,37 @@ Aplicativo para organizar times de hockey informal: elenco e presença, sorteio 
 - Tela cheia, tentativa de travar orientação em paisagem e Wake Lock durante a partida.
 - Salvamento dos elencos, resultado, gols, assistências, períodos, cronômetro e cronologia. Recuperação do rascunho no mesmo navegador após F5/fechamento acidental.
 - Histórico de partidas e estatísticas de jogos, gols e assistências.
+- Campeonatos municipais e torneios completos (`/campeonatos`), isolados das partidas e estatísticas da pelada.
 - Interface e mensagens em português do Brasil, com CI configurado no GitHub Actions.
+
+## Campeonatos
+
+O módulo de **Campeonatos** (`/campeonatos`) permite organizar torneios municipais ou ligas completas com equipes convidadas dentro da mesma conta, sem misturar atletas, jogos ou gols com o elenco e as estatísticas da pelada (`/jogadores`, `/partidas` e `/estatisticas` permanecem exclusivos da pelada).
+
+### Fluxo de operação
+
+1. **Criar campeonato**: defina nome, cidade, ginásio/local padrão e datas de início e término (status inicial: `Rascunho`).
+2. **Times e elencos**: inscreva as equipes participantes com nome, sigla, cores, pote de sorteio opcional e escudo (JPG, PNG ou WebP até 4 MB; SVG é recusado por segurança). Cadastre o elenco de cada equipe com nome, número de camisa (único dentro da própria equipe), posição e indicação de goleiro.
+3. **Regras (padrões editáveis antes do sorteio)**: todos os valores vêm preenchidos apenas como sugestão inicial e podem ser ajustados livremente ao regulamento local enquanto o campeonato estiver em `Rascunho`:
+   - Quantidade de grupos, classificados por grupo, melhores classificados extras e turno único ou turno e returno;
+   - Pontuação por vitória/empate/derrota (ex.: 3/1/0) e opção de exigir desempate por prorrogação/shootout já na fase de grupos (com pontuação própria, ex.: 2/1);
+   - Ordem configurável dos critérios de desempate (pontos, confronto direto em mini-tabela entre os empatados, saldo de gols, gols pró, vitórias, menos gols contra e sorteio manual auditado);
+   - Tempo de jogo (minutos por período, número de períodos, intervalo, contagem regressiva e duração da prorrogação);
+   - Resolução de empate no mata-mata (`Prorrogação + shootout` ou `Direto para shootout`), disputa de 3º lugar e máximo de assistências por gol (`0`, `1` ou `2`).
+4. **Sorteio de grupos**: distribui as equipes nos grupos no servidor (respeitando potes, quando usados), grava o resultado no banco (recarregar a página nunca altera os grupos), gera todos os jogos da fase de grupos e **trava as regras e a inscrição/remoção de equipes**. Caso nenhum jogo tenha começado, é possível refazer o sorteio mediante confirmação e justificativa auditada.
+5. **Jogos e placar ao vivo**: cada partida possui agendamento de local/horário e tela de placar ao vivo (`/campeonatos/{id}/jogos/{jogo}`) que reutiliza o cronômetro, os alertas sonoros, a tela cheia e o Wake Lock do aplicativo (persistindo o estado do relógio no navegador em `campeonato-relogio:{gameId}`). Os eventos são salvos incrementalmente no servidor:
+   - **Iniciar jogo**: muda o status de `Agendado` para `Ao vivo`;
+   - **Gols e assistências**: seleção do autor no elenco da equipe e de até `N` assistências (conforme regra configurada) ou “Sem assistência”, com suporte a prorrogação;
+   - **Shootout / Pênaltis**: painel separado para registrar cobranças (cobrador, convertido sim/não e rodada). Cobranças de shootout definem o vencedor em caso de empate, mas **nunca contam como gol no placar regular nem na artilharia**;
+   - **Finalizar partida**: valida se o confronto exige vencedor (no mata-mata ou conforme regra de grupo), encerra a súmula e atualiza imediatamente a classificação derivada ou avança as equipes no chaveamento.
+6. **Mata-mata**: após encerrar todos os jogos dos grupos (e resolver eventuais empates técnicos na linha de corte com sorteio manual justificado), gera a chave eliminatória em potência de 2 (com avanço automático de `BYE` para os melhores cabeças de chave quando necessário, cruzamento olímpico `1A × 2B`, disputa de 3º lugar opcional entre os perdedores das semifinais e Grande Final).
+7. **Resumo e pódio**: página dedicada (`/campeonatos/{id}/resumo`), responsiva e formatada para impressão/PDF, com pódio oficial (1º, 2º e 3º lugares exibidos apenas quando definidos; caso contrário, `A definir`), totais do torneio (jogos finalizados e gols excluindo shootout), tabelas de artilharia, assistências e pontos (`G + A`), classificação dos grupos, chaveamento e lista de resultados.
+
+### Reabertura, retificação e auditoria
+
+- **Proteção de fases dependentes**: reabrir uma partida encerrada exige informar o **motivo**. Jogos da fase de grupos não podem ser reabertos se alguma partida do mata-mata já tiver começado (se a chave foi apenas gerada e nenhum jogo começou, o sistema solicita confirmação para reiniciar a chave não iniciada). Jogos do mata-mata não podem ser reabertos se a fase seguinte dependente já tiver começado.
+- **Retificação sem exclusão silenciosa**: remover um gol ou cobrança de shootout realiza _soft delete_ do evento, recalcula o placar da partida na mesma transação e grava um registro imutável em `championship_audit_logs` com autor, data/hora, motivo e snapshots do estado antes e depois.
+- Para mais detalhes de uso, consulte [`docs/campeonato/USO.md`](docs/campeonato/USO.md).
 
 ## Instalação local
 
@@ -58,6 +88,11 @@ php artisan optimize
 ```
 
 As funcionalidades deste aplicativo rodam de forma síncrona, sem tarefas agendadas; por isso, não é necessário manter fila ou worker. O cache usa o banco por padrão.
+
+> **Nota de atualização / deploy do módulo de Campeonatos**:
+> - O módulo adiciona **6 novas migrações exclusivamente de criação de tabelas** (`championships`, `championship_teams`, `championship_players`, `championship_games`, `championship_game_events` e `championship_audit_logs`), sem alterar nenhuma tabela existente: execute `php artisan migrate --force`.
+> - O comando `php artisan storage:link` é necessário para servir os escudos enviados para as equipes inscritas (armazenados no disco `public` em `storage/app/public/championships/{user_id}/logos`).
+> - Execute `npm run build` para compilar as novas páginas Vue/Inertia do módulo de campeonatos.
 
 ## Verificações
 
