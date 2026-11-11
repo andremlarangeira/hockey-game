@@ -28,6 +28,7 @@ import { useMatchAudio } from '@/composables/useMatchAudio';
 import { useMatchClock } from '@/composables/useMatchClock';
 import { useWakeLock } from '@/composables/useWakeLock';
 import { formatClock } from '@/lib/matchClock';
+import { transitionSounds } from '@/lib/matchClockCore';
 import type {
     ChampionshipGameEventProp,
     ChampionshipLiveGamePageProps,
@@ -237,16 +238,9 @@ function clearClockStorage() {
 
 function recordTransitions() {
     for (const event of clock.transitions.slice(recordedTransitions)) {
-        const ended = event.ended ?? '';
-        if (ended === 'period' && !restoring.value) {
-            sound.play(sounds.value, 'end');
-        }
-        if (ended === 'rest' && !restoring.value) {
-            sound.play(sounds.value, 'rest_end');
-        }
-        if (ended === 'countdown' && !restoring.value) {
-            sound.play(sounds.value, 'start');
-        }
+        if (!restoring.value)
+            for (const soundName of transitionSounds(event))
+                sound.play(sounds.value, soundName);
         if (event.started === 'finished') {
             void wake.release();
         }

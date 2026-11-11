@@ -28,7 +28,9 @@ execFileSync(`${cwd}/node_modules/typescript/bin/tsc`, [
     temp,
 ]);
 writeFileSync(`${temp}/package.json`, '{"type":"commonjs"}');
-const { MatchClockCore } = await import(`${temp}/matchClockCore.js`);
+const { MatchClockCore, transitionSounds } = await import(
+    `${temp}/matchClockCore.js`
+);
 let now = 0;
 const clock = new MatchClockCore({
     minutes: 2,
@@ -254,6 +256,142 @@ assert.equal(countdownReconfigured.remaining, 120);
 countdownReconfigured.tick(125_000);
 assert.equal(countdownReconfigured.phase, 'rest');
 assert.equal(countdownReconfigured.remaining, 30);
+
+const interPeriodCountdown = new MatchClockCore({
+    minutes: 1,
+    periods: 2,
+    rest_seconds: 10,
+    countdown_seconds: 5,
+});
+interPeriodCountdown.start(0);
+interPeriodCountdown.tick(5_000);
+assert.equal(interPeriodCountdown.phase, 'period');
+assert.equal(interPeriodCountdown.period, 1);
+assert.equal(interPeriodCountdown.remaining, 60);
+interPeriodCountdown.tick(65_000);
+assert.equal(interPeriodCountdown.phase, 'rest');
+assert.equal(interPeriodCountdown.period, 1);
+assert.equal(interPeriodCountdown.remaining, 10);
+assert.equal(interPeriodCountdown.elapsed, 60);
+interPeriodCountdown.tick(70_000);
+assert.equal(interPeriodCountdown.phase, 'rest');
+assert.equal(interPeriodCountdown.period, 1);
+assert.equal(interPeriodCountdown.remaining, 5);
+assert.equal(interPeriodCountdown.elapsed, 60);
+interPeriodCountdown.tick(75_000);
+assert.equal(interPeriodCountdown.phase, 'countdown');
+assert.equal(interPeriodCountdown.period, 2);
+assert.equal(interPeriodCountdown.remaining, 5);
+assert.equal(interPeriodCountdown.elapsed, 60);
+interPeriodCountdown.tick(80_000);
+assert.equal(interPeriodCountdown.phase, 'period');
+assert.equal(interPeriodCountdown.period, 2);
+assert.equal(interPeriodCountdown.remaining, 60);
+interPeriodCountdown.tick(140_000);
+assert.equal(interPeriodCountdown.phase, 'finished');
+assert.equal(interPeriodCountdown.transitions.length, 5);
+
+const soundsFor = (clock) =>
+    clock.transitions.flatMap((transition) => transitionSounds(transition));
+assert.deepEqual(soundsFor(interPeriodCountdown), [
+    'start',
+    'end',
+    'rest_end',
+    'start',
+    'end',
+]);
+const interPeriodTransitionCount = interPeriodCountdown.transitions.length;
+interPeriodCountdown.tick(140_000);
+interPeriodCountdown.tick(140_000);
+interPeriodCountdown.tick(140_000);
+assert.equal(
+    interPeriodCountdown.transitions.length,
+    interPeriodTransitionCount,
+);
+assert.deepEqual(soundsFor(interPeriodCountdown), [
+    'start',
+    'end',
+    'rest_end',
+    'start',
+    'end',
+]);
+
+const directNextPeriod = new MatchClockCore({
+    minutes: 1,
+    periods: 2,
+    rest_seconds: 10,
+    countdown_seconds: 0,
+});
+directNextPeriod.start(0);
+directNextPeriod.tick(60_000);
+assert.equal(directNextPeriod.phase, 'rest');
+directNextPeriod.tick(70_000);
+assert.equal(directNextPeriod.phase, 'period');
+assert.equal(directNextPeriod.period, 2);
+assert.equal(directNextPeriod.remaining, 60);
+directNextPeriod.tick(130_000);
+assert.equal(directNextPeriod.phase, 'finished');
+// The page plays the initial whistle at start(); it is not a clock transition.
+assert.deepEqual(soundsFor(directNextPeriod), [
+    'end',
+    'rest_end',
+    'start',
+    'end',
+]);
+
+const pausedInterPeriodCountdown = new MatchClockCore({
+    minutes: 1,
+    periods: 2,
+    rest_seconds: 10,
+    countdown_seconds: 5,
+});
+pausedInterPeriodCountdown.start(0);
+pausedInterPeriodCountdown.tick(65_000);
+pausedInterPeriodCountdown.tick(75_000);
+assert.equal(pausedInterPeriodCountdown.phase, 'countdown');
+assert.equal(pausedInterPeriodCountdown.period, 2);
+pausedInterPeriodCountdown.tick(77_000);
+assert.equal(pausedInterPeriodCountdown.remaining, 3);
+pausedInterPeriodCountdown.togglePause(77_000);
+pausedInterPeriodCountdown.tick(97_000);
+assert.equal(pausedInterPeriodCountdown.remaining, 3);
+pausedInterPeriodCountdown.togglePause(97_000);
+pausedInterPeriodCountdown.tick(100_000);
+assert.equal(pausedInterPeriodCountdown.phase, 'period');
+assert.equal(pausedInterPeriodCountdown.period, 2);
+assert.equal(pausedInterPeriodCountdown.remaining, 60);
+pausedInterPeriodCountdown.tick(160_000);
+assert.equal(pausedInterPeriodCountdown.phase, 'finished');
+
+const jumpedInterPeriodCountdown = new MatchClockCore({
+    minutes: 1,
+    periods: 2,
+    rest_seconds: 10,
+    countdown_seconds: 5,
+});
+jumpedInterPeriodCountdown.start(0);
+jumpedInterPeriodCountdown.tick(65_000);
+assert.equal(jumpedInterPeriodCountdown.phase, 'rest');
+jumpedInterPeriodCountdown.tick(98_000);
+assert.equal(jumpedInterPeriodCountdown.phase, 'period');
+assert.equal(jumpedInterPeriodCountdown.period, 2);
+assert.equal(jumpedInterPeriodCountdown.remaining, 42);
+assert.deepEqual(
+    jumpedInterPeriodCountdown.transitions.slice(2).map((transition) => ({
+        ended: transition.ended,
+        started: transition.started,
+    })),
+    [
+        { ended: 'rest', started: 'countdown' },
+        { ended: 'countdown', started: 'period' },
+    ],
+);
+const jumpedTransitionCount = jumpedInterPeriodCountdown.transitions.length;
+jumpedInterPeriodCountdown.tick(98_000);
+assert.equal(
+    jumpedInterPeriodCountdown.transitions.length,
+    jumpedTransitionCount,
+);
 
 console.log(
     'Relógio: pré-contagem, pós-gol, pausa, descanso, tempos, atraso, configuração e recuperação passaram.',

@@ -27,6 +27,7 @@ import type {
     TimelineEvent,
 } from '@/types/hockey';
 import { formatClock } from '@/lib/matchClock';
+import { transitionSounds } from '@/lib/matchClockCore';
 
 const page = usePage();
 const draftKey = `hockey-rascunho:${page.props.team.id}`;
@@ -218,7 +219,6 @@ function recordTransitions() {
                 period,
                 elapsed_seconds: event.elapsed,
             });
-            if (!restoring.value) sound.play(sounds.value, 'end');
         }
         if (ended === 'rest') {
             timeline.value.push({
@@ -227,10 +227,10 @@ function recordTransitions() {
                 period,
                 elapsed_seconds: event.elapsed,
             });
-            if (!restoring.value) sound.play(sounds.value, 'rest_end');
         }
-        if (ended === 'countdown' && !restoring.value)
-            sound.play(sounds.value, 'start');
+        if (!restoring.value)
+            for (const soundName of transitionSounds(event))
+                sound.play(sounds.value, soundName);
         if (event.started === 'period') {
             timeline.value.push({
                 at: event.at,
