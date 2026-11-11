@@ -669,6 +669,13 @@ final readonly class TournamentEngine
                         'group_code' => null,
                         'group_draw_order' => null,
                     ]);
+
+                foreach ($teams as $teamModel)
+                {
+                    $teamModel->group_code = null;
+                    $teamModel->group_draw_order = null;
+                    $teamModel->syncOriginal();
+                }
             }
 
             $afterGroups = [];
