@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import ChampionshipTeamBadge from '@/components/championships/ChampionshipTeamBadge.vue';
+import { usePublicAutoRefresh } from '@/composables/usePublicAutoRefresh';
 import PublicLayout from '@/layouts/PublicLayout.vue';
-import { Head, Link, usePoll } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import {
     Calendar,
     CircleDot,
@@ -10,7 +11,7 @@ import {
     Medal,
     Trophy,
 } from 'lucide-vue-next';
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import type {
     GameStatus,
     PublicChampionshipGameProp,
@@ -65,16 +66,13 @@ const tabs = computed(() => [
         : []),
     ['estatisticas', 'Estatísticas'] as [TabKey, string],
 ]);
-const poll = usePoll(
-    30_000,
-    { only: ['games', 'standings', 'stats'] },
-    { autoStart: false, background: 'pause' },
-);
-
-watch(hasLiveGame, (live) => (live ? poll.start() : poll.stop()), {
-    immediate: true,
+const { lastUpdatedAt, failing, unavailable } = usePublicAutoRefresh({
+    only: ['championship', 'games', 'standings', 'stats'],
+    intervalMs: () => {
+        if (props.championship.status === 'completed') return null;
+        return hasLiveGame.value ? 15_000 : 60_000;
+    },
 });
-onBeforeUnmount(poll.stop);
 
 function groupGames(games: PublicChampionshipGameProp[]) {
     const groups = new Map<string, PublicChampionshipGameProp[]>();
@@ -105,6 +103,9 @@ function gameUrl(game: PublicChampionshipGameProp): string {
     return typeof window === 'undefined'
         ? '#'
         : `${window.location.pathname.replace(/\/$/, '')}/jogos/${game.id}`;
+}
+function formatUpdatedAt(value: Date): string {
+    return value.toLocaleTimeString('pt-BR');
 }
 function leaderValue(
     leader: PublicPlayerLeaderRowProp,
@@ -150,6 +151,16 @@ function leaderValue(
                 }}</span
             >
         </div>
+        <p
+            class="mt-3 text-xs text-slate-500 dark:text-slate-400"
+            aria-live="polite"
+        >
+            <span v-if="unavailable">Este link não está mais disponível.</span>
+            <span v-else-if="failing">Sem conexão, tentando novamente…</span>
+            <span v-else
+                >Atualizado às {{ formatUpdatedAt(lastUpdatedAt) }}</span
+            >
+        </p>
     </section>
     <nav
         class="mt-5 flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 dark:border-slate-700 dark:bg-slate-900"

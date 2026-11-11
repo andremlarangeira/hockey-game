@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import ChampionshipTeamBadge from '@/components/championships/ChampionshipTeamBadge.vue';
+import { usePublicAutoRefresh } from '@/composables/usePublicAutoRefresh';
 import PublicLayout from '@/layouts/PublicLayout.vue';
-import { Head, Link, usePoll } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import {
     ArrowLeft,
     CircleDot,
@@ -10,7 +11,7 @@ import {
     Timer,
     Trophy,
 } from 'lucide-vue-next';
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed } from 'vue';
 import type {
     PublicChampionshipEventProp,
     PublicChampionshipGamePageProps,
@@ -19,33 +20,18 @@ import type {
 defineOptions({ layout: PublicLayout });
 
 const props = defineProps<PublicChampionshipGamePageProps>();
-const updatedAt = ref(new Date());
 const goalEvents = computed(() =>
     props.events.filter((event) => event.type === 'goal'),
 );
 const lastEvent = computed(() => props.events.at(-1) ?? null);
 const gameIsLive = computed(() => props.game.status === 'live');
-const poll = usePoll(
-    5000,
-    {
-        only: ['game', 'events'],
-        onSuccess: () => {
-            updatedAt.value = new Date();
-        },
+const { lastUpdatedAt, failing, unavailable } = usePublicAutoRefresh({
+    only: ['game', 'events'],
+    intervalMs: () => {
+        if (props.game.status === 'finished') return null;
+        return props.game.status === 'live' ? 5_000 : 30_000;
     },
-    { autoStart: false, background: 'pause' },
-);
-
-watch(
-    () => props.poll_interval_ms,
-    (interval) =>
-        interval !== null && gameIsLive.value ? poll.start() : poll.stop(),
-    { immediate: true },
-);
-watch(gameIsLive, (live) => {
-    if (!live) poll.stop();
 });
-onBeforeUnmount(poll.stop);
 
 const championshipUrl = computed(() => {
     if (typeof window === 'undefined') return '#';
@@ -68,6 +54,9 @@ function eventDescription(event: PublicChampionshipEventProp): string {
     return assists.length
         ? `Assistências: ${assists.join(' e ')}`
         : 'Sem assistência registrada';
+}
+function formatUpdatedAt(value: Date): string {
+    return value.toLocaleTimeString('pt-BR');
 }
 </script>
 
@@ -208,9 +197,15 @@ function eventDescription(event: PublicChampionshipEventProp): string {
     <footer
         class="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-200 px-4 py-3 text-xs text-slate-600 dark:bg-slate-900 dark:text-slate-400"
     >
-        <span class="inline-flex items-center gap-1"
-            ><Clock3 class="size-3.5" /> Atualizado às
-            {{ updatedAt.toLocaleTimeString('pt-BR') }}</span
+        <span class="inline-flex items-center gap-1" aria-live="polite"
+            ><Clock3 class="size-3.5" />
+            <template v-if="unavailable"
+                >Este link não está mais disponível.</template
+            ><template v-else-if="failing"
+                >Sem conexão, tentando novamente…</template
+            ><template v-else
+                >Atualizado às {{ formatUpdatedAt(lastUpdatedAt) }}</template
+            ></span
         ><span class="inline-flex items-center gap-1"
             ><Timer class="size-3.5" /> O cronômetro oficial fica no dispositivo
             da mesa.</span
