@@ -18,7 +18,7 @@ const form = useForm({ email: '' });
                 type="email"
                 required
                 autofocus
-                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3"
+                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 dark:border-slate-600"
             /><span v-if="form.errors.email" class="text-sm text-red-600">{{
                 form.errors.email
             }}</span></label

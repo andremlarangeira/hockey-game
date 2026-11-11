@@ -14,6 +14,13 @@
 body {
     min-width: 320px;
 }
+/* Controles nativos (select, date, scrollbar) acompanham o tema escolhido. */
+:root {
+    color-scheme: light;
+}
+.dark {
+    color-scheme: dark;
+}
 button,
 a,
 input,

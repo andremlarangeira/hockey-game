@@ -65,9 +65,13 @@ function fraction(value: number): string {
                 />
             </template>
         </div>
-        <span v-if="!readonly" class="ml-2 text-sm font-black text-slate-700">{{
-            modelValue.toLocaleString('pt-BR', { minimumFractionDigits: 1 })
-        }}</span>
+        <span
+            v-if="!readonly"
+            class="ml-2 text-sm font-black text-slate-700 dark:text-slate-200"
+            >{{
+                modelValue.toLocaleString('pt-BR', { minimumFractionDigits: 1 })
+            }}</span
+        >
     </div>
 </template>
 

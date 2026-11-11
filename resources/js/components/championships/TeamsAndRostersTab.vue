@@ -241,11 +241,11 @@ function confirmRemovePlayer(
 <template>
     <div class="space-y-4">
         <div
-            class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4"
+            class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
         >
             <div>
                 <h2 class="text-lg font-black">Equipes inscritas e elencos</h2>
-                <p class="text-xs text-slate-500">
+                <p class="text-xs text-slate-500 dark:text-slate-400">
                     {{ teams.length }} equipe(s) inscrita(s) · Mínimo sugerido
                     pelas regras:
                     {{
@@ -271,7 +271,7 @@ function confirmRemovePlayer(
             </button>
             <div
                 v-else
-                class="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600"
+                class="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300"
             >
                 <Lock class="size-3.5" />
                 Inscrição/remoção de equipes encerrada após o sorteio
@@ -282,7 +282,7 @@ function confirmRemovePlayer(
             <section
                 v-for="team in teams"
                 :key="team.id"
-                class="overflow-hidden rounded-2xl border border-slate-200 bg-white"
+                class="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
                 :data-team-id="team.id"
             >
                 <div
@@ -293,7 +293,7 @@ function confirmRemovePlayer(
                 />
 
                 <div
-                    class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-4"
+                    class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-4 dark:border-slate-800"
                 >
                     <div class="flex min-w-0 flex-1 items-center gap-3">
                         <ChampionshipTeamBadge
@@ -311,7 +311,7 @@ function confirmRemovePlayer(
                                 </h3>
                                 <span
                                     v-if="team.short_name"
-                                    class="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-bold text-slate-600"
+                                    class="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300"
                                 >
                                     {{ team.short_name }}
                                 </span>
@@ -328,7 +328,9 @@ function confirmRemovePlayer(
                                     Pote {{ team.seed_pot }}
                                 </span>
                             </div>
-                            <p class="mt-0.5 text-xs text-slate-500">
+                            <p
+                                class="mt-0.5 text-xs text-slate-500 dark:text-slate-400"
+                            >
                                 {{ team.players.length }} jogador(es) no elenco
                             </p>
                         </div>
@@ -338,7 +340,7 @@ function confirmRemovePlayer(
                         <button
                             v-if="!isCompleted"
                             type="button"
-                            class="inline-flex min-h-9 items-center gap-1 rounded-lg bg-slate-100 px-2.5 text-xs font-bold text-slate-700 hover:bg-slate-200"
+                            class="inline-flex min-h-9 items-center gap-1 rounded-lg bg-slate-100 px-2.5 text-xs font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                             :data-test="`adicionar-jogador-${team.id}`"
                             @click="openNewPlayer(team)"
                         >
@@ -347,7 +349,7 @@ function confirmRemovePlayer(
                         </button>
                         <button
                             type="button"
-                            class="flex size-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
+                            class="flex size-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
                             :aria-label="`Editar equipe ${team.name}`"
                             @click="openEditTeam(team)"
                         >
@@ -356,7 +358,7 @@ function confirmRemovePlayer(
                         <button
                             v-if="isDraft"
                             type="button"
-                            class="flex size-9 items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600"
+                            class="flex size-9 items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 dark:text-slate-400"
                             :aria-label="`Remover equipe ${team.name}`"
                             @click="confirmRemoveTeam(team)"
                         >
@@ -368,11 +370,11 @@ function confirmRemovePlayer(
                 <div class="p-4">
                     <div
                         v-if="team.players.length"
-                        class="overflow-x-auto rounded-xl border border-slate-100"
+                        class="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800"
                     >
                         <table class="w-full text-left text-xs">
                             <thead
-                                class="border-b border-slate-100 bg-slate-50 text-[11px] font-bold tracking-wider text-slate-500 uppercase"
+                                class="border-b border-slate-100 bg-slate-50 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400"
                             >
                                 <tr>
                                     <th class="px-3 py-2">#</th>
@@ -382,24 +384,28 @@ function confirmRemovePlayer(
                                     <th class="px-3 py-2 text-right">Ações</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100">
+                            <tbody
+                                class="divide-y divide-slate-100 dark:divide-slate-800"
+                            >
                                 <tr
                                     v-for="player in team.players"
                                     :key="player.id"
-                                    class="hover:bg-slate-50/80"
+                                    class="hover:bg-slate-50/80 dark:hover:bg-slate-800/60"
                                     :data-championship-player-id="player.id"
                                 >
                                     <td
-                                        class="px-3 py-2 font-black text-slate-900"
+                                        class="px-3 py-2 font-black text-slate-900 dark:text-slate-100"
                                     >
                                         #{{ player.jersey_number }}
                                     </td>
                                     <td
-                                        class="px-3 py-2 font-semibold text-slate-900"
+                                        class="px-3 py-2 font-semibold text-slate-900 dark:text-slate-100"
                                     >
                                         {{ player.name }}
                                     </td>
-                                    <td class="px-3 py-2 text-slate-600">
+                                    <td
+                                        class="px-3 py-2 text-slate-600 dark:text-slate-300"
+                                    >
                                         {{
                                             positionLabels[player.position] ??
                                             player.position
@@ -426,7 +432,7 @@ function confirmRemovePlayer(
                                         >
                                             <button
                                                 type="button"
-                                                class="rounded p-1 text-slate-500 hover:bg-slate-100"
+                                                class="rounded p-1 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
                                                 :aria-label="`Editar jogador ${player.name}`"
                                                 @click="
                                                     openEditPlayer(team, player)
@@ -436,7 +442,7 @@ function confirmRemovePlayer(
                                             </button>
                                             <button
                                                 type="button"
-                                                class="rounded p-1 text-slate-500 hover:bg-red-50 hover:text-red-600"
+                                                class="rounded p-1 text-slate-500 hover:bg-red-50 hover:text-red-600 dark:text-slate-400"
                                                 :aria-label="`Remover jogador ${player.name}`"
                                                 @click="
                                                     confirmRemovePlayer(
@@ -456,14 +462,14 @@ function confirmRemovePlayer(
 
                     <div
                         v-else
-                        class="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-4 text-center text-xs text-slate-500"
+                        class="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-4 text-center text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400"
                     >
                         <Users class="mx-auto mb-1 size-5 text-slate-400" />
                         Nenhum atleta inscrito nesta equipe.
                         <button
                             v-if="!isCompleted"
                             type="button"
-                            class="ml-1 font-bold text-slate-900 underline"
+                            class="ml-1 font-bold text-slate-900 underline dark:text-slate-100"
                             @click="openNewPlayer(team)"
                         >
                             Inscrever primeiro jogador
@@ -475,18 +481,20 @@ function confirmRemovePlayer(
 
         <div
             v-else
-            class="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center"
+            class="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center dark:border-slate-600 dark:bg-slate-900"
         >
             <Shield class="mx-auto size-10 text-slate-400" />
             <h3 class="mt-4 text-lg font-bold">Nenhuma equipe inscrita</h3>
-            <p class="mx-auto mt-1 max-w-md text-sm text-slate-500">
+            <p
+                class="mx-auto mt-1 max-w-md text-sm text-slate-500 dark:text-slate-400"
+            >
                 Inscreva as equipes participantes com escudo, cores e seus
                 respectivos elencos antes de sortear os grupos.
             </p>
             <button
                 v-if="isDraft"
                 type="button"
-                class="mt-5 rounded-xl bg-slate-900 px-5 py-3 font-bold text-white"
+                class="mt-5 rounded-xl bg-slate-900 px-5 py-3 font-bold text-white dark:bg-slate-700"
                 @click="openNewTeam"
             >
                 Inscrever primeira equipe
@@ -501,7 +509,7 @@ function confirmRemovePlayer(
                 @click.self="closeTeamModal"
             >
                 <form
-                    class="mx-auto my-6 max-w-lg rounded-2xl bg-white p-5 shadow-2xl"
+                    class="mx-auto my-6 max-w-lg rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900"
                     @submit.prevent="submitTeam"
                 >
                     <div class="flex items-center justify-between">
@@ -514,7 +522,7 @@ function confirmRemovePlayer(
                         </h2>
                         <button
                             type="button"
-                            class="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                            class="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
                             aria-label="Fechar"
                             @click="closeTeamModal"
                         >
@@ -534,7 +542,7 @@ function confirmRemovePlayer(
                         <div class="flex-1">
                             <div class="flex flex-wrap items-center gap-2">
                                 <label
-                                    class="cursor-pointer rounded-xl bg-slate-100 px-3.5 py-2 text-xs font-bold text-slate-800 hover:bg-slate-200"
+                                    class="cursor-pointer rounded-xl bg-slate-100 px-3.5 py-2 text-xs font-bold text-slate-800 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
                                 >
                                     Enviar escudo
                                     <input
@@ -547,13 +555,15 @@ function confirmRemovePlayer(
                                 <button
                                     v-if="logoPreview"
                                     type="button"
-                                    class="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                                    class="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800/60"
                                     @click="clearLogo"
                                 >
                                     Remover escudo
                                 </button>
                             </div>
-                            <p class="mt-1 text-xs text-slate-500">
+                            <p
+                                class="mt-1 text-xs text-slate-500 dark:text-slate-400"
+                            >
                                 JPG, PNG ou WebP até 4 MB (SVG não é permitido).
                             </p>
                             <p
@@ -574,7 +584,7 @@ function confirmRemovePlayer(
                                 type="text"
                                 required
                                 maxlength="100"
-                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal"
+                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal dark:border-slate-600"
                                 placeholder="Ex.: Tigres HC"
                             />
                             <span
@@ -592,7 +602,7 @@ function confirmRemovePlayer(
                                 name="short_name"
                                 type="text"
                                 maxlength="24"
-                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal"
+                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal dark:border-slate-600"
                                 placeholder="Ex.: TIG"
                             />
                             <span
@@ -608,7 +618,7 @@ function confirmRemovePlayer(
                         <label class="block text-sm font-bold">
                             Cor principal
                             <div
-                                class="mt-1 flex items-center gap-2 rounded-xl border border-slate-300 p-2"
+                                class="mt-1 flex items-center gap-2 rounded-xl border border-slate-300 p-2 dark:border-slate-600"
                             >
                                 <input
                                     v-model="teamForm.primary_color"
@@ -616,7 +626,7 @@ function confirmRemovePlayer(
                                     class="size-9 cursor-pointer rounded"
                                 />
                                 <span
-                                    class="text-xs font-normal text-slate-700"
+                                    class="text-xs font-normal text-slate-700 dark:text-slate-200"
                                 >
                                     {{ teamForm.primary_color }}
                                 </span>
@@ -632,7 +642,7 @@ function confirmRemovePlayer(
                         <label class="block text-sm font-bold">
                             Cor secundária
                             <div
-                                class="mt-1 flex items-center gap-2 rounded-xl border border-slate-300 p-2"
+                                class="mt-1 flex items-center gap-2 rounded-xl border border-slate-300 p-2 dark:border-slate-600"
                             >
                                 <input
                                     v-model="teamForm.secondary_color"
@@ -640,7 +650,7 @@ function confirmRemovePlayer(
                                     class="size-9 cursor-pointer rounded"
                                 />
                                 <span
-                                    class="text-xs font-normal text-slate-700"
+                                    class="text-xs font-normal text-slate-700 dark:text-slate-200"
                                 >
                                     {{ teamForm.secondary_color }}
                                 </span>
@@ -663,11 +673,11 @@ function confirmRemovePlayer(
                                 type="number"
                                 min="1"
                                 max="16"
-                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal"
+                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal dark:border-slate-600"
                                 placeholder="Ex.: 1 para cabeça de chave"
                             />
                             <span
-                                class="mt-1 block text-xs font-normal text-slate-500"
+                                class="mt-1 block text-xs font-normal text-slate-500 dark:text-slate-400"
                             >
                                 Equipes do mesmo pote são distribuídas em grupos
                                 separados no sorteio.
@@ -684,7 +694,7 @@ function confirmRemovePlayer(
                     <div class="mt-6 flex gap-3">
                         <button
                             type="button"
-                            class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold text-slate-700"
+                            class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold text-slate-700 dark:border-slate-600 dark:text-slate-200"
                             @click="closeTeamModal"
                         >
                             Cancelar
@@ -714,13 +724,13 @@ function confirmRemovePlayer(
                 @click.self="closePlayerModal"
             >
                 <form
-                    class="mx-auto my-6 max-w-md rounded-2xl bg-white p-5 shadow-2xl"
+                    class="mx-auto my-6 max-w-md rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900"
                     @submit.prevent="submitPlayer"
                 >
                     <div class="flex items-center justify-between">
                         <div>
                             <p
-                                class="text-xs font-bold tracking-wider text-slate-500 uppercase"
+                                class="text-xs font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400"
                             >
                                 {{ activeTeamForPlayer.name }}
                             </p>
@@ -734,7 +744,7 @@ function confirmRemovePlayer(
                         </div>
                         <button
                             type="button"
-                            class="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                            class="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
                             aria-label="Fechar"
                             @click="closePlayerModal"
                         >
@@ -751,7 +761,7 @@ function confirmRemovePlayer(
                                 type="text"
                                 required
                                 maxlength="100"
-                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal"
+                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal dark:border-slate-600"
                                 placeholder="Nome do atleta"
                             />
                             <span
@@ -771,7 +781,7 @@ function confirmRemovePlayer(
                                 required
                                 min="0"
                                 max="999"
-                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal"
+                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal dark:border-slate-600"
                                 placeholder="10"
                             />
                             <span
@@ -789,7 +799,7 @@ function confirmRemovePlayer(
                             <select
                                 v-model="playerForm.position"
                                 name="position"
-                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3 font-normal"
+                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3 font-normal dark:border-slate-600 dark:bg-slate-900"
                                 @change="onPositionChange"
                             >
                                 <option value="universal">Universal</option>
@@ -807,7 +817,7 @@ function confirmRemovePlayer(
                     </div>
 
                     <label
-                        class="mt-4 flex cursor-pointer items-center gap-3 rounded-xl bg-slate-50 p-3 text-sm font-bold"
+                        class="mt-4 flex cursor-pointer items-center gap-3 rounded-xl bg-slate-50 p-3 text-sm font-bold dark:bg-slate-800/50"
                     >
                         <input
                             v-model="playerForm.is_goalkeeper"
@@ -820,7 +830,7 @@ function confirmRemovePlayer(
                     <div class="mt-6 flex gap-3">
                         <button
                             type="button"
-                            class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold text-slate-700"
+                            class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold text-slate-700 dark:border-slate-600 dark:text-slate-200"
                             @click="closePlayerModal"
                         >
                             Cancelar

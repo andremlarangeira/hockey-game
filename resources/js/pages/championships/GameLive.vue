@@ -187,7 +187,8 @@ const statusLabels: Record<GameStatus, string> = {
 };
 
 const statusClasses: Record<GameStatus, string> = {
-    scheduled: 'bg-slate-200 text-slate-800',
+    scheduled:
+        'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-100',
     live: 'bg-red-500 text-white animate-pulse',
     finished: 'bg-emerald-500 text-white',
 };
@@ -829,7 +830,7 @@ function formatDateTime(iso: string | null): string {
     <!-- Header bar (hidden in fullscreen) -->
     <div
         v-if="!isFullscreen"
-        class="mb-4 rounded-2xl border border-slate-200 bg-white p-4"
+        class="mb-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
     >
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -838,7 +839,7 @@ function formatDateTime(iso: string | null): string {
                 >
                     <Link
                         :href="`/campeonatos/${championship.id}`"
-                        class="inline-flex items-center gap-1 text-slate-500 hover:text-slate-900"
+                        class="inline-flex items-center gap-1 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
                         data-test="voltar-campeonato"
                     >
                         <ArrowLeft class="size-3.5" />
@@ -847,7 +848,7 @@ function formatDateTime(iso: string | null): string {
                     <span class="text-slate-300">·</span>
                     <Link
                         :href="`/campeonatos/${championship.id}/resumo`"
-                        class="inline-flex items-center gap-1 text-slate-600 hover:text-slate-900"
+                        class="inline-flex items-center gap-1 text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
                     >
                         <Award class="size-3.5 text-amber-500" />
                         Resumo e pódio
@@ -855,7 +856,9 @@ function formatDateTime(iso: string | null): string {
                 </div>
 
                 <div class="mt-1.5 flex flex-wrap items-center gap-2">
-                    <h1 class="text-xl font-black text-slate-950 sm:text-2xl">
+                    <h1
+                        class="text-xl font-black text-slate-950 sm:text-2xl dark:text-slate-100"
+                    >
                         {{ game.phase_label }}
                         <template v-if="game.group_code">
                             · Grupo {{ game.group_code }}
@@ -871,7 +874,7 @@ function formatDateTime(iso: string | null): string {
                 </div>
 
                 <div
-                    class="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-slate-500"
+                    class="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400"
                 >
                     <span>Rodada {{ game.round_number }}</span>
                     <span v-if="game.leg_number === 2">· Returno</span>
@@ -892,7 +895,7 @@ function formatDateTime(iso: string | null): string {
             <div class="flex items-center gap-2">
                 <button
                     type="button"
-                    class="flex size-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    class="flex size-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/60"
                     aria-label="Configurações de áudio e cronômetro"
                     @click="showAudioSettings = !showAudioSettings"
                 >
@@ -920,19 +923,19 @@ function formatDateTime(iso: string | null): string {
     <!-- Audio settings panel (optional toggle) -->
     <section
         v-if="showAudioSettings && !isFullscreen"
-        class="mb-4 space-y-4 rounded-2xl border border-slate-200 bg-white p-4"
+        class="mb-4 space-y-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
     >
         <div class="flex items-center justify-between">
             <div>
                 <h2 class="text-sm font-black">Sons da partida</h2>
-                <p class="text-xs text-slate-500">
+                <p class="text-xs text-slate-500 dark:text-slate-400">
                     Apito no início, buzzer no fim do tempo e bipes nos últimos
                     5 segundos de cada contagem.
                 </p>
             </div>
             <button
                 type="button"
-                class="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
+                class="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
                 @click="showAudioSettings = false"
             >
                 <X class="size-4" />
@@ -947,14 +950,15 @@ function formatDateTime(iso: string | null): string {
                     rest_end: 'Fim do descanso',
                 }"
                 :key="key"
-                class="flex flex-col justify-between gap-2 rounded-xl bg-slate-50 p-3"
+                class="flex flex-col justify-between gap-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-800/50"
             >
-                <span class="text-xs font-bold text-slate-800">{{
-                    label
-                }}</span>
+                <span
+                    class="text-xs font-bold text-slate-800 dark:text-slate-100"
+                    >{{ label }}</span
+                >
                 <div class="flex flex-wrap items-center gap-2">
                     <label
-                        class="cursor-pointer rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold"
+                        class="cursor-pointer rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold dark:border-slate-600 dark:bg-slate-900"
                     >
                         {{
                             sounds[key].type === 'custom'
@@ -970,7 +974,7 @@ function formatDateTime(iso: string | null): string {
                     </label>
                     <button
                         type="button"
-                        class="inline-flex min-h-8 items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-bold text-white"
+                        class="inline-flex min-h-8 items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-bold text-white dark:bg-slate-700"
                         @click="
                             sound
                                 .unlock(sounds)
@@ -1324,7 +1328,7 @@ function formatDateTime(iso: string | null): string {
                     class="flex min-h-12 items-center gap-1.5 rounded-xl border px-3.5 text-xs font-bold transition sm:text-sm"
                     :class="
                         isOvertimeMode
-                            ? 'border-amber-400 bg-amber-400 text-slate-950'
+                            ? 'border-amber-400 bg-amber-400 text-slate-950 dark:text-slate-100'
                             : 'border-amber-400/50 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20'
                     "
                     data-test="iniciar-prorrogacao"
@@ -1397,17 +1401,19 @@ function formatDateTime(iso: string | null): string {
                     game.went_to_shootout ||
                     shootoutEvents.length > 0)
             "
-            class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5"
+            class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 dark:border-slate-700 dark:bg-slate-900"
             data-test="painel-shootout"
         >
             <div class="flex flex-wrap items-center justify-between gap-2">
                 <div class="flex items-center gap-2">
                     <Target class="size-5 text-purple-600" />
                     <div>
-                        <h2 class="text-base font-black text-slate-900">
+                        <h2
+                            class="text-base font-black text-slate-900 dark:text-slate-100"
+                        >
                             Disputa de Shootout / Pênaltis
                         </h2>
-                        <p class="text-xs text-slate-500">
+                        <p class="text-xs text-slate-500 dark:text-slate-400">
                             Placar separado — cobranças de shootout nunca somam
                             na artilharia nem no placar regular.
                         </p>
@@ -1424,7 +1430,7 @@ function formatDateTime(iso: string | null): string {
 
             <div
                 v-if="game.status === 'live' && !isRegularScoreTied"
-                class="mt-3 rounded-xl bg-slate-50 p-3 text-xs text-slate-600"
+                class="mt-3 rounded-xl bg-slate-50 p-3 text-xs text-slate-600 dark:bg-slate-800/50 dark:text-slate-300"
             >
                 O registro de cobranças de shootout fica disponível quando o
                 placar do tempo normal/prorrogação está empatado (atual:
@@ -1433,16 +1439,18 @@ function formatDateTime(iso: string | null): string {
 
             <form
                 v-if="game.status === 'live' && isRegularScoreTied"
-                class="mt-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5"
+                class="mt-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 dark:border-slate-700 dark:bg-slate-800/50"
                 @submit.prevent="submitShootoutAttempt"
             >
                 <div class="grid gap-3 sm:grid-cols-2">
-                    <label class="block text-xs font-bold text-slate-700">
+                    <label
+                        class="block text-xs font-bold text-slate-700 dark:text-slate-200"
+                    >
                         Equipe cobradora
                         <select
                             v-model="shootoutSide"
                             name="shootout_side"
-                            class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold"
+                            class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold dark:border-slate-600 dark:bg-slate-900"
                             data-test="shootout-equipe"
                         >
                             <option value="home">
@@ -1454,7 +1462,9 @@ function formatDateTime(iso: string | null): string {
                         </select>
                     </label>
 
-                    <label class="block text-xs font-bold text-slate-700">
+                    <label
+                        class="block text-xs font-bold text-slate-700 dark:text-slate-200"
+                    >
                         Rodada
                         <input
                             v-model.number="shootoutRound"
@@ -1463,20 +1473,22 @@ function formatDateTime(iso: string | null): string {
                             min="1"
                             max="50"
                             required
-                            class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold"
+                            class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold dark:border-slate-600 dark:bg-slate-900"
                             data-test="shootout-rodada"
                         />
                     </label>
                 </div>
 
                 <div class="grid gap-3 sm:grid-cols-2">
-                    <label class="block text-xs font-bold text-slate-700">
+                    <label
+                        class="block text-xs font-bold text-slate-700 dark:text-slate-200"
+                    >
                         Cobrador *
                         <select
                             v-model="shootoutShooterId"
                             name="shooter_id"
                             required
-                            class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold"
+                            class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold dark:border-slate-600 dark:bg-slate-900"
                             data-test="shootout-cobrador"
                         >
                             <option value="" disabled>
@@ -1492,7 +1504,9 @@ function formatDateTime(iso: string | null): string {
                         </select>
                     </label>
 
-                    <div class="block text-xs font-bold text-slate-700">
+                    <div
+                        class="block text-xs font-bold text-slate-700 dark:text-slate-200"
+                    >
                         Convertido?
                         <div class="mt-1 grid grid-cols-2 gap-2">
                             <button
@@ -1501,7 +1515,7 @@ function formatDateTime(iso: string | null): string {
                                 :class="
                                     shootoutScored
                                         ? 'border-emerald-600 bg-emerald-600 text-white'
-                                        : 'border-slate-300 bg-white text-slate-700'
+                                        : 'border-slate-300 bg-white text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200'
                                 "
                                 data-test="shootout-convertido-sim"
                                 @click="shootoutScored = true"
@@ -1514,7 +1528,7 @@ function formatDateTime(iso: string | null): string {
                                 :class="
                                     !shootoutScored
                                         ? 'border-red-600 bg-red-600 text-white'
-                                        : 'border-slate-300 bg-white text-slate-700'
+                                        : 'border-slate-300 bg-white text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200'
                                 "
                                 data-test="shootout-convertido-nao"
                                 @click="shootoutScored = false"
@@ -1539,25 +1553,27 @@ function formatDateTime(iso: string | null): string {
             <!-- List of Shootout Attempts -->
             <div v-if="shootoutEvents.length" class="mt-4 space-y-2">
                 <h3
-                    class="text-xs font-bold tracking-wider text-slate-500 uppercase"
+                    class="text-xs font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400"
                 >
                     Cobranças registradas ({{ shootoutEvents.length }})
                 </h3>
                 <div
                     v-for="ev in shootoutEvents"
                     :key="ev.id"
-                    class="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2 text-xs"
+                    class="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2 text-xs dark:bg-slate-800/50"
                 >
                     <div class="flex min-w-0 items-center gap-2">
                         <span
-                            class="rounded bg-slate-900 px-1.5 py-0.5 font-mono text-[10px] font-black text-white"
+                            class="rounded bg-slate-900 px-1.5 py-0.5 font-mono text-[10px] font-black text-white dark:bg-slate-700"
                         >
                             R{{ ev.shootout_round ?? 1 }}
                         </span>
-                        <span class="truncate font-bold text-slate-900">
+                        <span
+                            class="truncate font-bold text-slate-900 dark:text-slate-100"
+                        >
                             {{ ev.primary_player_name ?? 'Jogador' }}
                         </span>
-                        <span class="text-slate-500">
+                        <span class="text-slate-500 dark:text-slate-400">
                             ({{ teamNameForEvent(ev) }})
                         </span>
                     </div>
@@ -1589,7 +1605,7 @@ function formatDateTime(iso: string | null): string {
 
         <!-- Events / Súmula List with Remove -->
         <section
-            class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5"
+            class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 dark:border-slate-700 dark:bg-slate-900"
             :class="{
                 'lg:col-span-2': !(
                     canUseShootout &&
@@ -1602,10 +1618,12 @@ function formatDateTime(iso: string | null): string {
         >
             <div class="flex items-center justify-between gap-2">
                 <div>
-                    <h2 class="text-base font-black text-slate-900">
+                    <h2
+                        class="text-base font-black text-slate-900 dark:text-slate-100"
+                    >
                         Eventos da súmula ({{ activeEventsDesc.length }})
                     </h2>
-                    <p class="text-xs text-slate-500">
+                    <p class="text-xs text-slate-500 dark:text-slate-400">
                         Gols (com até {{ maxAssists }} assistência(s)) e
                         cobranças registrados no servidor.
                     </p>
@@ -1614,7 +1632,7 @@ function formatDateTime(iso: string | null): string {
 
             <div
                 v-if="!activeEventsDesc.length"
-                class="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-6 text-center text-sm text-slate-500"
+                class="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-6 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400"
             >
                 Nenhum gol ou evento registrado nesta partida ainda.
             </div>
@@ -1623,7 +1641,7 @@ function formatDateTime(iso: string | null): string {
                 <div
                     v-for="event in activeEventsDesc"
                     :key="event.id"
-                    class="flex items-center justify-between gap-3 rounded-xl bg-slate-50 p-3"
+                    class="flex items-center justify-between gap-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-800/50"
                     :data-event-id="event.id"
                 >
                     <div class="flex min-w-0 flex-1 items-center gap-3">
@@ -1646,11 +1664,13 @@ function formatDateTime(iso: string | null): string {
 
                         <div class="min-w-0 flex-1">
                             <div class="flex flex-wrap items-center gap-1.5">
-                                <span class="text-sm font-black text-slate-900">
+                                <span
+                                    class="text-sm font-black text-slate-900 dark:text-slate-100"
+                                >
                                     {{ event.primary_player_name ?? 'Atleta' }}
                                 </span>
                                 <span
-                                    class="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-700"
+                                    class="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-700 dark:bg-slate-700 dark:text-slate-200"
                                 >
                                     {{ teamNameForEvent(event) }}
                                 </span>
@@ -1680,7 +1700,7 @@ function formatDateTime(iso: string | null): string {
 
                             <p
                                 v-if="event.type === 'goal'"
-                                class="mt-0.5 truncate text-xs text-slate-500"
+                                class="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400"
                             >
                                 <template
                                     v-if="
@@ -1706,7 +1726,7 @@ function formatDateTime(iso: string | null): string {
                     <div class="flex shrink-0 items-center gap-2">
                         <span
                             v-if="event.type === 'goal'"
-                            class="text-xs font-black text-slate-600 tabular-nums"
+                            class="text-xs font-black text-slate-600 tabular-nums dark:text-slate-300"
                         >
                             {{ formatClock(event.remaining_seconds) }}
                         </span>
@@ -1714,7 +1734,7 @@ function formatDateTime(iso: string | null): string {
                         <button
                             v-if="game.status === 'live'"
                             type="button"
-                            class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50"
+                            class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 dark:border-slate-700 dark:bg-slate-900"
                             :data-test="`remover-evento-${event.id}`"
                             @click="openRemoveEventModal(event)"
                         >
@@ -1734,19 +1754,21 @@ function formatDateTime(iso: string | null): string {
             class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 p-4"
             @click.self="showStartConfirm = false"
         >
-            <div class="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+            <div
+                class="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900"
+            >
                 <div class="flex items-center justify-between">
                     <h2 class="text-xl font-black">Iniciar partida</h2>
                     <button
                         type="button"
-                        class="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
+                        class="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
                         @click="showStartConfirm = false"
                     >
                         <X class="size-5" />
                     </button>
                 </div>
 
-                <p class="mt-2 text-sm text-slate-600">
+                <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">
                     Confirmar o início da partida entre
                     <strong>{{ homeTeam?.name ?? game.home_team_name }}</strong>
                     e
@@ -1757,7 +1779,7 @@ function formatDateTime(iso: string | null): string {
                 <div class="mt-6 flex gap-3">
                     <button
                         type="button"
-                        class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold text-slate-700"
+                        class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold text-slate-700 dark:border-slate-600 dark:text-slate-200"
                         @click="showStartConfirm = false"
                     >
                         Cancelar
@@ -1784,12 +1806,12 @@ function formatDateTime(iso: string | null): string {
             @click.self="goalDialog = null"
         >
             <div
-                class="max-h-[92svh] w-full max-w-3xl overflow-y-auto rounded-t-3xl bg-white p-5 sm:rounded-3xl"
+                class="max-h-[92svh] w-full max-w-3xl overflow-y-auto rounded-t-3xl bg-white p-5 sm:rounded-3xl dark:bg-slate-900"
             >
                 <div class="flex items-start justify-between gap-3">
                     <div>
                         <p
-                            class="text-xs font-bold tracking-wider text-slate-500 uppercase"
+                            class="text-xs font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400"
                         >
                             Gol de {{ activeDialogTeam?.name ?? 'Equipe' }}
                         </p>
@@ -1806,7 +1828,7 @@ function formatDateTime(iso: string | null): string {
                         </h2>
                         <p
                             v-if="goalDialog.scorer"
-                            class="mt-1 text-sm font-semibold text-slate-600"
+                            class="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300"
                         >
                             Autor: #{{ goalDialog.scorer.jersey_number }}
                             {{ goalDialog.scorer.name }}
@@ -1820,7 +1842,7 @@ function formatDateTime(iso: string | null): string {
                     </div>
                     <button
                         type="button"
-                        class="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                        class="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
                         aria-label="Cancelar lançamento"
                         @click="goalDialog = null"
                     >
@@ -1830,7 +1852,7 @@ function formatDateTime(iso: string | null): string {
 
                 <!-- Period & Overtime controls inside goal modal -->
                 <div
-                    class="mt-3 flex flex-wrap items-center gap-4 rounded-xl bg-slate-50 px-3 py-2 text-xs"
+                    class="mt-3 flex flex-wrap items-center gap-4 rounded-xl bg-slate-50 px-3 py-2 text-xs dark:bg-slate-800/50"
                 >
                     <label class="inline-flex items-center gap-2 font-bold">
                         Período:
@@ -1839,7 +1861,7 @@ function formatDateTime(iso: string | null): string {
                             type="number"
                             min="1"
                             max="10"
-                            class="w-16 rounded-lg border border-slate-300 bg-white px-2 py-1 text-center font-bold"
+                            class="w-16 rounded-lg border border-slate-300 bg-white px-2 py-1 text-center font-bold dark:border-slate-600 dark:bg-slate-900"
                         />
                     </label>
 
@@ -1865,7 +1887,7 @@ function formatDateTime(iso: string | null): string {
                         v-for="player in activeDialogRoster"
                         :key="player.id"
                         type="button"
-                        class="flex min-h-20 cursor-pointer items-center gap-3 rounded-2xl border-2 border-slate-200 p-3 text-left font-bold transition hover:border-slate-900"
+                        class="flex min-h-20 cursor-pointer items-center gap-3 rounded-2xl border-2 border-slate-200 p-3 text-left font-bold transition hover:border-slate-900 dark:border-slate-700 dark:hover:border-slate-300"
                         :data-scorer-id="player.id"
                         @click="selectGoalScorer(player)"
                     >
@@ -1881,7 +1903,7 @@ function formatDateTime(iso: string | null): string {
                         </span>
                         <span class="min-w-0 flex-1">
                             <strong
-                                class="block truncate text-sm text-slate-900"
+                                class="block truncate text-sm text-slate-900 dark:text-slate-100"
                             >
                                 {{ player.name }}
                             </strong>
@@ -1902,7 +1924,7 @@ function formatDateTime(iso: string | null): string {
                 >
                     <button
                         type="button"
-                        class="col-span-full flex min-h-14 items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 font-bold text-slate-800 hover:border-slate-900"
+                        class="col-span-full flex min-h-14 items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 font-bold text-slate-800 hover:border-slate-900 dark:border-slate-600 dark:text-slate-100 dark:hover:border-slate-300"
                         data-test="sem-assistencia"
                         :disabled="submitting"
                         @click="selectFirstAssist(null)"
@@ -1914,17 +1936,19 @@ function formatDateTime(iso: string | null): string {
                         v-for="player in availableFirstAssistPlayers"
                         :key="player.id"
                         type="button"
-                        class="flex min-h-20 items-center gap-3 rounded-2xl border-2 border-slate-200 p-3 text-left font-bold transition hover:border-slate-900"
+                        class="flex min-h-20 items-center gap-3 rounded-2xl border-2 border-slate-200 p-3 text-left font-bold transition hover:border-slate-900 dark:border-slate-700 dark:hover:border-slate-300"
                         :data-assist-id="player.id"
                         :disabled="submitting"
                         @click="selectFirstAssist(player)"
                     >
                         <span
-                            class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-sm font-black text-white"
+                            class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-sm font-black text-white dark:bg-slate-700"
                         >
                             #{{ player.jersey_number }}
                         </span>
-                        <span class="truncate text-sm text-slate-900">
+                        <span
+                            class="truncate text-sm text-slate-900 dark:text-slate-100"
+                        >
                             {{ player.name }}
                         </span>
                     </button>
@@ -1934,7 +1958,7 @@ function formatDateTime(iso: string | null): string {
                 <div v-else class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
                     <button
                         type="button"
-                        class="col-span-full flex min-h-14 items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 font-bold text-slate-800 hover:border-slate-900"
+                        class="col-span-full flex min-h-14 items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 font-bold text-slate-800 hover:border-slate-900 dark:border-slate-600 dark:text-slate-100 dark:hover:border-slate-300"
                         data-test="confirmar-uma-assistencia"
                         :disabled="submitting"
                         @click="selectSecondAssist(null)"
@@ -1946,17 +1970,19 @@ function formatDateTime(iso: string | null): string {
                         v-for="player in availableSecondAssistPlayers"
                         :key="player.id"
                         type="button"
-                        class="flex min-h-20 items-center gap-3 rounded-2xl border-2 border-slate-200 p-3 text-left font-bold transition hover:border-slate-900"
+                        class="flex min-h-20 items-center gap-3 rounded-2xl border-2 border-slate-200 p-3 text-left font-bold transition hover:border-slate-900 dark:border-slate-700 dark:hover:border-slate-300"
                         :data-second-assist-id="player.id"
                         :disabled="submitting"
                         @click="selectSecondAssist(player)"
                     >
                         <span
-                            class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-sm font-black text-white"
+                            class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-sm font-black text-white dark:bg-slate-700"
                         >
                             #{{ player.jersey_number }}
                         </span>
-                        <span class="truncate text-sm text-slate-900">
+                        <span
+                            class="truncate text-sm text-slate-900 dark:text-slate-100"
+                        >
                             {{ player.name }}
                         </span>
                     </button>
@@ -1973,21 +1999,21 @@ function formatDateTime(iso: string | null): string {
             @click.self="closeRemoveEventModal"
         >
             <form
-                class="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl"
+                class="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900"
                 @submit.prevent="confirmRemoveEvent"
             >
                 <div class="flex items-center justify-between">
                     <h2 class="text-xl font-black">Remover evento da súmula</h2>
                     <button
                         type="button"
-                        class="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
+                        class="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
                         @click="closeRemoveEventModal"
                     >
                         <X class="size-5" />
                     </button>
                 </div>
 
-                <p class="mt-2 text-xs text-slate-600">
+                <p class="mt-2 text-xs text-slate-600 dark:text-slate-300">
                     O evento de
                     <strong>{{
                         eventToRemove.primary_player_name ?? 'Atleta'
@@ -2004,7 +2030,7 @@ function formatDateTime(iso: string | null): string {
                         type="text"
                         required
                         maxlength="500"
-                        class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal"
+                        class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal dark:border-slate-600"
                         placeholder="Ex.: Erro de digitação ou gol anulado pela arbitragem"
                         data-test="motivo-remover-evento"
                     />
@@ -2013,7 +2039,7 @@ function formatDateTime(iso: string | null): string {
                 <div class="mt-6 flex gap-3">
                     <button
                         type="button"
-                        class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold text-slate-700"
+                        class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold text-slate-700 dark:border-slate-600 dark:text-slate-200"
                         @click="closeRemoveEventModal"
                     >
                         Cancelar
@@ -2038,23 +2064,31 @@ function formatDateTime(iso: string | null): string {
             class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 p-4"
             @click.self="showFinishConfirm = false"
         >
-            <div class="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+            <div
+                class="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900"
+            >
                 <div class="flex items-center justify-between">
                     <h2 class="text-xl font-black">Finalizar partida</h2>
                     <button
                         type="button"
-                        class="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
+                        class="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
                         @click="showFinishConfirm = false"
                     >
                         <X class="size-5" />
                     </button>
                 </div>
 
-                <div class="mt-3 rounded-xl bg-slate-50 p-3 text-center">
-                    <p class="text-xs font-bold text-slate-500">
+                <div
+                    class="mt-3 rounded-xl bg-slate-50 p-3 text-center dark:bg-slate-800/50"
+                >
+                    <p
+                        class="text-xs font-bold text-slate-500 dark:text-slate-400"
+                    >
                         Placar confirmado
                     </p>
-                    <p class="mt-1 text-lg font-black text-slate-900">
+                    <p
+                        class="mt-1 text-lg font-black text-slate-900 dark:text-slate-100"
+                    >
                         {{ homeTeam?.name ?? game.home_team_name }}
                         {{ game.home_regular_score }} ×
                         {{ game.away_regular_score }}
@@ -2092,7 +2126,7 @@ function formatDateTime(iso: string | null): string {
                 <div class="mt-6 flex gap-3">
                     <button
                         type="button"
-                        class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold text-slate-700"
+                        class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold text-slate-700 dark:border-slate-600 dark:text-slate-200"
                         @click="showFinishConfirm = false"
                     >
                         Cancelar
@@ -2123,7 +2157,7 @@ function formatDateTime(iso: string | null): string {
             @click.self="showReopenModal = false"
         >
             <form
-                class="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl"
+                class="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900"
                 @submit.prevent="submitReopenGame"
             >
                 <div class="flex items-center justify-between">
@@ -2132,14 +2166,14 @@ function formatDateTime(iso: string | null): string {
                     </h2>
                     <button
                         type="button"
-                        class="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
+                        class="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
                         @click="showReopenModal = false"
                     >
                         <X class="size-5" />
                     </button>
                 </div>
 
-                <p class="mt-2 text-xs text-slate-600">
+                <p class="mt-2 text-xs text-slate-600 dark:text-slate-300">
                     Reabrir a partida permite adicionar ou remover
                     gols/cobranças da súmula. O estado anterior e o motivo ficam
                     gravados na auditoria do campeonato.
@@ -2160,7 +2194,7 @@ function formatDateTime(iso: string | null): string {
                         required
                         rows="3"
                         maxlength="500"
-                        class="mt-1 w-full rounded-xl border border-slate-300 p-3 font-normal"
+                        class="mt-1 w-full rounded-xl border border-slate-300 p-3 font-normal dark:border-slate-600"
                         placeholder="Ex.: Correção de súmula oficial solicitada pela mesa"
                         data-test="motivo-reabrir"
                     />
@@ -2172,7 +2206,7 @@ function formatDateTime(iso: string | null): string {
                     :class="
                         bracketNeedsResetHint
                             ? 'border-amber-300 bg-amber-50 text-amber-950'
-                            : 'border-slate-200 bg-slate-50 text-slate-700'
+                            : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-200'
                     "
                 >
                     <input
@@ -2197,7 +2231,7 @@ function formatDateTime(iso: string | null): string {
                 <div class="mt-6 flex gap-3">
                     <button
                         type="button"
-                        class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold text-slate-700"
+                        class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold text-slate-700 dark:border-slate-600 dark:text-slate-200"
                         @click="showReopenModal = false"
                     >
                         Cancelar

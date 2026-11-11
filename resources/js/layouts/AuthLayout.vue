@@ -16,9 +16,13 @@ defineProps<{ title?: string; description?: string }>();
                     </p>
                 </div>
             </div>
-            <div class="rounded-3xl bg-white p-6 shadow-2xl sm:p-8">
+            <div
+                class="rounded-3xl bg-white p-6 shadow-2xl sm:p-8 dark:bg-slate-900 dark:text-slate-100 dark:ring-1 dark:ring-slate-800"
+            >
                 <h1 class="text-2xl font-black">{{ title }}</h1>
-                <p class="mt-2 text-sm text-slate-500">{{ description }}</p>
+                <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                    {{ description }}
+                </p>
                 <div class="mt-6"><slot /></div>
             </div>
             <p class="mt-6 text-center text-xs text-slate-500">

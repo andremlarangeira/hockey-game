@@ -23,14 +23,14 @@ const form = useForm({
                 type="email"
                 name="email"
                 readonly
-                class="mt-1 min-h-12 w-full rounded-xl border bg-slate-50 px-3" /></label
+                class="mt-1 min-h-12 w-full rounded-xl border bg-slate-50 px-3 dark:bg-slate-800/50" /></label
         ><label class="block text-sm font-bold"
             >Nova senha<input
                 v-model="form.password"
                 type="password"
                 name="password"
                 required
-                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3"
+                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 dark:border-slate-600"
             /><span v-if="form.errors.password" class="text-sm text-red-600">{{
                 form.errors.password
             }}</span></label
@@ -40,7 +40,7 @@ const form = useForm({
                 type="password"
                 name="password_confirmation"
                 required
-                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3" /></label
+                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 dark:border-slate-600" /></label
         ><button
             class="min-h-12 w-full rounded-xl bg-green-700 font-bold text-white"
             :disabled="form.processing"

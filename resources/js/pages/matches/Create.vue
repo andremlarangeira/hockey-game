@@ -484,17 +484,20 @@ onBeforeUnmount(() => {
 
 <template>
     <Head title="Cronômetro e placar" />
-    <div v-if="!isFullscreen" class="mb-4 flex items-start justify-between gap-3">
+    <div
+        v-if="!isFullscreen"
+        class="mb-4 flex items-start justify-between gap-3"
+    >
         <div>
             <p
-                class="text-xs font-bold tracking-widest text-slate-500 uppercase"
+                class="text-xs font-bold tracking-widest text-slate-500 uppercase dark:text-slate-400"
             >
                 Controle da partida
             </p>
             <h1 class="mt-1 text-2xl font-black">Cronômetro e placar</h1>
         </div>
         <button
-            class="flex size-12 items-center justify-center rounded-xl border border-slate-300 bg-white"
+            class="flex size-12 items-center justify-center rounded-xl border border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-900"
             aria-label="Configurações da partida"
             @click="showConfig = !showConfig"
         >
@@ -512,7 +515,7 @@ onBeforeUnmount(() => {
     </div>
     <section
         v-if="showConfig"
-        class="mb-4 space-y-5 rounded-2xl border border-slate-200 bg-white p-4"
+        class="mb-4 space-y-5 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
     >
         <div v-if="!roster && teams.length >= 2">
             <h2 class="font-black">Quem entra na quadra?</h2>
@@ -521,7 +524,7 @@ onBeforeUnmount(() => {
                     >Equipe A<select
                         v-model="selected.home"
                         @change="rescaleConfiguration()"
-                        class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3"
+                        class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3 dark:border-slate-600 dark:bg-slate-900"
                         data-test="equipe-a"
                     >
                         <option
@@ -536,7 +539,7 @@ onBeforeUnmount(() => {
                     >Equipe B<select
                         v-model="selected.away"
                         @change="rescaleConfiguration()"
-                        class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3"
+                        class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3 dark:border-slate-600 dark:bg-slate-900"
                         data-test="equipe-b"
                     >
                         <option
@@ -598,7 +601,7 @@ onBeforeUnmount(() => {
                         type="number"
                         min="1"
                         max="120"
-                        class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3"
+                        class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 dark:border-slate-600"
                         data-test="minutos" /></label
                 ><label class="text-xs font-bold"
                     >Número de tempos<input
@@ -606,14 +609,14 @@ onBeforeUnmount(() => {
                         type="number"
                         min="1"
                         max="6"
-                        class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3" /></label
+                        class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 dark:border-slate-600" /></label
                 ><label class="text-xs font-bold"
                     >Descanso (segundos)<input
                         v-model.number="config.rest_seconds"
                         type="number"
                         min="1"
                         max="3600"
-                        class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3"
+                        class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 dark:border-slate-600"
                         data-test="descanso" /></label
                 ><label class="text-xs font-bold"
                     >Início (segundos)<input
@@ -621,14 +624,14 @@ onBeforeUnmount(() => {
                         type="number"
                         min="0"
                         max="120"
-                        class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3"
+                        class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 dark:border-slate-600"
                         data-test="contagem"
                 /></label>
             </div>
         </div>
         <div v-if="roster">
             <h2 class="font-black">Sons da partida</h2>
-            <p class="mt-1 text-xs text-slate-500">
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 Apito no início, buzzer grave no fim e bipes nos últimos 5
                 segundos de cada contagem. Seus arquivos substituem os sons de
                 início, fim e descanso.
@@ -641,13 +644,13 @@ onBeforeUnmount(() => {
                         rest_end: 'Fim do descanso',
                     }"
                     :key="key"
-                    class="flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 p-3"
+                    class="flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-800/50"
                 >
                     <span class="min-w-40 flex-1 text-sm font-bold">{{
                         label
                     }}</span
                     ><label
-                        class="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold"
+                        class="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold dark:border-slate-600 dark:bg-slate-900"
                         >{{
                             sounds[key].type === 'custom'
                                 ? sounds[key].name
@@ -659,7 +662,7 @@ onBeforeUnmount(() => {
                             @change="upload($event, key)" /></label
                     ><button
                         type="button"
-                        class="flex min-h-10 items-center gap-1 rounded-lg bg-slate-900 px-3 text-xs font-bold text-white"
+                        class="flex min-h-10 items-center gap-1 rounded-lg bg-slate-900 px-3 text-xs font-bold text-white dark:bg-slate-700"
                         :aria-label="`Testar som: ${label}`"
                         @click="
                             sound
@@ -719,7 +722,8 @@ onBeforeUnmount(() => {
                         @click="toggleFullscreen"
                     >
                         <template v-if="isFullscreen"
-                            ><Shrink class="size-4" />Sair da tela cheia</template
+                            ><Shrink class="size-4" />Sair da tela
+                            cheia</template
                         ><template v-else
                             ><Expand class="size-4" />Tela cheia</template
                         >
@@ -868,7 +872,7 @@ onBeforeUnmount(() => {
         </section>
         <div v-if="!isFullscreen" class="mt-3 flex gap-2">
             <button
-                class="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white text-sm font-bold disabled:opacity-50"
+                class="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white text-sm font-bold disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900"
                 :disabled="saving"
                 @click="
                     clock.state.phase === 'finished' ? save() : finishAndSave()
@@ -879,16 +883,19 @@ onBeforeUnmount(() => {
         </div>
         <section
             v-if="!isFullscreen"
-            class="mt-4 rounded-2xl border border-slate-200 bg-white p-4"
+            class="mt-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
         >
             <h2 class="font-black">Gols marcados</h2>
-            <p v-if="!goals.length" class="mt-3 text-sm text-slate-500">
+            <p
+                v-if="!goals.length"
+                class="mt-3 text-sm text-slate-500 dark:text-slate-400"
+            >
                 Os gols aparecem aqui com autor, assistência e tempo.
             </p>
             <div
                 v-for="goal in [...goals].reverse()"
                 :key="goal.id"
-                class="mt-3 flex items-center gap-3 rounded-xl bg-slate-50 p-3"
+                class="mt-3 flex items-center gap-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-800/50"
             >
                 <span
                     class="flex size-10 items-center justify-center rounded-lg font-black text-white"
@@ -897,7 +904,9 @@ onBeforeUnmount(() => {
                 >
                 <div class="min-w-0 flex-1">
                     <p class="font-bold">{{ goal.scorer_name }}</p>
-                    <p class="truncate text-xs text-slate-500">
+                    <p
+                        class="truncate text-xs text-slate-500 dark:text-slate-400"
+                    >
                         {{
                             goal.assist_name
                                 ? `Assistência: ${goal.assist_name}`
@@ -917,7 +926,7 @@ onBeforeUnmount(() => {
             class="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/85 sm:items-center sm:p-6"
         >
             <div
-                class="max-h-[90svh] w-full max-w-3xl overflow-y-auto rounded-t-3xl bg-white p-5 sm:rounded-3xl"
+                class="max-h-[90svh] w-full max-w-3xl overflow-y-auto rounded-t-3xl bg-white p-5 sm:rounded-3xl dark:bg-slate-900"
             >
                 <div class="flex items-center justify-between gap-3">
                     <div>
@@ -930,7 +939,7 @@ onBeforeUnmount(() => {
                         </h2>
                         <p
                             v-if="dialog.scorer"
-                            class="mt-1 text-sm text-slate-500"
+                            class="mt-1 text-sm text-slate-500 dark:text-slate-400"
                         >
                             Gol de {{ dialog.scorer.name }}
                         </p>
@@ -949,7 +958,7 @@ onBeforeUnmount(() => {
                     <button
                         v-for="player in currentSide"
                         :key="player.id"
-                        class="flex min-h-24 cursor-pointer items-center gap-3 rounded-2xl border-2 border-slate-200 p-3 text-left font-bold hover:border-[var(--team-primary)]"
+                        class="flex min-h-24 cursor-pointer items-center gap-3 rounded-2xl border-2 border-slate-200 p-3 text-left font-bold hover:border-[var(--team-primary)] dark:border-slate-700"
                         :data-scorer-id="player.id"
                         @click="scorer(player)"
                     >
@@ -962,7 +971,7 @@ onBeforeUnmount(() => {
                 </div>
                 <div v-else class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
                     <button
-                        class="col-span-full flex min-h-14 items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 font-bold"
+                        class="col-span-full flex min-h-14 items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 font-bold dark:border-slate-600"
                         data-test="sem-assistencia"
                         @click="assist(null)"
                     >
@@ -972,7 +981,7 @@ onBeforeUnmount(() => {
                             (p) => p.id !== dialog?.scorer?.id,
                         )"
                         :key="player.id"
-                        class="flex min-h-24 items-center gap-3 rounded-2xl border-2 border-slate-200 p-3 text-left font-bold"
+                        class="flex min-h-24 items-center gap-3 rounded-2xl border-2 border-slate-200 p-3 text-left font-bold dark:border-slate-700"
                         :data-assist-id="player.id"
                         @click="assist(player)"
                     >

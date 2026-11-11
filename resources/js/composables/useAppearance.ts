@@ -92,6 +92,10 @@ export function initializeTheme(): void {
     }
 
     const saved = getStoredAppearance();
+    // Mantém o cookie (lido pelo servidor antes da pintura) alinhado ao localStorage.
+    if (getCookie('appearance') !== saved) {
+        setCookie('appearance', saved);
+    }
     appearance.value = saved;
     updateTheme(saved);
     ensureSystemListener();

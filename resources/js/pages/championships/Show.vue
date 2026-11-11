@@ -148,19 +148,23 @@ function submitEditDetails() {
     <Head :title="championship.name" />
 
     <!-- Top Header -->
-    <div class="mb-5 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+    <div
+        class="mb-5 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 dark:border-slate-700 dark:bg-slate-900"
+    >
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div class="min-w-0 flex-1">
                 <Link
                     href="/campeonatos"
-                    class="inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-slate-900"
+                    class="inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
                 >
                     <ArrowLeft class="size-3.5" />
                     Todos os campeonatos
                 </Link>
 
                 <div class="mt-1.5 flex flex-wrap items-center gap-2.5">
-                    <h1 class="text-2xl font-black text-slate-950">
+                    <h1
+                        class="text-2xl font-black text-slate-950 dark:text-slate-100"
+                    >
                         {{ championship.name }}
                     </h1>
                     <span
@@ -172,7 +176,7 @@ function submitEditDetails() {
                 </div>
 
                 <div
-                    class="mt-2 flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-600"
+                    class="mt-2 flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-600 dark:text-slate-300"
                 >
                     <span class="inline-flex items-center gap-1">
                         <MapPin class="size-3.5 text-slate-400" />
@@ -196,7 +200,7 @@ function submitEditDetails() {
             <div class="flex flex-wrap items-center gap-2">
                 <button
                     type="button"
-                    class="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                    class="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800/60"
                     data-test="editar-campeonato"
                     @click="openEditDetails"
                 >
@@ -206,7 +210,7 @@ function submitEditDetails() {
 
                 <Link
                     :href="`/campeonatos/${championship.id}/resumo`"
-                    class="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 py-2 text-xs font-bold text-white hover:bg-slate-800"
+                    class="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 py-2 text-xs font-bold text-white hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600"
                     data-test="link-resumo-campeonato"
                 >
                     <Award class="size-4 text-amber-400" />
@@ -228,7 +232,7 @@ function submitEditDetails() {
 
     <!-- Navigation Tabs -->
     <div
-        class="mb-5 flex gap-1.5 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5"
+        class="mb-5 flex gap-1.5 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 dark:border-slate-700 dark:bg-slate-900"
         role="tablist"
         aria-label="Seções do campeonato"
     >
@@ -240,7 +244,7 @@ function submitEditDetails() {
             :class="
                 activeTab === 'times'
                     ? 'bg-[var(--team-primary)] text-white shadow-xs'
-                    : 'text-slate-600 hover:bg-slate-100'
+                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
             "
             data-test="tab-times"
             @click="activeTab = 'times'"
@@ -252,7 +256,7 @@ function submitEditDetails() {
                 :class="
                     activeTab === 'times'
                         ? 'bg-white/20 text-white'
-                        : 'bg-slate-100 text-slate-700'
+                        : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'
                 "
             >
                 {{ teams.length }}
@@ -267,7 +271,7 @@ function submitEditDetails() {
             :class="
                 activeTab === 'regras'
                     ? 'bg-[var(--team-primary)] text-white shadow-xs'
-                    : 'text-slate-600 hover:bg-slate-100'
+                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
             "
             data-test="tab-regras"
             @click="activeTab = 'regras'"
@@ -284,7 +288,7 @@ function submitEditDetails() {
             :class="
                 activeTab === 'grupos'
                     ? 'bg-[var(--team-primary)] text-white shadow-xs'
-                    : 'text-slate-600 hover:bg-slate-100'
+                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
             "
             data-test="tab-grupos"
             @click="activeTab = 'grupos'"
@@ -296,7 +300,7 @@ function submitEditDetails() {
                 :class="
                     activeTab === 'grupos'
                         ? 'bg-white/20 text-white'
-                        : 'bg-slate-100 text-slate-700'
+                        : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'
                 "
             >
                 {{ groupGames.length }}
@@ -316,7 +320,7 @@ function submitEditDetails() {
             :class="
                 activeTab === 'mata-mata'
                     ? 'bg-[var(--team-primary)] text-white shadow-xs'
-                    : 'text-slate-600 hover:bg-slate-100'
+                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
             "
             data-test="tab-mata-mata"
             @click="activeTab = 'mata-mata'"
@@ -328,7 +332,7 @@ function submitEditDetails() {
                 :class="
                     activeTab === 'mata-mata'
                         ? 'bg-white/20 text-white'
-                        : 'bg-slate-100 text-slate-700'
+                        : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'
                 "
             >
                 {{ bracket.length }}
@@ -343,7 +347,7 @@ function submitEditDetails() {
             :class="
                 activeTab === 'historico'
                     ? 'bg-[var(--team-primary)] text-white shadow-xs'
-                    : 'text-slate-600 hover:bg-slate-100'
+                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
             "
             data-test="tab-historico"
             @click="activeTab = 'historico'"
@@ -355,7 +359,7 @@ function submitEditDetails() {
                 :class="
                     activeTab === 'historico'
                         ? 'bg-white/20 text-white'
-                        : 'bg-slate-100 text-slate-700'
+                        : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'
                 "
             >
                 {{ audit_logs.length }}
@@ -406,7 +410,7 @@ function submitEditDetails() {
             @click.self="closeEditDetails"
         >
             <form
-                class="mx-auto my-6 max-w-lg rounded-2xl bg-white p-5 shadow-2xl"
+                class="mx-auto my-6 max-w-lg rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900"
                 @submit.prevent="submitEditDetails"
             >
                 <div class="flex items-center justify-between">
@@ -415,7 +419,7 @@ function submitEditDetails() {
                     </h2>
                     <button
                         type="button"
-                        class="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                        class="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
                         aria-label="Fechar"
                         @click="closeEditDetails"
                     >
@@ -432,7 +436,7 @@ function submitEditDetails() {
                             type="text"
                             required
                             maxlength="120"
-                            class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal"
+                            class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal dark:border-slate-600"
                         />
                         <span
                             v-if="detailsForm.errors.name"
@@ -451,7 +455,7 @@ function submitEditDetails() {
                                 type="text"
                                 required
                                 maxlength="100"
-                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal"
+                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal dark:border-slate-600"
                             />
                             <span
                                 v-if="detailsForm.errors.city"
@@ -468,7 +472,7 @@ function submitEditDetails() {
                                 name="venue"
                                 type="text"
                                 maxlength="140"
-                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal"
+                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal dark:border-slate-600"
                             />
                             <span
                                 v-if="detailsForm.errors.venue"
@@ -486,7 +490,7 @@ function submitEditDetails() {
                                 v-model="detailsForm.starts_on"
                                 name="starts_on"
                                 type="date"
-                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal"
+                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal dark:border-slate-600"
                             />
                             <span
                                 v-if="detailsForm.errors.starts_on"
@@ -502,7 +506,7 @@ function submitEditDetails() {
                                 v-model="detailsForm.ends_on"
                                 name="ends_on"
                                 type="date"
-                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal"
+                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal dark:border-slate-600"
                             />
                             <span
                                 v-if="detailsForm.errors.ends_on"
@@ -517,7 +521,7 @@ function submitEditDetails() {
                 <div class="mt-6 flex gap-3">
                     <button
                         type="button"
-                        class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold text-slate-700"
+                        class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold text-slate-700 dark:border-slate-600 dark:text-slate-200"
                         @click="closeEditDetails"
                     >
                         Cancelar

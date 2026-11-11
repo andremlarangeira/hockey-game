@@ -115,7 +115,8 @@ const gameStatusLabels: Record<GameStatus, string> = {
 };
 
 const gameStatusClasses: Record<GameStatus, string> = {
-    scheduled: 'bg-slate-100 text-slate-700',
+    scheduled:
+        'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
     live: 'bg-red-100 text-red-800 animate-pulse',
     finished: 'bg-emerald-100 text-emerald-800',
 };
@@ -210,11 +211,11 @@ function submitSchedule() {
 <template>
     <div class="space-y-5">
         <div
-            class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4"
+            class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
         >
             <div>
                 <h2 class="text-lg font-black">Chaveamento do mata-mata</h2>
-                <p class="text-xs text-slate-500">
+                <p class="text-xs text-slate-500 dark:text-slate-400">
                     <template v-if="bracket.length">
                         {{ bracket.length }} confronto(s) na chave eliminatória.
                         Os vencedores avançam automaticamente ao encerrar cada
@@ -256,19 +257,19 @@ function submitSchedule() {
             <section
                 v-for="col in columns"
                 :key="col.key"
-                class="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-3.5"
+                class="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-3.5 dark:border-slate-700 dark:bg-slate-800/50"
                 :data-bracket-column="col.key"
             >
                 <div
-                    class="flex items-center justify-between border-b border-slate-200 pb-2.5"
+                    class="flex items-center justify-between border-b border-slate-200 pb-2.5 dark:border-slate-700"
                 >
                     <h3
-                        class="text-sm font-black tracking-tight text-slate-900 uppercase"
+                        class="text-sm font-black tracking-tight text-slate-900 uppercase dark:text-slate-100"
                     >
                         {{ col.title }}
                     </h3>
                     <span
-                        class="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-slate-600"
+                        class="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300"
                     >
                         {{ col.games.length }}
                     </span>
@@ -278,37 +279,39 @@ function submitSchedule() {
                     <article
                         v-for="game in col.games"
                         :key="game.id"
-                        class="overflow-hidden rounded-xl border bg-white shadow-xs"
+                        class="overflow-hidden rounded-xl border bg-white shadow-xs dark:bg-slate-900"
                         :class="
                             game.slot_key === 'FINAL'
                                 ? 'border-amber-300 ring-1 ring-amber-200'
-                                : 'border-slate-200'
+                                : 'border-slate-200 dark:border-slate-700'
                         "
                         :data-slot-key="game.slot_key"
                         :data-game-id="game.id"
                     >
                         <div
-                            class="flex items-center justify-between gap-2 border-b border-slate-100 px-3 py-2 text-[11px]"
+                            class="flex items-center justify-between gap-2 border-b border-slate-100 px-3 py-2 text-[11px] dark:border-slate-800"
                             :class="
                                 game.slot_key === 'FINAL'
                                     ? 'bg-amber-50/80'
-                                    : 'bg-slate-50/80'
+                                    : 'bg-slate-50/80 dark:bg-slate-800/60'
                             "
                         >
                             <div class="flex items-center gap-1.5">
                                 <span
-                                    class="rounded bg-slate-900 px-1.5 py-0.5 font-mono text-[10px] font-black text-white"
+                                    class="rounded bg-slate-900 px-1.5 py-0.5 font-mono text-[10px] font-black text-white dark:bg-slate-700"
                                 >
                                     {{ game.slot_key }}
                                 </span>
-                                <span class="font-bold text-slate-700">
+                                <span
+                                    class="font-bold text-slate-700 dark:text-slate-200"
+                                >
                                     {{ game.phase_label }}
                                 </span>
                             </div>
 
                             <span
                                 v-if="game.is_bye"
-                                class="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700"
+                                class="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700 dark:bg-slate-700 dark:text-slate-200"
                             >
                                 Avanço BYE
                             </span>
@@ -321,7 +324,9 @@ function submitSchedule() {
                             </span>
                         </div>
 
-                        <div class="divide-y divide-slate-100 p-3">
+                        <div
+                            class="divide-y divide-slate-100 p-3 dark:divide-slate-800"
+                        >
                             <!-- Home side -->
                             <div
                                 class="flex items-center justify-between gap-2 pb-2"
@@ -329,7 +334,7 @@ function submitSchedule() {
                                     game.winner_team_id &&
                                     game.winner_team_id === game.home_team_id
                                         ? 'font-black text-emerald-900'
-                                        : 'text-slate-800'
+                                        : 'text-slate-800 dark:text-slate-100'
                                 "
                             >
                                 <div class="min-w-0 flex-1">
@@ -392,12 +397,12 @@ function submitSchedule() {
                                     />
                                     <span
                                         v-if="game.status !== 'scheduled'"
-                                        class="rounded-md bg-slate-100 px-2 py-0.5 text-sm font-black"
+                                        class="rounded-md bg-slate-100 px-2 py-0.5 text-sm font-black dark:bg-slate-800"
                                     >
                                         {{ game.home_regular_score }}
                                         <span
                                             v-if="game.went_to_shootout"
-                                            class="text-[10px] font-bold text-slate-500"
+                                            class="text-[10px] font-bold text-slate-500 dark:text-slate-400"
                                         >
                                             ({{ game.home_shootout_score }})
                                         </span>
@@ -412,7 +417,7 @@ function submitSchedule() {
                                     game.winner_team_id &&
                                     game.winner_team_id === game.away_team_id
                                         ? 'font-black text-emerald-900'
-                                        : 'text-slate-800'
+                                        : 'text-slate-800 dark:text-slate-100'
                                 "
                             >
                                 <div class="min-w-0 flex-1">
@@ -481,12 +486,12 @@ function submitSchedule() {
                                     />
                                     <span
                                         v-if="game.status !== 'scheduled'"
-                                        class="rounded-md bg-slate-100 px-2 py-0.5 text-sm font-black"
+                                        class="rounded-md bg-slate-100 px-2 py-0.5 text-sm font-black dark:bg-slate-800"
                                     >
                                         {{ game.away_regular_score }}
                                         <span
                                             v-if="game.went_to_shootout"
-                                            class="text-[10px] font-bold text-slate-500"
+                                            class="text-[10px] font-bold text-slate-500 dark:text-slate-400"
                                         >
                                             ({{ game.away_shootout_score }})
                                         </span>
@@ -498,7 +503,7 @@ function submitSchedule() {
                         <!-- Winner Banner + Footer Actions -->
                         <div
                             v-if="!game.is_bye"
-                            class="border-t border-slate-100 bg-slate-50/50 px-3 py-2 text-[11px]"
+                            class="border-t border-slate-100 bg-slate-50/50 px-3 py-2 text-[11px] dark:border-slate-800 dark:bg-slate-800/40"
                         >
                             <div
                                 v-if="game.winner_team_name"
@@ -508,20 +513,20 @@ function submitSchedule() {
                                 Vencedor: {{ game.winner_team_name }}
                                 <span
                                     v-if="game.went_to_shootout"
-                                    class="text-[10px] font-semibold text-slate-500"
+                                    class="text-[10px] font-semibold text-slate-500 dark:text-slate-400"
                                 >
                                     (nos pênaltis/shootout)
                                 </span>
                                 <span
                                     v-else-if="game.went_to_overtime"
-                                    class="text-[10px] font-semibold text-slate-500"
+                                    class="text-[10px] font-semibold text-slate-500 dark:text-slate-400"
                                 >
                                     (na prorrogação)
                                 </span>
                             </div>
 
                             <div
-                                class="flex flex-wrap items-center justify-between gap-2 text-slate-500"
+                                class="flex flex-wrap items-center justify-between gap-2 text-slate-500 dark:text-slate-400"
                             >
                                 <div class="flex flex-wrap items-center gap-2">
                                     <span
@@ -543,14 +548,14 @@ function submitSchedule() {
                                     <button
                                         v-if="game.status !== 'finished'"
                                         type="button"
-                                        class="rounded-lg border border-slate-200 bg-white px-2 py-1 font-bold text-slate-700 hover:bg-slate-50"
+                                        class="rounded-lg border border-slate-200 bg-white px-2 py-1 font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/60"
                                         @click="openScheduleModal(game)"
                                     >
                                         Agendar
                                     </button>
                                     <Link
                                         :href="`/campeonatos/${championship.id}/jogos/${game.id}`"
-                                        class="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1 font-bold text-white hover:bg-slate-800"
+                                        class="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1 font-bold text-white hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600"
                                         :data-test="`abrir-jogo-${game.id}`"
                                     >
                                         <Timer class="size-3" />
@@ -571,13 +576,15 @@ function submitSchedule() {
 
         <div
             v-else
-            class="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center"
+            class="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center dark:border-slate-600 dark:bg-slate-900"
         >
             <GitBranch class="mx-auto size-10 text-slate-400" />
             <h3 class="mt-4 text-lg font-bold">
                 Chave do mata-mata ainda não gerada
             </h3>
-            <p class="mx-auto mt-1 max-w-md text-sm text-slate-500">
+            <p
+                class="mx-auto mt-1 max-w-md text-sm text-slate-500 dark:text-slate-400"
+            >
                 Conclua todas as partidas da fase de grupos e resolva eventuais
                 empates técnicos na linha de classificação para liberar a
                 geração automática da chave.
@@ -585,7 +592,7 @@ function submitSchedule() {
             <button
                 v-if="canGenerateBracket"
                 type="button"
-                class="mt-5 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 font-bold text-white"
+                class="mt-5 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 font-bold text-white dark:bg-slate-700"
                 @click="showConfirmGenerate = true"
             >
                 <GitBranch class="size-4" />
@@ -601,7 +608,7 @@ function submitSchedule() {
                 @click.self="showConfirmGenerate = false"
             >
                 <div
-                    class="mx-auto my-6 max-w-md rounded-2xl bg-white p-5 shadow-2xl"
+                    class="mx-auto my-6 max-w-md rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900"
                 >
                     <div class="flex items-center justify-between">
                         <h2 class="text-xl font-black">
@@ -609,7 +616,7 @@ function submitSchedule() {
                         </h2>
                         <button
                             type="button"
-                            class="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                            class="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
                             aria-label="Fechar"
                             @click="showConfirmGenerate = false"
                         >
@@ -617,7 +624,7 @@ function submitSchedule() {
                         </button>
                     </div>
 
-                    <p class="mt-2 text-sm text-slate-600">
+                    <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">
                         Os classificados da fase de grupos serão distribuídos
                         nos confrontos eliminatórios conforme as regras do
                         campeonato (incluindo avanços automáticos de BYE quando
@@ -627,7 +634,7 @@ function submitSchedule() {
                     <div class="mt-6 flex gap-3">
                         <button
                             type="button"
-                            class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold text-slate-700"
+                            class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold text-slate-700 dark:border-slate-600 dark:text-slate-200"
                             @click="showConfirmGenerate = false"
                         >
                             Cancelar
@@ -656,13 +663,13 @@ function submitSchedule() {
                 @click.self="closeScheduleModal"
             >
                 <form
-                    class="mx-auto my-6 max-w-md rounded-2xl bg-white p-5 shadow-2xl"
+                    class="mx-auto my-6 max-w-md rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900"
                     @submit.prevent="submitSchedule"
                 >
                     <div class="flex items-center justify-between">
                         <div>
                             <p
-                                class="text-xs font-bold tracking-wider text-slate-500 uppercase"
+                                class="text-xs font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400"
                             >
                                 {{ editingScheduleGame.slot_key }} ·
                                 {{ editingScheduleGame.phase_label }}
@@ -673,7 +680,7 @@ function submitSchedule() {
                         </div>
                         <button
                             type="button"
-                            class="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                            class="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
                             aria-label="Fechar"
                             @click="closeScheduleModal"
                         >
@@ -689,7 +696,7 @@ function submitSchedule() {
                                 name="venue"
                                 type="text"
                                 maxlength="140"
-                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal"
+                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal dark:border-slate-600"
                                 placeholder="Ex.: Ginásio Principal"
                             />
                         </label>
@@ -700,7 +707,7 @@ function submitSchedule() {
                                 v-model="scheduleForm.scheduled_at"
                                 name="scheduled_at"
                                 type="datetime-local"
-                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal"
+                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal dark:border-slate-600"
                             />
                         </label>
                     </div>
@@ -708,7 +715,7 @@ function submitSchedule() {
                     <div class="mt-6 flex gap-3">
                         <button
                             type="button"
-                            class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold text-slate-700"
+                            class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold text-slate-700 dark:border-slate-600 dark:text-slate-200"
                             @click="closeScheduleModal"
                         >
                             Cancelar

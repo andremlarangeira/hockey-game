@@ -175,16 +175,18 @@ function submitRules() {
         </div>
 
         <form
-            class="space-y-6 rounded-2xl border border-slate-200 bg-white p-5"
+            class="space-y-6 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900"
             @submit.prevent="submitRules"
         >
             <fieldset :disabled="!canEditRules" class="space-y-6">
                 <!-- Formato da Fase de Grupos e Classificação -->
                 <div>
-                    <h3 class="text-base font-black text-slate-900">
+                    <h3
+                        class="text-base font-black text-slate-900 dark:text-slate-100"
+                    >
                         1. Fase de grupos e vagas no mata-mata
                     </h3>
-                    <p class="text-xs text-slate-500">
+                    <p class="text-xs text-slate-500 dark:text-slate-400">
                         Total de classificados calculado:
                         <strong
                             :class="
@@ -202,7 +204,7 @@ function submitRules() {
                         <label class="block text-sm font-bold">
                             Quantidade de grupos
                             <span
-                                class="block text-xs font-normal text-slate-500"
+                                class="block text-xs font-normal text-slate-500 dark:text-slate-400"
                                 >Padrão sugerido: 2 (1 a 8)</span
                             >
                             <input
@@ -212,7 +214,7 @@ function submitRules() {
                                 min="1"
                                 max="8"
                                 required
-                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal disabled:bg-slate-100"
+                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal disabled:bg-slate-100 dark:border-slate-600 dark:disabled:bg-slate-800"
                             />
                             <span
                                 v-if="form.errors.groups_count"
@@ -225,7 +227,7 @@ function submitRules() {
                         <label class="block text-sm font-bold">
                             Classificados por grupo
                             <span
-                                class="block text-xs font-normal text-slate-500"
+                                class="block text-xs font-normal text-slate-500 dark:text-slate-400"
                                 >Padrão sugerido: 2 (1 a 8)</span
                             >
                             <input
@@ -235,7 +237,7 @@ function submitRules() {
                                 min="1"
                                 max="8"
                                 required
-                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal disabled:bg-slate-100"
+                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal disabled:bg-slate-100 dark:border-slate-600 dark:disabled:bg-slate-800"
                             />
                             <span
                                 v-if="form.errors.qualifiers_per_group"
@@ -248,7 +250,7 @@ function submitRules() {
                         <label class="block text-sm font-bold">
                             Melhores classificados extras
                             <span
-                                class="block text-xs font-normal text-slate-500"
+                                class="block text-xs font-normal text-slate-500 dark:text-slate-400"
                                 >Padrão sugerido: 0 (melhores 3ºs, etc.)</span
                             >
                             <input
@@ -258,7 +260,7 @@ function submitRules() {
                                 min="0"
                                 max="8"
                                 required
-                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal disabled:bg-slate-100"
+                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal disabled:bg-slate-100 dark:border-slate-600 dark:disabled:bg-slate-800"
                             />
                             <span
                                 v-if="form.errors.extra_best_qualifiers"
@@ -270,7 +272,7 @@ function submitRules() {
                     </div>
 
                     <label
-                        class="mt-3 flex cursor-pointer items-center gap-3 rounded-xl bg-slate-50 p-3 text-sm font-bold"
+                        class="mt-3 flex cursor-pointer items-center gap-3 rounded-xl bg-slate-50 p-3 text-sm font-bold dark:bg-slate-800/50"
                     >
                         <input
                             v-model="form.double_round_robin"
@@ -281,7 +283,7 @@ function submitRules() {
                         <div>
                             <span>Turno e returno na fase de grupos</span>
                             <span
-                                class="block text-xs font-normal text-slate-500"
+                                class="block text-xs font-normal text-slate-500 dark:text-slate-400"
                             >
                                 Padrão sugerido: desmarcado (apenas turno único
                                 dentro do grupo).
@@ -291,15 +293,19 @@ function submitRules() {
                 </div>
 
                 <!-- Sistema de Pontuação -->
-                <div class="border-t border-slate-100 pt-5">
-                    <h3 class="text-base font-black text-slate-900">
+                <div
+                    class="border-t border-slate-100 pt-5 dark:border-slate-800"
+                >
+                    <h3
+                        class="text-base font-black text-slate-900 dark:text-slate-100"
+                    >
                         2. Sistema de pontuação
                     </h3>
                     <div class="mt-3 grid gap-4 sm:grid-cols-3">
                         <label class="block text-sm font-bold">
                             Pontos por vitória (V)
                             <span
-                                class="block text-xs font-normal text-slate-500"
+                                class="block text-xs font-normal text-slate-500 dark:text-slate-400"
                                 >Padrão sugerido: 3</span
                             >
                             <input
@@ -309,14 +315,14 @@ function submitRules() {
                                 min="0"
                                 max="10"
                                 required
-                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal disabled:bg-slate-100"
+                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal disabled:bg-slate-100 dark:border-slate-600 dark:disabled:bg-slate-800"
                             />
                         </label>
 
                         <label class="block text-sm font-bold">
                             Pontos por empate (E)
                             <span
-                                class="block text-xs font-normal text-slate-500"
+                                class="block text-xs font-normal text-slate-500 dark:text-slate-400"
                                 >Padrão sugerido: 1</span
                             >
                             <input
@@ -326,14 +332,14 @@ function submitRules() {
                                 min="0"
                                 max="10"
                                 required
-                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal disabled:bg-slate-100"
+                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal disabled:bg-slate-100 dark:border-slate-600 dark:disabled:bg-slate-800"
                             />
                         </label>
 
                         <label class="block text-sm font-bold">
                             Pontos por derrota (D)
                             <span
-                                class="block text-xs font-normal text-slate-500"
+                                class="block text-xs font-normal text-slate-500 dark:text-slate-400"
                                 >Padrão sugerido: 0</span
                             >
                             <input
@@ -343,13 +349,13 @@ function submitRules() {
                                 min="0"
                                 max="10"
                                 required
-                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal disabled:bg-slate-100"
+                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal disabled:bg-slate-100 dark:border-slate-600 dark:disabled:bg-slate-800"
                             />
                         </label>
                     </div>
 
                     <label
-                        class="mt-3 flex cursor-pointer items-center gap-3 rounded-xl bg-slate-50 p-3 text-sm font-bold"
+                        class="mt-3 flex cursor-pointer items-center gap-3 rounded-xl bg-slate-50 p-3 text-sm font-bold dark:bg-slate-800/50"
                     >
                         <input
                             v-model="form.allow_group_overtime_or_shootout"
@@ -363,7 +369,7 @@ function submitRules() {
                                 fase de grupos</span
                             >
                             <span
-                                class="block text-xs font-normal text-slate-500"
+                                class="block text-xs font-normal text-slate-500 dark:text-slate-400"
                             >
                                 Padrão sugerido: desmarcado (permite empate no
                                 tempo normal).
@@ -378,7 +384,7 @@ function submitRules() {
                         <label class="block text-sm font-bold">
                             Pontos por vitória na prorrogação/shootout
                             <span
-                                class="block text-xs font-normal text-slate-500"
+                                class="block text-xs font-normal text-slate-500 dark:text-slate-400"
                                 >Padrão sugerido: 2</span
                             >
                             <input
@@ -388,14 +394,14 @@ function submitRules() {
                                 min="0"
                                 max="10"
                                 required
-                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal disabled:bg-slate-100"
+                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal disabled:bg-slate-100 dark:border-slate-600 dark:disabled:bg-slate-800"
                             />
                         </label>
 
                         <label class="block text-sm font-bold">
                             Pontos por derrota na prorrogação/shootout
                             <span
-                                class="block text-xs font-normal text-slate-500"
+                                class="block text-xs font-normal text-slate-500 dark:text-slate-400"
                                 >Padrão sugerido: 1</span
                             >
                             <input
@@ -405,22 +411,28 @@ function submitRules() {
                                 min="0"
                                 max="10"
                                 required
-                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal disabled:bg-slate-100"
+                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal disabled:bg-slate-100 dark:border-slate-600 dark:disabled:bg-slate-800"
                             />
                         </label>
                     </div>
                 </div>
 
                 <!-- Ordem de Desempate -->
-                <div class="border-t border-slate-100 pt-5">
+                <div
+                    class="border-t border-slate-100 pt-5 dark:border-slate-800"
+                >
                     <div
                         class="flex flex-wrap items-center justify-between gap-2"
                     >
                         <div>
-                            <h3 class="text-base font-black text-slate-900">
+                            <h3
+                                class="text-base font-black text-slate-900 dark:text-slate-100"
+                            >
                                 3. Ordem dos critérios de desempate
                             </h3>
-                            <p class="text-xs text-slate-500">
+                            <p
+                                class="text-xs text-slate-500 dark:text-slate-400"
+                            >
                                 Ordem padrão sugerida: Pontos → Confronto direto
                                 → Saldo de gols → Gols pró → Vitórias → Menos
                                 gols contra → Sorteio manual.
@@ -429,7 +441,7 @@ function submitRules() {
                         <button
                             v-if="canEditRules"
                             type="button"
-                            class="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200"
+                            class="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                             @click="resetDefaultCriteria"
                         >
                             <RotateCcw class="size-3.5" />Restaurar padrão
@@ -440,15 +452,17 @@ function submitRules() {
                         <li
                             v-for="(criterion, index) in form.tie_break_order"
                             :key="criterion"
-                            class="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-xs"
+                            class="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-800/50"
                         >
                             <div class="flex items-center gap-2.5">
                                 <span
-                                    class="inline-flex size-6 items-center justify-center rounded-lg bg-slate-900 text-[11px] font-black text-white"
+                                    class="inline-flex size-6 items-center justify-center rounded-lg bg-slate-900 text-[11px] font-black text-white dark:bg-slate-700"
                                 >
                                     {{ index + 1 }}º
                                 </span>
-                                <span class="font-bold text-slate-800">
+                                <span
+                                    class="font-bold text-slate-800 dark:text-slate-100"
+                                >
                                     {{
                                         criterionLabels[criterion] ?? criterion
                                     }}
@@ -461,7 +475,7 @@ function submitRules() {
                             >
                                 <button
                                     type="button"
-                                    class="rounded-lg border border-slate-200 bg-white p-1 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                                    class="rounded-lg border border-slate-200 bg-white p-1 text-slate-600 hover:bg-slate-100 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
                                     :disabled="index === 0"
                                     :aria-label="`Subir ${criterionLabels[criterion]}`"
                                     @click="moveCriterion(index, -1)"
@@ -470,7 +484,7 @@ function submitRules() {
                                 </button>
                                 <button
                                     type="button"
-                                    class="rounded-lg border border-slate-200 bg-white p-1 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                                    class="rounded-lg border border-slate-200 bg-white p-1 text-slate-600 hover:bg-slate-100 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
                                     :disabled="
                                         index ===
                                         form.tie_break_order.length - 1
@@ -492,15 +506,19 @@ function submitRules() {
                 </div>
 
                 <!-- Tempo de Jogo e Cronômetro -->
-                <div class="border-t border-slate-100 pt-5">
-                    <h3 class="text-base font-black text-slate-900">
+                <div
+                    class="border-t border-slate-100 pt-5 dark:border-slate-800"
+                >
+                    <h3
+                        class="text-base font-black text-slate-900 dark:text-slate-100"
+                    >
                         4. Tempo de jogo e cronômetro
                     </h3>
                     <div class="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
                         <label class="block text-sm font-bold">
                             Minutos / período
                             <span
-                                class="block text-xs font-normal text-slate-500"
+                                class="block text-xs font-normal text-slate-500 dark:text-slate-400"
                                 >Padrão: 10 min</span
                             >
                             <input
@@ -510,14 +528,14 @@ function submitRules() {
                                 min="1"
                                 max="120"
                                 required
-                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal disabled:bg-slate-100"
+                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal disabled:bg-slate-100 dark:border-slate-600 dark:disabled:bg-slate-800"
                             />
                         </label>
 
                         <label class="block text-sm font-bold">
                             Nº de períodos
                             <span
-                                class="block text-xs font-normal text-slate-500"
+                                class="block text-xs font-normal text-slate-500 dark:text-slate-400"
                                 >Padrão: 2</span
                             >
                             <input
@@ -527,14 +545,14 @@ function submitRules() {
                                 min="1"
                                 max="6"
                                 required
-                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal disabled:bg-slate-100"
+                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal disabled:bg-slate-100 dark:border-slate-600 dark:disabled:bg-slate-800"
                             />
                         </label>
 
                         <label class="block text-sm font-bold">
                             Intervalo (seg)
                             <span
-                                class="block text-xs font-normal text-slate-500"
+                                class="block text-xs font-normal text-slate-500 dark:text-slate-400"
                                 >Padrão: 120 s</span
                             >
                             <input
@@ -544,14 +562,14 @@ function submitRules() {
                                 min="0"
                                 max="3600"
                                 required
-                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal disabled:bg-slate-100"
+                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal disabled:bg-slate-100 dark:border-slate-600 dark:disabled:bg-slate-800"
                             />
                         </label>
 
                         <label class="block text-sm font-bold">
                             Contagem (seg)
                             <span
-                                class="block text-xs font-normal text-slate-500"
+                                class="block text-xs font-normal text-slate-500 dark:text-slate-400"
                                 >Padrão: 5 s</span
                             >
                             <input
@@ -561,14 +579,14 @@ function submitRules() {
                                 min="0"
                                 max="120"
                                 required
-                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal disabled:bg-slate-100"
+                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal disabled:bg-slate-100 dark:border-slate-600 dark:disabled:bg-slate-800"
                             />
                         </label>
 
                         <label class="block text-sm font-bold">
                             Prorrogação (min)
                             <span
-                                class="block text-xs font-normal text-slate-500"
+                                class="block text-xs font-normal text-slate-500 dark:text-slate-400"
                                 >Padrão: 5 min</span
                             >
                             <input
@@ -578,15 +596,19 @@ function submitRules() {
                                 min="1"
                                 max="60"
                                 required
-                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal disabled:bg-slate-100"
+                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 font-normal disabled:bg-slate-100 dark:border-slate-600 dark:disabled:bg-slate-800"
                             />
                         </label>
                     </div>
                 </div>
 
                 <!-- Mata-mata e Súmula -->
-                <div class="border-t border-slate-100 pt-5">
-                    <h3 class="text-base font-black text-slate-900">
+                <div
+                    class="border-t border-slate-100 pt-5 dark:border-slate-800"
+                >
+                    <h3
+                        class="text-base font-black text-slate-900 dark:text-slate-100"
+                    >
                         5. Mata-mata e súmula
                     </h3>
 
@@ -594,13 +616,13 @@ function submitRules() {
                         <label class="block text-sm font-bold">
                             Resolução de empate no mata-mata
                             <span
-                                class="block text-xs font-normal text-slate-500"
+                                class="block text-xs font-normal text-slate-500 dark:text-slate-400"
                                 >Padrão sugerido: Prorrogação + shootout</span
                             >
                             <select
                                 v-model="form.knockout_tie_resolution"
                                 name="knockout_tie_resolution"
-                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 font-normal disabled:bg-slate-100"
+                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 font-normal disabled:bg-slate-100 dark:border-slate-600 dark:bg-slate-900 dark:disabled:bg-slate-800"
                             >
                                 <option value="overtime_then_shootout">
                                     Prorrogação seguida de shootout / pênaltis
@@ -614,14 +636,14 @@ function submitRules() {
                         <label class="block text-sm font-bold">
                             Máximo de assistências por gol
                             <span
-                                class="block text-xs font-normal text-slate-500"
+                                class="block text-xs font-normal text-slate-500 dark:text-slate-400"
                                 >Padrão sugerido: até 2 assistências (0 a
                                 2)</span
                             >
                             <select
                                 v-model.number="form.max_assists_per_goal"
                                 name="max_assists_per_goal"
-                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 font-normal disabled:bg-slate-100"
+                                class="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 font-normal disabled:bg-slate-100 dark:border-slate-600 dark:bg-slate-900 dark:disabled:bg-slate-800"
                             >
                                 <option :value="0">
                                     0 (sem registro de assistências)
@@ -637,7 +659,7 @@ function submitRules() {
                     </div>
 
                     <label
-                        class="mt-3 flex cursor-pointer items-center gap-3 rounded-xl bg-slate-50 p-3 text-sm font-bold"
+                        class="mt-3 flex cursor-pointer items-center gap-3 rounded-xl bg-slate-50 p-3 text-sm font-bold dark:bg-slate-800/50"
                     >
                         <input
                             v-model="form.has_third_place_match"
@@ -648,7 +670,7 @@ function submitRules() {
                         <div>
                             <span>Incluir disputa de 3º lugar</span>
                             <span
-                                class="block text-xs font-normal text-slate-500"
+                                class="block text-xs font-normal text-slate-500 dark:text-slate-400"
                             >
                                 Padrão sugerido: marcado (perdedores das
                                 semifinais disputam o 3º lugar).

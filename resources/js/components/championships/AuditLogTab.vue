@@ -52,9 +52,11 @@ function formatDateTime(iso: string | null): string {
 
 <template>
     <div class="space-y-4">
-        <div class="rounded-2xl border border-slate-200 bg-white p-4">
+        <div
+            class="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
+        >
             <h2 class="text-lg font-black">Histórico e auditoria</h2>
-            <p class="text-xs text-slate-500">
+            <p class="text-xs text-slate-500 dark:text-slate-400">
                 Registro imutável de sorteios, desempates manuais, geração de
                 chaves, encerramentos, reaberturas e retificações de súmula.
             </p>
@@ -64,7 +66,7 @@ function formatDateTime(iso: string | null): string {
             <article
                 v-for="log in auditLogs"
                 :key="log.id"
-                class="rounded-2xl border border-slate-200 bg-white p-4"
+                class="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
                 :data-audit-id="log.id"
             >
                 <div class="flex flex-wrap items-center justify-between gap-2">
@@ -73,7 +75,7 @@ function formatDateTime(iso: string | null): string {
                             class="rounded-full px-2.5 py-0.5 text-xs font-bold"
                             :class="
                                 actionClasses[log.action] ??
-                                'bg-slate-100 text-slate-800'
+                                'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100'
                             "
                         >
                             {{ actionLabels[log.action] ?? log.action }}
@@ -86,7 +88,7 @@ function formatDateTime(iso: string | null): string {
                     </div>
 
                     <div
-                        class="flex flex-wrap items-center gap-3 text-xs text-slate-500"
+                        class="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400"
                     >
                         <span class="inline-flex items-center gap-1">
                             <User class="size-3.5" />
@@ -101,11 +103,13 @@ function formatDateTime(iso: string | null): string {
 
                 <div
                     v-if="log.reason"
-                    class="mt-3 flex items-start gap-2 rounded-xl bg-slate-50 p-3 text-xs text-slate-700"
+                    class="mt-3 flex items-start gap-2 rounded-xl bg-slate-50 p-3 text-xs text-slate-700 dark:bg-slate-800/50 dark:text-slate-200"
                 >
                     <FileText class="mt-0.5 size-4 shrink-0 text-slate-400" />
                     <div>
-                        <strong class="text-slate-900">Motivo:</strong>
+                        <strong class="text-slate-900 dark:text-slate-100"
+                            >Motivo:</strong
+                        >
                         {{ log.reason }}
                     </div>
                 </div>
@@ -116,12 +120,12 @@ function formatDateTime(iso: string | null): string {
                         log.before_snapshot ||
                         log.after_snapshot
                     "
-                    class="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500"
+                    class="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400"
                 >
                     <Link
                         v-if="log.championship_game_id"
                         :href="`/campeonatos/${championship.id}/jogos/${log.championship_game_id}`"
-                        class="font-bold text-slate-700 underline hover:text-slate-900"
+                        class="font-bold text-slate-700 underline hover:text-slate-900 dark:text-slate-200 dark:hover:text-white"
                     >
                         Ver partida #{{ log.championship_game_id }}
                     </Link>
@@ -131,7 +135,7 @@ function formatDateTime(iso: string | null): string {
                         class="w-full"
                     >
                         <summary
-                            class="cursor-pointer text-[11px] font-bold text-slate-500 hover:text-slate-800"
+                            class="cursor-pointer text-[11px] font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white"
                         >
                             Detalhes técnicos do registro (snapshot)
                         </summary>
@@ -174,13 +178,15 @@ function formatDateTime(iso: string | null): string {
 
         <div
             v-else
-            class="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center"
+            class="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center dark:border-slate-600 dark:bg-slate-900"
         >
             <History class="mx-auto size-10 text-slate-400" />
             <h3 class="mt-4 text-lg font-bold">
                 Nenhum evento de auditoria registrado
             </h3>
-            <p class="mx-auto mt-1 max-w-md text-sm text-slate-500">
+            <p
+                class="mx-auto mt-1 max-w-md text-sm text-slate-500 dark:text-slate-400"
+            >
                 Sorteios de grupos, resoluções manuais de empate, geração de
                 chaves e reaberturas de jogos serão listados aqui.
             </p>

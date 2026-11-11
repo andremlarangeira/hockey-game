@@ -164,7 +164,7 @@ function printPage() {
     <div class="space-y-6 print:space-y-4">
         <!-- Header Card -->
         <header
-            class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 print:border-slate-300 print:p-3 print:shadow-none"
+            class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 dark:border-slate-700 dark:bg-slate-900 print:border-slate-300 print:p-3 print:shadow-none"
         >
             <div class="flex flex-wrap items-start justify-between gap-3">
                 <div class="min-w-0 flex-1">
@@ -173,7 +173,7 @@ function printPage() {
                     >
                         <Link
                             :href="`/campeonatos/${championship.id}`"
-                            class="inline-flex items-center gap-1 text-slate-600 hover:text-slate-950"
+                            class="inline-flex items-center gap-1 text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white"
                             data-test="voltar-gerenciar-campeonato"
                         >
                             <ArrowLeft class="size-3.5" />
@@ -182,14 +182,16 @@ function printPage() {
                         <span class="text-slate-300">·</span>
                         <Link
                             href="/campeonatos"
-                            class="text-slate-500 hover:text-slate-900"
+                            class="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
                         >
                             Todos os campeonatos
                         </Link>
                     </div>
 
                     <div class="mt-1.5 flex flex-wrap items-center gap-2.5">
-                        <h1 class="text-2xl font-black text-slate-950">
+                        <h1
+                            class="text-2xl font-black text-slate-950 dark:text-slate-100"
+                        >
                             {{ championship.name }}
                         </h1>
                         <span
@@ -201,7 +203,7 @@ function printPage() {
                     </div>
 
                     <div
-                        class="mt-2 flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-600"
+                        class="mt-2 flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-600 dark:text-slate-300"
                     >
                         <span class="inline-flex items-center gap-1">
                             <MapPin class="size-3.5 text-slate-400" />
@@ -225,7 +227,7 @@ function printPage() {
                 <div class="flex items-center gap-2 print:hidden">
                     <button
                         type="button"
-                        class="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                        class="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800/60"
                         data-test="imprimir-resumo"
                         @click="printPage"
                     >
@@ -238,17 +240,19 @@ function printPage() {
 
         <!-- 1. Podium (1º / 2º / 3º only when defined, otherwise 'A definir') -->
         <section
-            class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 print:break-inside-avoid print:border-slate-300"
+            class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 dark:border-slate-700 dark:bg-slate-900 print:break-inside-avoid print:border-slate-300"
             data-test="secao-podio"
         >
             <div class="flex items-center justify-between gap-2">
                 <div class="flex items-center gap-2">
                     <Trophy class="size-5 text-amber-500" />
-                    <h2 class="text-lg font-black text-slate-900">
+                    <h2
+                        class="text-lg font-black text-slate-900 dark:text-slate-100"
+                    >
                         Pódio oficial
                     </h2>
                 </div>
-                <span class="text-xs text-slate-500">
+                <span class="text-xs text-slate-500 dark:text-slate-400">
                     Definido somente após o encerramento da Final e disputa de
                     3º lugar
                 </span>
@@ -274,7 +278,7 @@ function printPage() {
                                 resolvedPodium.champion_team_id &&
                                 resolvedPodium.champion_team_name
                             "
-                            class="text-xl font-black text-slate-950"
+                            class="text-xl font-black text-slate-950 dark:text-slate-100"
                         >
                             {{ resolvedPodium.champion_team_name }}
                         </p>
@@ -289,12 +293,12 @@ function printPage() {
 
                 <!-- 2º Lugar -->
                 <article
-                    class="flex flex-col justify-between rounded-2xl border border-slate-300 bg-slate-50/80 p-4"
+                    class="flex flex-col justify-between rounded-2xl border border-slate-300 bg-slate-50/80 p-4 dark:border-slate-600 dark:bg-slate-800/60"
                     data-test="podio-2"
                 >
                     <div class="flex items-center justify-between">
                         <span
-                            class="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-black text-slate-800"
+                            class="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-black text-slate-800 dark:bg-slate-700 dark:text-slate-100"
                         >
                             <Medal class="size-3.5" />
                             2º Lugar · Vice-campeão
@@ -306,7 +310,7 @@ function printPage() {
                                 resolvedPodium.runner_up_team_id &&
                                 resolvedPodium.runner_up_team_name
                             "
-                            class="text-xl font-black text-slate-900"
+                            class="text-xl font-black text-slate-900 dark:text-slate-100"
                         >
                             {{ resolvedPodium.runner_up_team_name }}
                         </p>
@@ -338,7 +342,7 @@ function printPage() {
                                 resolvedPodium.third_place_team_id &&
                                 resolvedPodium.third_place_team_name
                             "
-                            class="text-xl font-black text-slate-900"
+                            class="text-xl font-black text-slate-900 dark:text-slate-100"
                         >
                             {{ resolvedPodium.third_place_team_name }}
                         </p>
@@ -359,15 +363,15 @@ function printPage() {
             data-test="secao-totais"
         >
             <div
-                class="rounded-2xl border border-slate-200 bg-white p-4 print:border-slate-300"
+                class="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 print:border-slate-300"
             >
                 <p
-                    class="text-xs font-bold tracking-wider text-slate-500 uppercase"
+                    class="text-xs font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400"
                 >
                     Jogos finalizados
                 </p>
                 <p
-                    class="mt-1 text-3xl font-black text-slate-950 tabular-nums"
+                    class="mt-1 text-3xl font-black text-slate-950 tabular-nums dark:text-slate-100"
                     data-test="total-jogos-finalizados"
                 >
                     {{ finishedGamesCount }}
@@ -375,42 +379,44 @@ function printPage() {
                         / {{ totalGamesCount }}
                     </span>
                 </p>
-                <p class="mt-1 text-xs text-slate-500">
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
                     Partidas oficiais concluídas no campeonato
                 </p>
             </div>
 
             <div
-                class="rounded-2xl border border-slate-200 bg-white p-4 print:border-slate-300"
+                class="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 print:border-slate-300"
             >
                 <p
-                    class="text-xs font-bold tracking-wider text-slate-500 uppercase"
+                    class="text-xs font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400"
                 >
                     Total de gols marcados
                 </p>
                 <p
-                    class="mt-1 text-3xl font-black text-slate-950 tabular-nums"
+                    class="mt-1 text-3xl font-black text-slate-950 tabular-nums dark:text-slate-100"
                     data-test="total-gols"
                 >
                     {{ totalGoalsCount }}
                 </p>
-                <p class="mt-1 text-xs text-slate-500">
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
                     Tempo normal e prorrogação (cobranças de shootout excluídas)
                 </p>
             </div>
 
             <div
-                class="rounded-2xl border border-slate-200 bg-white p-4 print:border-slate-300"
+                class="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 print:border-slate-300"
             >
                 <p
-                    class="text-xs font-bold tracking-wider text-slate-500 uppercase"
+                    class="text-xs font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400"
                 >
                     Média de gols por jogo
                 </p>
-                <p class="mt-1 text-3xl font-black text-slate-950 tabular-nums">
+                <p
+                    class="mt-1 text-3xl font-black text-slate-950 tabular-nums dark:text-slate-100"
+                >
                     {{ goalsPerGameAverage }}
                 </p>
-                <p class="mt-1 text-xs text-slate-500">
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
                     Calculada sobre os {{ finishedGamesCount }} jogos encerrados
                 </p>
             </div>
@@ -420,18 +426,22 @@ function printPage() {
         <div class="grid gap-5 lg:grid-cols-3">
             <!-- Artilharia -->
             <section
-                class="overflow-hidden rounded-2xl border border-slate-200 bg-white print:break-inside-avoid print:border-slate-300"
+                class="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900 print:break-inside-avoid print:border-slate-300"
                 data-test="tabela-artilharia"
             >
                 <div
-                    class="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-4 py-3"
+                    class="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-800/50"
                 >
                     <Goal class="size-4 text-emerald-600" />
                     <div>
-                        <h2 class="text-sm font-black text-slate-900">
+                        <h2
+                            class="text-sm font-black text-slate-900 dark:text-slate-100"
+                        >
                             Artilharia (Gols)
                         </h2>
-                        <p class="text-[11px] text-slate-500">
+                        <p
+                            class="text-[11px] text-slate-500 dark:text-slate-400"
+                        >
                             Apenas jogos finalizados · Shootout não conta
                         </p>
                     </div>
@@ -440,7 +450,7 @@ function printPage() {
                 <div v-if="scorersList.length" class="overflow-x-auto">
                     <table class="w-full text-left text-xs">
                         <thead
-                            class="border-b border-slate-100 text-[11px] font-bold text-slate-500 uppercase"
+                            class="border-b border-slate-100 text-[11px] font-bold text-slate-500 uppercase dark:border-slate-800 dark:text-slate-400"
                         >
                             <tr>
                                 <th class="w-8 px-3 py-2 text-center">#</th>
@@ -449,31 +459,37 @@ function printPage() {
                                     J
                                 </th>
                                 <th
-                                    class="px-3 py-2 text-right font-black text-slate-900"
+                                    class="px-3 py-2 text-right font-black text-slate-900 dark:text-slate-100"
                                     title="Gols"
                                 >
                                     G
                                 </th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100">
+                        <tbody
+                            class="divide-y divide-slate-100 dark:divide-slate-800"
+                        >
                             <tr
                                 v-for="(row, idx) in scorersList"
                                 :key="row.player_id"
-                                class="hover:bg-slate-50"
+                                class="hover:bg-slate-50 dark:hover:bg-slate-800/60"
                                 :data-scorer-row="row.player_id"
                             >
                                 <td
-                                    class="px-3 py-2.5 text-center font-black text-slate-500"
+                                    class="px-3 py-2.5 text-center font-black text-slate-500 dark:text-slate-400"
                                 >
                                     {{ idx + 1 }}º
                                 </td>
                                 <td class="px-3 py-2.5">
-                                    <div class="font-bold text-slate-900">
+                                    <div
+                                        class="font-bold text-slate-900 dark:text-slate-100"
+                                    >
                                         #{{ row.jersey_number }}
                                         {{ row.player_name }}
                                     </div>
-                                    <div class="text-[11px] text-slate-500">
+                                    <div
+                                        class="text-[11px] text-slate-500 dark:text-slate-400"
+                                    >
                                         {{ row.team_name }}
                                     </div>
                                 </td>
@@ -490,25 +506,32 @@ function printPage() {
                     </table>
                 </div>
 
-                <div v-else class="p-6 text-center text-xs text-slate-500">
+                <div
+                    v-else
+                    class="p-6 text-center text-xs text-slate-500 dark:text-slate-400"
+                >
                     Nenhum gol computado em partidas encerradas até o momento.
                 </div>
             </section>
 
             <!-- Assistências -->
             <section
-                class="overflow-hidden rounded-2xl border border-slate-200 bg-white print:break-inside-avoid print:border-slate-300"
+                class="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900 print:break-inside-avoid print:border-slate-300"
                 data-test="tabela-assistencias"
             >
                 <div
-                    class="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-4 py-3"
+                    class="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-800/50"
                 >
                     <Users class="size-4 text-blue-600" />
                     <div>
-                        <h2 class="text-sm font-black text-slate-900">
+                        <h2
+                            class="text-sm font-black text-slate-900 dark:text-slate-100"
+                        >
                             Líderes em Assistências
                         </h2>
-                        <p class="text-[11px] text-slate-500">
+                        <p
+                            class="text-[11px] text-slate-500 dark:text-slate-400"
+                        >
                             Soma de 1ª e 2ª assistências confirmadas
                         </p>
                     </div>
@@ -517,7 +540,7 @@ function printPage() {
                 <div v-if="assistsList.length" class="overflow-x-auto">
                     <table class="w-full text-left text-xs">
                         <thead
-                            class="border-b border-slate-100 text-[11px] font-bold text-slate-500 uppercase"
+                            class="border-b border-slate-100 text-[11px] font-bold text-slate-500 uppercase dark:border-slate-800 dark:text-slate-400"
                         >
                             <tr>
                                 <th class="w-8 px-3 py-2 text-center">#</th>
@@ -526,31 +549,37 @@ function printPage() {
                                     J
                                 </th>
                                 <th
-                                    class="px-3 py-2 text-right font-black text-slate-900"
+                                    class="px-3 py-2 text-right font-black text-slate-900 dark:text-slate-100"
                                     title="Assistências"
                                 >
                                     A
                                 </th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100">
+                        <tbody
+                            class="divide-y divide-slate-100 dark:divide-slate-800"
+                        >
                             <tr
                                 v-for="(row, idx) in assistsList"
                                 :key="row.player_id"
-                                class="hover:bg-slate-50"
+                                class="hover:bg-slate-50 dark:hover:bg-slate-800/60"
                                 :data-assist-row="row.player_id"
                             >
                                 <td
-                                    class="px-3 py-2.5 text-center font-black text-slate-500"
+                                    class="px-3 py-2.5 text-center font-black text-slate-500 dark:text-slate-400"
                                 >
                                     {{ idx + 1 }}º
                                 </td>
                                 <td class="px-3 py-2.5">
-                                    <div class="font-bold text-slate-900">
+                                    <div
+                                        class="font-bold text-slate-900 dark:text-slate-100"
+                                    >
                                         #{{ row.jersey_number }}
                                         {{ row.player_name }}
                                     </div>
-                                    <div class="text-[11px] text-slate-500">
+                                    <div
+                                        class="text-[11px] text-slate-500 dark:text-slate-400"
+                                    >
                                         {{ row.team_name }}
                                     </div>
                                 </td>
@@ -567,7 +596,10 @@ function printPage() {
                     </table>
                 </div>
 
-                <div v-else class="p-6 text-center text-xs text-slate-500">
+                <div
+                    v-else
+                    class="p-6 text-center text-xs text-slate-500 dark:text-slate-400"
+                >
                     Nenhuma assistência computada em partidas encerradas até o
                     momento.
                 </div>
@@ -575,18 +607,22 @@ function printPage() {
 
             <!-- Pontos (G + A) -->
             <section
-                class="overflow-hidden rounded-2xl border border-slate-200 bg-white print:break-inside-avoid print:border-slate-300"
+                class="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900 print:break-inside-avoid print:border-slate-300"
                 data-test="tabela-pontos"
             >
                 <div
-                    class="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-4 py-3"
+                    class="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-800/50"
                 >
                     <Sparkles class="size-4 text-purple-600" />
                     <div>
-                        <h2 class="text-sm font-black text-slate-900">
+                        <h2
+                            class="text-sm font-black text-slate-900 dark:text-slate-100"
+                        >
                             Pontos / Participações (G + A)
                         </h2>
-                        <p class="text-[11px] text-slate-500">
+                        <p
+                            class="text-[11px] text-slate-500 dark:text-slate-400"
+                        >
                             Gols somados às assistências no torneio
                         </p>
                     </div>
@@ -595,7 +631,7 @@ function printPage() {
                 <div v-if="pointLeadersList.length" class="overflow-x-auto">
                     <table class="w-full text-left text-xs">
                         <thead
-                            class="border-b border-slate-100 text-[11px] font-bold text-slate-500 uppercase"
+                            class="border-b border-slate-100 text-[11px] font-bold text-slate-500 uppercase dark:border-slate-800 dark:text-slate-400"
                         >
                             <tr>
                                 <th class="w-8 px-3 py-2 text-center">#</th>
@@ -610,31 +646,37 @@ function printPage() {
                                     A
                                 </th>
                                 <th
-                                    class="px-3 py-2 text-right font-black text-slate-900"
+                                    class="px-3 py-2 text-right font-black text-slate-900 dark:text-slate-100"
                                     title="Pontos (G + A)"
                                 >
                                     PTS
                                 </th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100">
+                        <tbody
+                            class="divide-y divide-slate-100 dark:divide-slate-800"
+                        >
                             <tr
                                 v-for="(row, idx) in pointLeadersList"
                                 :key="row.player_id"
-                                class="hover:bg-slate-50"
+                                class="hover:bg-slate-50 dark:hover:bg-slate-800/60"
                                 :data-points-row="row.player_id"
                             >
                                 <td
-                                    class="px-3 py-2.5 text-center font-black text-slate-500"
+                                    class="px-3 py-2.5 text-center font-black text-slate-500 dark:text-slate-400"
                                 >
                                     {{ idx + 1 }}º
                                 </td>
                                 <td class="px-3 py-2.5">
-                                    <div class="font-bold text-slate-900">
+                                    <div
+                                        class="font-bold text-slate-900 dark:text-slate-100"
+                                    >
                                         #{{ row.jersey_number }}
                                         {{ row.player_name }}
                                     </div>
-                                    <div class="text-[11px] text-slate-500">
+                                    <div
+                                        class="text-[11px] text-slate-500 dark:text-slate-400"
+                                    >
                                         {{ row.team_name }}
                                     </div>
                                 </td>
@@ -654,7 +696,10 @@ function printPage() {
                     </table>
                 </div>
 
-                <div v-else class="p-6 text-center text-xs text-slate-500">
+                <div
+                    v-else
+                    class="p-6 text-center text-xs text-slate-500 dark:text-slate-400"
+                >
                     Nenhuma participação em gol computada até o momento.
                 </div>
             </section>
@@ -666,8 +711,10 @@ function printPage() {
             data-test="secao-classificacao-grupos"
         >
             <div class="flex items-center gap-2">
-                <Shield class="size-5 text-slate-700" />
-                <h2 class="text-lg font-black text-slate-900">
+                <Shield class="size-5 text-slate-700 dark:text-slate-200" />
+                <h2
+                    class="text-lg font-black text-slate-900 dark:text-slate-100"
+                >
                     Classificação da fase de grupos
                 </h2>
             </div>
@@ -679,12 +726,14 @@ function printPage() {
                 <article
                     v-for="[groupCode, groupStandings] in standingsEntries"
                     :key="groupCode"
-                    class="overflow-hidden rounded-2xl border border-slate-200 bg-white print:border-slate-300"
+                    class="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900 print:border-slate-300"
                 >
                     <div
-                        class="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-4 py-3"
+                        class="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-800/50"
                     >
-                        <h3 class="text-sm font-black text-slate-900">
+                        <h3
+                            class="text-sm font-black text-slate-900 dark:text-slate-100"
+                        >
                             Grupo {{ groupCode }}
                         </h3>
                         <span
@@ -706,7 +755,7 @@ function printPage() {
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-xs">
                             <thead
-                                class="border-b border-slate-100 bg-slate-50/50 text-[11px] font-bold text-slate-500 uppercase"
+                                class="border-b border-slate-100 bg-slate-50/50 text-[11px] font-bold text-slate-500 uppercase dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-400"
                             >
                                 <tr>
                                     <th class="w-8 px-2.5 py-2 text-center">
@@ -714,7 +763,7 @@ function printPage() {
                                     </th>
                                     <th class="px-2.5 py-2">Equipe</th>
                                     <th
-                                        class="px-2 py-2 text-center font-black text-slate-900"
+                                        class="px-2 py-2 text-center font-black text-slate-900 dark:text-slate-100"
                                     >
                                         P
                                     </th>
@@ -727,7 +776,9 @@ function printPage() {
                                     <th class="px-2.5 py-2 text-center">SG</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100">
+                            <tbody
+                                class="divide-y divide-slate-100 dark:divide-slate-800"
+                            >
                                 <tr
                                     v-for="row in groupStandings.rows"
                                     :key="row.team_id"
@@ -751,7 +802,7 @@ function printPage() {
                                                 size="sm"
                                             />
                                             <span
-                                                class="font-bold text-slate-900"
+                                                class="font-bold text-slate-900 dark:text-slate-100"
                                             >
                                                 {{ row.team_name }}
                                             </span>
@@ -764,7 +815,7 @@ function printPage() {
                                         </div>
                                     </td>
                                     <td
-                                        class="px-2 py-2 text-center font-black text-slate-950"
+                                        class="px-2 py-2 text-center font-black text-slate-950 dark:text-slate-100"
                                     >
                                         {{ row.points }}
                                     </td>
@@ -804,7 +855,7 @@ function printPage() {
 
             <div
                 v-else
-                class="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500"
+                class="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-400"
             >
                 Os grupos ainda não foram sorteados neste campeonato.
             </div>
@@ -816,8 +867,10 @@ function printPage() {
             data-test="secao-mata-mata-resumo"
         >
             <div class="flex items-center gap-2">
-                <GitBranch class="size-5 text-slate-700" />
-                <h2 class="text-lg font-black text-slate-900">
+                <GitBranch class="size-5 text-slate-700 dark:text-slate-200" />
+                <h2
+                    class="text-lg font-black text-slate-900 dark:text-slate-100"
+                >
                     Chaveamento do mata-mata
                 </h2>
             </div>
@@ -829,7 +882,7 @@ function printPage() {
                 <article
                     v-for="game in sortedBracket"
                     :key="game.id"
-                    class="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-3.5 print:border-slate-300"
+                    class="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-3.5 dark:border-slate-700 dark:bg-slate-900 print:border-slate-300"
                     :data-bracket-slot="game.slot_key"
                 >
                     <div>
@@ -837,11 +890,13 @@ function printPage() {
                             class="flex items-center justify-between gap-2 text-[11px]"
                         >
                             <span
-                                class="rounded bg-slate-900 px-1.5 py-0.5 font-mono font-black text-white"
+                                class="rounded bg-slate-900 px-1.5 py-0.5 font-mono font-black text-white dark:bg-slate-700"
                             >
                                 {{ game.slot_key }}
                             </span>
-                            <span class="font-bold text-slate-500">
+                            <span
+                                class="font-bold text-slate-500 dark:text-slate-400"
+                            >
                                 {{ game.phase_label }}
                             </span>
                         </div>
@@ -853,7 +908,7 @@ function printPage() {
                                     game.winner_team_id &&
                                     game.winner_team_id === game.home_team_id
                                         ? 'font-black text-emerald-900'
-                                        : 'text-slate-700'
+                                        : 'text-slate-700 dark:text-slate-200'
                                 "
                             >
                                 <span class="truncate">
@@ -882,7 +937,7 @@ function printPage() {
                                     game.winner_team_id &&
                                     game.winner_team_id === game.away_team_id
                                         ? 'font-black text-emerald-900'
-                                        : 'text-slate-700'
+                                        : 'text-slate-700 dark:text-slate-200'
                                 "
                             >
                                 <span class="truncate">
@@ -912,7 +967,7 @@ function printPage() {
                     </div>
 
                     <div
-                        class="mt-3 flex items-center justify-between border-t border-slate-100 pt-2 text-[11px] text-slate-500"
+                        class="mt-3 flex items-center justify-between border-t border-slate-100 pt-2 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400"
                     >
                         <span v-if="game.winner_team_name" class="font-bold">
                             Vencedor: {{ game.winner_team_name }}
@@ -922,7 +977,7 @@ function printPage() {
                         <Link
                             v-if="!game.is_bye"
                             :href="`/campeonatos/${championship.id}/jogos/${game.id}`"
-                            class="font-bold text-slate-900 underline print:hidden"
+                            class="font-bold text-slate-900 underline dark:text-slate-100 print:hidden"
                         >
                             Súmula
                         </Link>
@@ -932,7 +987,7 @@ function printPage() {
 
             <div
                 v-else
-                class="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500"
+                class="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-400"
             >
                 A chave do mata-mata ainda não foi gerada.
             </div>
@@ -945,7 +1000,9 @@ function printPage() {
         >
             <div class="flex items-center gap-2">
                 <CheckCircle2 class="size-5 text-emerald-600" />
-                <h2 class="text-lg font-black text-slate-900">
+                <h2
+                    class="text-lg font-black text-slate-900 dark:text-slate-100"
+                >
                     Resultados das partidas finalizadas ({{ results.length }})
                 </h2>
             </div>
@@ -954,14 +1011,16 @@ function printPage() {
                 <article
                     v-for="game in results"
                     :key="game.id"
-                    class="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 print:border-slate-300"
+                    class="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 dark:border-slate-700 dark:bg-slate-900 print:border-slate-300"
                     :data-result-game-id="game.id"
                 >
                     <div class="min-w-0 flex-1">
                         <div
-                            class="flex flex-wrap items-center gap-2 text-[11px] text-slate-500"
+                            class="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400"
                         >
-                            <span class="font-bold text-slate-700">
+                            <span
+                                class="font-bold text-slate-700 dark:text-slate-200"
+                            >
                                 {{ game.phase_label }}
                                 <template v-if="game.group_code">
                                     · Grupo {{ game.group_code }}
@@ -982,13 +1041,13 @@ function printPage() {
                                 :class="
                                     game.winner_team_id === game.home_team_id
                                         ? 'font-black text-emerald-900'
-                                        : 'text-slate-800'
+                                        : 'text-slate-800 dark:text-slate-100'
                                 "
                             >
                                 {{ game.home_team_name ?? game.home_source }}
                             </span>
                             <span
-                                class="rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-black text-slate-950 tabular-nums"
+                                class="rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-black text-slate-950 tabular-nums dark:bg-slate-800 dark:text-slate-100"
                             >
                                 {{ game.home_regular_score }} ×
                                 {{ game.away_regular_score }}
@@ -998,7 +1057,7 @@ function printPage() {
                                 :class="
                                     game.winner_team_id === game.away_team_id
                                         ? 'font-black text-emerald-900'
-                                        : 'text-slate-800'
+                                        : 'text-slate-800 dark:text-slate-100'
                                 "
                             >
                                 {{ game.away_team_name ?? game.away_source }}
@@ -1024,7 +1083,7 @@ function printPage() {
 
                     <Link
                         :href="`/campeonatos/${championship.id}/jogos/${game.id}`"
-                        class="shrink-0 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 print:hidden"
+                        class="shrink-0 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800/60 print:hidden"
                     >
                         Ver súmula
                     </Link>
@@ -1033,7 +1092,7 @@ function printPage() {
 
             <div
                 v-else
-                class="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500"
+                class="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-400"
             >
                 Nenhuma partida foi finalizada neste campeonato até o momento.
             </div>

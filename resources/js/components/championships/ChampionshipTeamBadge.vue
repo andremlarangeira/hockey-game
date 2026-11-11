@@ -42,7 +42,7 @@ const boxClasses = computed(() => {
         v-if="logoUrl"
         :src="logoUrl"
         :alt="`Escudo ${name}`"
-        class="shrink-0 border border-slate-200 bg-white object-cover"
+        class="shrink-0 border border-slate-200 bg-white object-cover dark:border-slate-700"
         :class="boxClasses"
     />
     <span

@@ -28,7 +28,7 @@ const form = useForm({ email: '', password: '', remember: false });
                 required
                 autofocus
                 autocomplete="email"
-                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3"
+                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 dark:border-slate-600"
                 placeholder="voce@seutime.com.br"
             /><span
                 v-if="form.errors.email"
@@ -43,7 +43,7 @@ const form = useForm({ email: '', password: '', remember: false });
                 name="password"
                 required
                 autocomplete="current-password"
-                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3"
+                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 dark:border-slate-600"
                 placeholder="Sua senha"
             /><span
                 v-if="form.errors.password"
@@ -69,7 +69,7 @@ const form = useForm({ email: '', password: '', remember: false });
         <Link
             v-if="canResetPassword"
             href="/forgot-password"
-            class="text-slate-500"
+            class="text-slate-500 dark:text-slate-400"
             >Esqueci a senha</Link
         ><Link href="/register" class="font-bold text-green-800"
             >Criar meu time</Link

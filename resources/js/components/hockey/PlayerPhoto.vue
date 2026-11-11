@@ -24,7 +24,7 @@ const initials = computed(() =>
         v-if="player.photo_url"
         :src="player.photo_url"
         :alt="`Foto de ${player.name}`"
-        class="shrink-0 rounded-xl border border-slate-200 object-cover"
+        class="shrink-0 rounded-xl border border-slate-200 object-cover dark:border-slate-700"
         :class="size"
     />
     <span

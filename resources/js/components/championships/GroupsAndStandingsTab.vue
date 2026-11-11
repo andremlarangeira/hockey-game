@@ -72,7 +72,8 @@ const gameStatusLabels: Record<GameStatus, string> = {
 };
 
 const gameStatusClasses: Record<GameStatus, string> = {
-    scheduled: 'bg-slate-100 text-slate-700',
+    scheduled:
+        'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
     live: 'bg-red-100 text-red-800 animate-pulse',
     finished: 'bg-emerald-100 text-emerald-800',
 };
@@ -221,18 +222,21 @@ function formatDateTime(iso: string | null): string {
     <div class="space-y-5">
         <!-- Top action bar for Draw / Redraw -->
         <div
-            class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4"
+            class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
         >
             <div>
                 <h2 class="text-lg font-black">
                     Sorteio de grupos, classificação e jogos
                 </h2>
-                <p v-if="isDraft" class="text-xs text-slate-500">
+                <p
+                    v-if="isDraft"
+                    class="text-xs text-slate-500 dark:text-slate-400"
+                >
                     {{ teams.length }} de {{ minRequiredTeams }} equipes mínimas
                     inscritas para sortear
                     {{ championship.rules.groups_count }} grupo(s).
                 </p>
-                <p v-else class="text-xs text-slate-500">
+                <p v-else class="text-xs text-slate-500 dark:text-slate-400">
                     Classificação calculada automaticamente das partidas
                     encerradas ({{ groupGames.length }} jogos na fase de
                     grupos).
@@ -268,13 +272,15 @@ function formatDateTime(iso: string | null): string {
         <!-- Empty state when groups not drawn yet -->
         <div
             v-if="!groupEntries.length"
-            class="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center"
+            class="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center dark:border-slate-600 dark:bg-slate-900"
         >
             <Shuffle class="mx-auto size-10 text-slate-400" />
             <h3 class="mt-4 text-lg font-bold">
                 Grupos ainda não foram sorteados
             </h3>
-            <p class="mx-auto mt-1 max-w-md text-sm text-slate-500">
+            <p
+                class="mx-auto mt-1 max-w-md text-sm text-slate-500 dark:text-slate-400"
+            >
                 Inscreva pelo menos {{ minRequiredTeams }} equipes na aba "Times
                 e elencos", confira as regras e clique em "Sortear grupos e
                 gerar jogos".
@@ -282,7 +288,7 @@ function formatDateTime(iso: string | null): string {
             <button
                 v-if="canDraw"
                 type="button"
-                class="mt-5 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 font-bold text-white"
+                class="mt-5 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 font-bold text-white dark:bg-slate-700"
                 @click="openDrawConfirm(false)"
             >
                 <Shuffle class="size-4" />
@@ -295,23 +301,27 @@ function formatDateTime(iso: string | null): string {
             <section
                 v-for="[groupCode, groupStandings] in groupEntries"
                 :key="groupCode"
-                class="overflow-hidden rounded-2xl border border-slate-200 bg-white"
+                class="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
                 :data-group-code="groupCode"
             >
                 <div
-                    class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3"
+                    class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/50"
                 >
                     <div class="flex items-center gap-2.5">
                         <span
-                            class="inline-flex size-8 items-center justify-center rounded-xl bg-slate-900 text-sm font-black text-white"
+                            class="inline-flex size-8 items-center justify-center rounded-xl bg-slate-900 text-sm font-black text-white dark:bg-slate-700"
                         >
                             {{ groupCode }}
                         </span>
                         <div>
-                            <h3 class="text-base font-black text-slate-900">
+                            <h3
+                                class="text-base font-black text-slate-900 dark:text-slate-100"
+                            >
                                 Grupo {{ groupCode }}
                             </h3>
-                            <p class="text-[11px] text-slate-500">
+                            <p
+                                class="text-[11px] text-slate-500 dark:text-slate-400"
+                            >
                                 Classificam-se os
                                 {{ championship.rules.qualifiers_per_group }}
                                 primeiros colocados
@@ -385,13 +395,13 @@ function formatDateTime(iso: string | null): string {
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs sm:text-sm">
                         <thead
-                            class="border-b border-slate-200 bg-slate-50/60 text-[11px] font-bold tracking-wider text-slate-500 uppercase"
+                            class="border-b border-slate-200 bg-slate-50/60 text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400"
                         >
                             <tr>
                                 <th class="w-10 px-3 py-2.5 text-center">#</th>
                                 <th class="px-3 py-2.5">Equipe</th>
                                 <th
-                                    class="px-2.5 py-2.5 text-center font-black text-slate-900"
+                                    class="px-2.5 py-2.5 text-center font-black text-slate-900 dark:text-slate-100"
                                     title="Pontos"
                                 >
                                     P
@@ -440,14 +450,16 @@ function formatDateTime(iso: string | null): string {
                                 </th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100">
+                        <tbody
+                            class="divide-y divide-slate-100 dark:divide-slate-800"
+                        >
                             <tr
                                 v-for="row in groupStandings.rows"
                                 :key="row.team_id"
                                 :class="
                                     row.qualifies
                                         ? 'bg-emerald-50/50 hover:bg-emerald-50'
-                                        : 'hover:bg-slate-50'
+                                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
                                 "
                                 :data-standing-team-id="row.team_id"
                             >
@@ -457,7 +469,7 @@ function formatDateTime(iso: string | null): string {
                                         :class="
                                             row.qualifies
                                                 ? 'bg-emerald-600 text-white'
-                                                : 'bg-slate-100 text-slate-700'
+                                                : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'
                                         "
                                     >
                                         {{ row.position }}
@@ -474,7 +486,7 @@ function formatDateTime(iso: string | null): string {
                                             size="sm"
                                         />
                                         <span
-                                            class="font-bold text-slate-900"
+                                            class="font-bold text-slate-900 dark:text-slate-100"
                                             >{{ row.team_name }}</span
                                         >
                                         <span
@@ -493,7 +505,7 @@ function formatDateTime(iso: string | null): string {
                                             v-else-if="
                                                 row.resolved_by_criterion
                                             "
-                                            class="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600"
+                                            class="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300"
                                         >
                                             {{
                                                 criterionShortLabels[
@@ -504,37 +516,37 @@ function formatDateTime(iso: string | null): string {
                                     </div>
                                 </td>
                                 <td
-                                    class="px-2.5 py-2.5 text-center text-sm font-black text-slate-950"
+                                    class="px-2.5 py-2.5 text-center text-sm font-black text-slate-950 dark:text-slate-100"
                                 >
                                     {{ row.points }}
                                 </td>
                                 <td
-                                    class="px-2.5 py-2.5 text-center text-slate-700"
+                                    class="px-2.5 py-2.5 text-center text-slate-700 dark:text-slate-200"
                                 >
                                     {{ row.played }}
                                 </td>
                                 <td
-                                    class="px-2.5 py-2.5 text-center text-slate-700"
+                                    class="px-2.5 py-2.5 text-center text-slate-700 dark:text-slate-200"
                                 >
                                     {{ row.wins }}
                                 </td>
                                 <td
-                                    class="px-2.5 py-2.5 text-center text-slate-700"
+                                    class="px-2.5 py-2.5 text-center text-slate-700 dark:text-slate-200"
                                 >
                                     {{ row.draws }}
                                 </td>
                                 <td
-                                    class="px-2.5 py-2.5 text-center text-slate-700"
+                                    class="px-2.5 py-2.5 text-center text-slate-700 dark:text-slate-200"
                                 >
                                     {{ row.losses }}
                                 </td>
                                 <td
-                                    class="px-2.5 py-2.5 text-center text-slate-700"
+                                    class="px-2.5 py-2.5 text-center text-slate-700 dark:text-slate-200"
                                 >
                                     {{ row.goals_for }}
                                 </td>
                                 <td
-                                    class="px-2.5 py-2.5 text-center text-slate-700"
+                                    class="px-2.5 py-2.5 text-center text-slate-700 dark:text-slate-200"
                                 >
                                     {{ row.goals_against }}
                                 </td>
@@ -545,7 +557,7 @@ function formatDateTime(iso: string | null): string {
                                             ? 'text-emerald-700'
                                             : row.goal_difference < 0
                                               ? 'text-red-600'
-                                              : 'text-slate-600'
+                                              : 'text-slate-600 dark:text-slate-300'
                                     "
                                 >
                                     {{
@@ -560,9 +572,11 @@ function formatDateTime(iso: string | null): string {
                 </div>
 
                 <!-- Group Fixtures List -->
-                <div class="border-t border-slate-200 bg-slate-50/40 p-4">
+                <div
+                    class="border-t border-slate-200 bg-slate-50/40 p-4 dark:border-slate-700 dark:bg-slate-800/40"
+                >
                     <h4
-                        class="mb-3 text-xs font-bold tracking-wider text-slate-500 uppercase"
+                        class="mb-3 text-xs font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400"
                     >
                         Jogos do Grupo {{ groupCode }}
                     </h4>
@@ -574,14 +588,16 @@ function formatDateTime(iso: string | null): string {
                         <article
                             v-for="game in gamesByGroup[groupCode]"
                             :key="game.id"
-                            class="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-3.5"
+                            class="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-3.5 dark:border-slate-700 dark:bg-slate-900"
                             :data-game-id="game.id"
                         >
                             <div>
                                 <div
                                     class="flex items-center justify-between gap-2 text-[11px]"
                                 >
-                                    <span class="font-bold text-slate-500">
+                                    <span
+                                        class="font-bold text-slate-500 dark:text-slate-400"
+                                    >
                                         Rodada {{ game.round_number }}
                                         <template v-if="game.leg_number === 2">
                                             · Returno
@@ -617,7 +633,7 @@ function formatDateTime(iso: string | null): string {
                                             size="sm"
                                         />
                                         <span
-                                            class="truncate text-sm font-bold text-slate-900"
+                                            class="truncate text-sm font-bold text-slate-900 dark:text-slate-100"
                                         >
                                             {{
                                                 game.home_team_name ??
@@ -627,7 +643,7 @@ function formatDateTime(iso: string | null): string {
                                     </div>
 
                                     <div
-                                        class="shrink-0 rounded-lg bg-slate-100 px-2.5 py-1 text-center text-sm font-black text-slate-900"
+                                        class="shrink-0 rounded-lg bg-slate-100 px-2.5 py-1 text-center text-sm font-black text-slate-900 dark:bg-slate-800 dark:text-slate-100"
                                     >
                                         <template
                                             v-if="game.status !== 'scheduled'"
@@ -636,7 +652,7 @@ function formatDateTime(iso: string | null): string {
                                             {{ game.away_regular_score }}
                                             <span
                                                 v-if="game.went_to_shootout"
-                                                class="block text-[10px] font-bold text-slate-600"
+                                                class="block text-[10px] font-bold text-slate-600 dark:text-slate-300"
                                             >
                                                 SO:
                                                 {{
@@ -649,7 +665,7 @@ function formatDateTime(iso: string | null): string {
                                                 v-else-if="
                                                     game.went_to_overtime
                                                 "
-                                                class="block text-[10px] font-bold text-slate-600"
+                                                class="block text-[10px] font-bold text-slate-600 dark:text-slate-300"
                                             >
                                                 Prorrogação
                                             </span>
@@ -661,7 +677,7 @@ function formatDateTime(iso: string | null): string {
                                         class="flex min-w-0 flex-1 items-center justify-end gap-2 text-right"
                                     >
                                         <span
-                                            class="truncate text-sm font-bold text-slate-900"
+                                            class="truncate text-sm font-bold text-slate-900 dark:text-slate-100"
                                         >
                                             {{
                                                 game.away_team_name ??
@@ -688,7 +704,7 @@ function formatDateTime(iso: string | null): string {
                             </div>
 
                             <div
-                                class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2.5 text-xs text-slate-500"
+                                class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2.5 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400"
                             >
                                 <div
                                     class="flex flex-wrap items-center gap-2 text-[11px]"
@@ -712,14 +728,14 @@ function formatDateTime(iso: string | null): string {
                                     <button
                                         v-if="game.status !== 'finished'"
                                         type="button"
-                                        class="rounded-lg border border-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-50"
+                                        class="rounded-lg border border-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800/60"
                                         @click="openScheduleModal(game)"
                                     >
                                         Agendar
                                     </button>
                                     <Link
                                         :href="`/campeonatos/${championship.id}/jogos/${game.id}`"
-                                        class="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-slate-800"
+                                        class="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600"
                                         :data-test="`abrir-jogo-${game.id}`"
                                     >
                                         <Timer class="size-3" />
@@ -746,7 +762,7 @@ function formatDateTime(iso: string | null): string {
                 @click.self="closeDrawModal"
             >
                 <form
-                    class="mx-auto my-6 max-w-md rounded-2xl bg-white p-5 shadow-2xl"
+                    class="mx-auto my-6 max-w-md rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900"
                     @submit.prevent="submitDraw"
                 >
                     <div class="flex items-center justify-between">
@@ -759,7 +775,7 @@ function formatDateTime(iso: string | null): string {
                         </h2>
                         <button
                             type="button"
-                            class="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                            class="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
                             aria-label="Fechar"
                             @click="closeDrawModal"
                         >
@@ -767,20 +783,25 @@ function formatDateTime(iso: string | null): string {
                         </button>
                     </div>
 
-                    <p v-if="!isRedrawMode" class="mt-2 text-sm text-slate-600">
+                    <p
+                        v-if="!isRedrawMode"
+                        class="mt-2 text-sm text-slate-600 dark:text-slate-300"
+                    >
                         As {{ teams.length }} equipes inscritas serão
                         distribuídas nos
                         {{ championship.rules.groups_count }} grupo(s)
                         (respeitando os potes configurados) e a tabela de jogos
                         será gerada automaticamente.
-                        <strong class="mt-2 block text-slate-900">
+                        <strong
+                            class="mt-2 block text-slate-900 dark:text-slate-100"
+                        >
                             Atenção: após o sorteio, as regras do campeonato e a
                             inscrição de novas equipes ficarão travadas.
                         </strong>
                     </p>
 
                     <div v-else class="mt-2 space-y-3">
-                        <p class="text-sm text-slate-600">
+                        <p class="text-sm text-slate-600 dark:text-slate-300">
                             O sorteio atual e os jogos da fase de grupos ainda
                             não iniciados serão substituídos por um novo
                             sorteio. Esta ação ficará registrada no histórico de
@@ -795,7 +816,7 @@ function formatDateTime(iso: string | null): string {
                                 required
                                 rows="3"
                                 maxlength="500"
-                                class="mt-1 w-full rounded-xl border border-slate-300 p-3 font-normal"
+                                class="mt-1 w-full rounded-xl border border-slate-300 p-3 font-normal dark:border-slate-600"
                                 placeholder="Ex.: Solicitação unânime dos representantes na reunião técnica"
                             />
                             <span
@@ -810,7 +831,7 @@ function formatDateTime(iso: string | null): string {
                     <div class="mt-6 flex gap-3">
                         <button
                             type="button"
-                            class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold text-slate-700"
+                            class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold text-slate-700 dark:border-slate-600 dark:text-slate-200"
                             @click="closeDrawModal"
                         >
                             Cancelar
@@ -842,13 +863,13 @@ function formatDateTime(iso: string | null): string {
                 @click.self="closeTieModal"
             >
                 <form
-                    class="mx-auto my-6 max-w-md rounded-2xl bg-white p-5 shadow-2xl"
+                    class="mx-auto my-6 max-w-md rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900"
                     @submit.prevent="submitTieResolution"
                 >
                     <div class="flex items-center justify-between">
                         <div>
                             <p
-                                class="text-xs font-bold tracking-wider text-slate-500 uppercase"
+                                class="text-xs font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400"
                             >
                                 Grupo {{ tieForm.group_code }}
                             </p>
@@ -858,7 +879,7 @@ function formatDateTime(iso: string | null): string {
                         </div>
                         <button
                             type="button"
-                            class="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                            class="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
                             aria-label="Fechar"
                             @click="closeTieModal"
                         >
@@ -866,7 +887,7 @@ function formatDateTime(iso: string | null): string {
                         </button>
                     </div>
 
-                    <p class="mt-2 text-xs text-slate-600">
+                    <p class="mt-2 text-xs text-slate-600 dark:text-slate-300">
                         Defina a ordem final entre as equipes empatadas (1º para
                         o último dentro do empate) e registre o motivo oficial
                         para o histórico de auditoria.
@@ -876,15 +897,17 @@ function formatDateTime(iso: string | null): string {
                         <li
                             v-for="(teamId, index) in tieForm.ordered_team_ids"
                             :key="teamId"
-                            class="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm"
+                            class="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800/50"
                         >
                             <div class="flex items-center gap-2.5">
                                 <span
-                                    class="inline-flex size-6 items-center justify-center rounded-lg bg-slate-900 text-xs font-black text-white"
+                                    class="inline-flex size-6 items-center justify-center rounded-lg bg-slate-900 text-xs font-black text-white dark:bg-slate-700"
                                 >
                                     {{ index + 1 }}º
                                 </span>
-                                <span class="font-bold text-slate-900">
+                                <span
+                                    class="font-bold text-slate-900 dark:text-slate-100"
+                                >
                                     {{ teamNameById(teamId) }}
                                 </span>
                             </div>
@@ -892,7 +915,7 @@ function formatDateTime(iso: string | null): string {
                             <div class="flex items-center gap-1">
                                 <button
                                     type="button"
-                                    class="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                                    class="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:bg-slate-100 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
                                     :disabled="index === 0"
                                     :aria-label="`Subir ${teamNameById(teamId)}`"
                                     @click="moveTiedTeam(index, -1)"
@@ -901,7 +924,7 @@ function formatDateTime(iso: string | null): string {
                                 </button>
                                 <button
                                     type="button"
-                                    class="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                                    class="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:bg-slate-100 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
                                     :disabled="
                                         index ===
                                         tieForm.ordered_team_ids.length - 1
@@ -923,7 +946,7 @@ function formatDateTime(iso: string | null): string {
                             required
                             rows="3"
                             maxlength="500"
-                            class="mt-1 w-full rounded-xl border border-slate-300 p-3 font-normal"
+                            class="mt-1 w-full rounded-xl border border-slate-300 p-3 font-normal dark:border-slate-600"
                             placeholder="Ex.: Sorteio em envelope realizado na mesa diretora com os capitães"
                         />
                         <span
@@ -937,7 +960,7 @@ function formatDateTime(iso: string | null): string {
                     <div class="mt-6 flex gap-3">
                         <button
                             type="button"
-                            class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold text-slate-700"
+                            class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold text-slate-700 dark:border-slate-600 dark:text-slate-200"
                             @click="closeTieModal"
                         >
                             Cancelar
@@ -967,13 +990,13 @@ function formatDateTime(iso: string | null): string {
                 @click.self="closeScheduleModal"
             >
                 <form
-                    class="mx-auto my-6 max-w-md rounded-2xl bg-white p-5 shadow-2xl"
+                    class="mx-auto my-6 max-w-md rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900"
                     @submit.prevent="submitSchedule"
                 >
                     <div class="flex items-center justify-between">
                         <div>
                             <p
-                                class="text-xs font-bold tracking-wider text-slate-500 uppercase"
+                                class="text-xs font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400"
                             >
                                 Grupo {{ editingScheduleGame.group_code }} ·
                                 Rodada {{ editingScheduleGame.round_number }}
@@ -982,7 +1005,7 @@ function formatDateTime(iso: string | null): string {
                         </div>
                         <button
                             type="button"
-                            class="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                            class="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
                             aria-label="Fechar"
                             @click="closeScheduleModal"
                         >
@@ -990,7 +1013,9 @@ function formatDateTime(iso: string | null): string {
                         </button>
                     </div>
 
-                    <p class="mt-1 text-xs font-semibold text-slate-600">
+                    <p
+                        class="mt-1 text-xs font-semibold text-slate-600 dark:text-slate-300"
+                    >
                         {{ editingScheduleGame.home_team_name }} ×
                         {{ editingScheduleGame.away_team_name }}
                     </p>
@@ -1003,7 +1028,7 @@ function formatDateTime(iso: string | null): string {
                                 name="venue"
                                 type="text"
                                 maxlength="140"
-                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal"
+                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal dark:border-slate-600"
                                 placeholder="Ex.: Quadra Principal"
                             />
                             <span
@@ -1020,7 +1045,7 @@ function formatDateTime(iso: string | null): string {
                                 v-model="scheduleForm.scheduled_at"
                                 name="scheduled_at"
                                 type="datetime-local"
-                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal"
+                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal dark:border-slate-600"
                             />
                             <span
                                 v-if="scheduleForm.errors.scheduled_at"
@@ -1034,7 +1059,7 @@ function formatDateTime(iso: string | null): string {
                     <div class="mt-6 flex gap-3">
                         <button
                             type="button"
-                            class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold text-slate-700"
+                            class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold text-slate-700 dark:border-slate-600 dark:text-slate-200"
                             @click="closeScheduleModal"
                         >
                             Cancelar

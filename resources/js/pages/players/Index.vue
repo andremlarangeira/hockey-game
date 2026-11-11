@@ -105,12 +105,12 @@ function remove(player: Player) {
     <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
             <p
-                class="text-xs font-bold tracking-widest text-slate-500 uppercase"
+                class="text-xs font-bold tracking-widest text-slate-500 uppercase dark:text-slate-400"
             >
                 Elenco do time
             </p>
             <h1 class="mt-1 text-2xl font-black">Jogadores e presença</h1>
-            <p class="mt-1 text-sm text-slate-500">
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 <strong class="text-green-700">{{ presentCount }}</strong> de
                 {{ players.length }} entrarão no sorteio
             </p>
@@ -123,7 +123,9 @@ function remove(player: Player) {
             <Plus class="size-5" />Novo jogador
         </button>
     </div>
-    <section class="mb-5 rounded-2xl border border-slate-200 bg-white p-4">
+    <section
+        class="mb-5 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
+    >
         <div class="flex items-center justify-between gap-2">
             <h2 class="font-bold">Quem veio hoje?</h2>
             <div class="flex gap-2">
@@ -133,7 +135,7 @@ function remove(player: Player) {
                 >
                     Marcar todos</button
                 ><button
-                    class="min-h-10 rounded-lg bg-slate-100 px-3 text-xs font-bold text-slate-700"
+                    class="min-h-10 rounded-lg bg-slate-100 px-3 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
                     @click="presenceAll(false)"
                 >
                     Limpar
@@ -146,7 +148,7 @@ function remove(player: Player) {
             /><input
                 v-model="search"
                 type="search"
-                class="min-h-12 w-full rounded-xl border border-slate-300 pr-3 pl-10"
+                class="min-h-12 w-full rounded-xl border border-slate-300 pr-3 pl-10 dark:border-slate-600"
                 placeholder="Buscar nome ou número"
                 aria-label="Buscar jogador"
             />
@@ -159,11 +161,11 @@ function remove(player: Player) {
         <article
             v-for="player in filteredPlayers"
             :key="player.id"
-            class="rounded-xl border bg-white transition-colors"
+            class="rounded-xl border bg-white transition-colors dark:bg-slate-900"
             :class="
                 player.present
                     ? 'border-green-300'
-                    : 'border-slate-200 bg-slate-50/60'
+                    : 'border-slate-200 bg-slate-50/60 dark:border-slate-700 dark:bg-slate-800/40'
             "
             :data-player-id="player.id"
         >
@@ -188,27 +190,27 @@ function remove(player: Player) {
                             :class="
                                 player.present
                                     ? 'font-bold text-green-700'
-                                    : 'text-slate-500'
+                                    : 'text-slate-500 dark:text-slate-400'
                             "
                         >
                             {{ player.present ? 'Presente' : 'Ausente' }}
                         </span>
                     </div>
                     <strong
-                        class="shrink-0 text-3xl leading-none font-black tracking-tight text-slate-800"
+                        class="shrink-0 text-3xl leading-none font-black tracking-tight text-slate-800 dark:text-slate-100"
                         >#{{ player.jersey_number }}</strong
                     >
                 </label>
                 <div class="flex shrink-0">
                     <button
-                        class="flex size-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
+                        class="flex size-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
                         :aria-label="`Editar ${player.name}`"
                         @click="openEdit(player)"
                     >
                         <Pencil class="size-4" />
                     </button>
                     <button
-                        class="flex size-8 items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600"
+                        class="flex size-8 items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 dark:text-slate-400"
                         :aria-label="`Remover ${player.name}`"
                         @click="remove(player)"
                     >
@@ -220,21 +222,21 @@ function remove(player: Player) {
     </div>
     <div
         v-else-if="!players.length"
-        class="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center"
+        class="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center dark:border-slate-600 dark:bg-slate-900"
     >
         <Users class="mx-auto size-10 text-slate-400" />
         <h2 class="mt-4 text-xl font-bold">Monte o elenco</h2>
-        <p class="mt-2 text-sm text-slate-500">
+        <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
             Cadastre nome, número, foto e nível dos jogadores.
         </p>
         <button
-            class="mt-5 rounded-xl bg-slate-900 px-5 py-3 font-bold text-white"
+            class="mt-5 rounded-xl bg-slate-900 px-5 py-3 font-bold text-white dark:bg-slate-700"
             @click="openNew"
         >
             Cadastrar primeiro jogador
         </button>
     </div>
-    <p v-else class="py-8 text-center text-slate-500">
+    <p v-else class="py-8 text-center text-slate-500 dark:text-slate-400">
         Nenhum jogador encontrado.
     </p>
     <Teleport to="body"
@@ -244,7 +246,7 @@ function remove(player: Player) {
             @click.self="closeForm"
         >
             <form
-                class="mx-auto my-5 max-w-lg rounded-2xl bg-white p-5 shadow-2xl"
+                class="mx-auto my-5 max-w-lg rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900"
                 @submit.prevent="save"
             >
                 <div class="flex items-center justify-between">
@@ -268,19 +270,21 @@ function remove(player: Player) {
                         class="size-20 rounded-2xl object-cover"
                     /><span
                         v-else
-                        class="flex size-20 items-center justify-center rounded-2xl bg-slate-100 text-2xl font-black text-slate-400"
+                        class="flex size-20 items-center justify-center rounded-2xl bg-slate-100 text-2xl font-black text-slate-400 dark:bg-slate-800"
                         >{{ form.jersey_number || '?' }}</span
                     >
                     <div>
                         <label
-                            class="cursor-pointer rounded-xl bg-slate-100 px-4 py-3 text-sm font-bold"
+                            class="cursor-pointer rounded-xl bg-slate-100 px-4 py-3 text-sm font-bold dark:bg-slate-800"
                             >Adicionar foto<input
                                 type="file"
                                 class="sr-only"
                                 accept="image/jpeg,image/png,image/webp"
                                 @change="preview"
                         /></label>
-                        <p class="mt-1 text-xs text-slate-500">
+                        <p
+                            class="mt-1 text-xs text-slate-500 dark:text-slate-400"
+                        >
                             JPG, PNG ou WebP, até 4 MB
                         </p>
                     </div>
@@ -295,7 +299,7 @@ function remove(player: Player) {
                             name="name"
                             required
                             maxlength="100"
-                            class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3"
+                            class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 dark:border-slate-600"
                             placeholder="Nome do jogador"
                         /><span
                             v-if="form.errors.name"
@@ -310,7 +314,7 @@ function remove(player: Player) {
                             type="number"
                             min="0"
                             max="999"
-                            class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3"
+                            class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 dark:border-slate-600"
                         /><span
                             v-if="form.errors.jersey_number"
                             class="text-xs text-red-600"
@@ -327,12 +331,12 @@ function remove(player: Player) {
                         name="level"
                         :value="form.level"
                     />
-                    <p class="mt-1 text-xs text-slate-500">
+                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
                         Toque na metade esquerda ou direita da estrela.
                     </p>
                 </fieldset>
                 <label
-                    class="mt-5 flex items-center gap-3 rounded-xl bg-slate-50 p-3 text-sm font-bold"
+                    class="mt-5 flex items-center gap-3 rounded-xl bg-slate-50 p-3 text-sm font-bold dark:bg-slate-800/50"
                     ><input
                         v-model="form.present"
                         type="checkbox"
@@ -342,7 +346,7 @@ function remove(player: Player) {
                 <div class="mt-5 flex gap-3">
                     <button
                         type="button"
-                        class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold"
+                        class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold dark:border-slate-600"
                         @click="closeForm"
                     >
                         Cancelar</button

@@ -105,12 +105,12 @@ function submitCreate() {
     <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
             <p
-                class="text-xs font-bold tracking-widest text-slate-500 uppercase"
+                class="text-xs font-bold tracking-widest text-slate-500 uppercase dark:text-slate-400"
             >
                 Torneios e ligas
             </p>
             <h1 class="mt-1 text-2xl font-black">Campeonatos</h1>
-            <p class="mt-1 text-sm text-slate-500">
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 Organize campeonatos municipais com inscrição de equipes, grupos
                 e mata-mata.
             </p>
@@ -137,7 +137,7 @@ function submitCreate() {
         <article
             v-for="championship in championships"
             :key="championship.id"
-            class="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-slate-300 hover:shadow-sm"
+            class="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-slate-300 hover:shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-500"
             :data-championship-id="championship.id"
         >
             <div>
@@ -145,12 +145,12 @@ function submitCreate() {
                     <div class="min-w-0 flex-1">
                         <Link
                             :href="`/campeonatos/${championship.id}`"
-                            class="block truncate text-lg font-black text-slate-900 hover:underline"
+                            class="block truncate text-lg font-black text-slate-900 hover:underline dark:text-slate-100"
                         >
                             {{ championship.name }}
                         </Link>
                         <p
-                            class="mt-1 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-slate-500"
+                            class="mt-1 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400"
                         >
                             <MapPin class="size-3.5 shrink-0" />
                             <span>{{ championship.city }}</span>
@@ -168,12 +168,14 @@ function submitCreate() {
                 </div>
 
                 <div
-                    class="mt-4 flex flex-wrap items-center gap-3 text-xs text-slate-600"
+                    class="mt-4 flex flex-wrap items-center gap-3 text-xs text-slate-600 dark:text-slate-300"
                 >
                     <span
-                        class="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 font-semibold"
+                        class="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 font-semibold dark:bg-slate-800"
                     >
-                        <Calendar class="size-3.5 text-slate-500" />
+                        <Calendar
+                            class="size-3.5 text-slate-500 dark:text-slate-400"
+                        />
                         {{
                             formatDateRange(
                                 championship.starts_on,
@@ -182,24 +184,28 @@ function submitCreate() {
                         }}
                     </span>
                     <span
-                        class="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 font-semibold"
+                        class="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 font-semibold dark:bg-slate-800"
                     >
-                        <Shield class="size-3.5 text-slate-500" />
+                        <Shield
+                            class="size-3.5 text-slate-500 dark:text-slate-400"
+                        />
                         {{ championship.teams_count ?? 0 }} equipes
                     </span>
                     <span
-                        class="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 font-semibold"
+                        class="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 font-semibold dark:bg-slate-800"
                     >
-                        <Users class="size-3.5 text-slate-500" />
+                        <Users
+                            class="size-3.5 text-slate-500 dark:text-slate-400"
+                        />
                         {{ championship.games_count ?? 0 }} jogos
                     </span>
                 </div>
             </div>
 
             <div
-                class="mt-4 flex items-center justify-between gap-2 border-t border-slate-100 pt-3"
+                class="mt-4 flex items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-slate-800"
             >
-                <span class="text-xs text-slate-500">
+                <span class="text-xs text-slate-500 dark:text-slate-400">
                     {{ championship.rules.groups_count }} grupo(s) ·
                     {{ championship.rules.qualifiers_per_group }}
                     classificado(s)/grupo
@@ -207,13 +213,13 @@ function submitCreate() {
                 <div class="flex items-center gap-2">
                     <Link
                         :href="`/campeonatos/${championship.id}/resumo`"
-                        class="rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100"
+                        class="rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
                     >
                         Resumo
                     </Link>
                     <Link
                         :href="`/campeonatos/${championship.id}`"
-                        class="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-800"
+                        class="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600"
                     >
                         Gerenciar
                         <ArrowRight class="size-3.5" />
@@ -225,18 +231,20 @@ function submitCreate() {
 
     <div
         v-else
-        class="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center"
+        class="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center dark:border-slate-600 dark:bg-slate-900"
     >
         <Trophy class="mx-auto size-10 text-slate-400" />
         <h2 class="mt-4 text-xl font-bold">Nenhum campeonato cadastrado</h2>
-        <p class="mx-auto mt-2 max-w-md text-sm text-slate-500">
+        <p
+            class="mx-auto mt-2 max-w-md text-sm text-slate-500 dark:text-slate-400"
+        >
             Crie um campeonato municipal, inscreva as equipes participantes,
             ajuste as regras ao regulamento local e acompanhe a tabela e o
             mata-mata.
         </p>
         <button
             type="button"
-            class="mt-5 rounded-xl bg-slate-900 px-5 py-3 font-bold text-white"
+            class="mt-5 rounded-xl bg-slate-900 px-5 py-3 font-bold text-white dark:bg-slate-700"
             data-test="criar-primeiro-campeonato"
             @click="openCreate"
         >
@@ -251,14 +259,14 @@ function submitCreate() {
             @click.self="closeCreate"
         >
             <form
-                class="mx-auto my-6 max-w-lg rounded-2xl bg-white p-5 shadow-2xl"
+                class="mx-auto my-6 max-w-lg rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900"
                 @submit.prevent="submitCreate"
             >
                 <div class="flex items-center justify-between">
                     <h2 class="text-xl font-black">Novo campeonato</h2>
                     <button
                         type="button"
-                        class="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                        class="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
                         aria-label="Fechar"
                         @click="closeCreate"
                     >
@@ -266,7 +274,7 @@ function submitCreate() {
                     </button>
                 </div>
 
-                <p class="mt-1 text-xs text-slate-500">
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
                     Informe os dados básicos. As regras detalhadas poderão ser
                     ajustadas antes do sorteio dos grupos.
                 </p>
@@ -280,7 +288,7 @@ function submitCreate() {
                             type="text"
                             required
                             maxlength="120"
-                            class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal"
+                            class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal dark:border-slate-600"
                             placeholder="Ex.: Copa Municipal de Hóquei"
                         />
                         <span
@@ -300,7 +308,7 @@ function submitCreate() {
                                 type="text"
                                 required
                                 maxlength="100"
-                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal"
+                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal dark:border-slate-600"
                                 placeholder="Ex.: São Paulo"
                             />
                             <span
@@ -318,7 +326,7 @@ function submitCreate() {
                                 name="venue"
                                 type="text"
                                 maxlength="140"
-                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal"
+                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal dark:border-slate-600"
                                 placeholder="Ex.: Ginásio Municipal"
                             />
                             <span
@@ -337,7 +345,7 @@ function submitCreate() {
                                 v-model="form.starts_on"
                                 name="starts_on"
                                 type="date"
-                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal"
+                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal dark:border-slate-600"
                             />
                             <span
                                 v-if="form.errors.starts_on"
@@ -353,7 +361,7 @@ function submitCreate() {
                                 v-model="form.ends_on"
                                 name="ends_on"
                                 type="date"
-                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal"
+                                class="mt-1 min-h-12 w-full rounded-xl border border-slate-300 px-3 font-normal dark:border-slate-600"
                             />
                             <span
                                 v-if="form.errors.ends_on"
@@ -368,7 +376,7 @@ function submitCreate() {
                 <div class="mt-6 flex gap-3">
                     <button
                         type="button"
-                        class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold text-slate-700"
+                        class="min-h-12 flex-1 rounded-xl border border-slate-300 font-bold text-slate-700 dark:border-slate-600 dark:text-slate-200"
                         @click="closeCreate"
                     >
                         Cancelar
