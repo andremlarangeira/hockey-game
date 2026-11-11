@@ -1,5 +1,6 @@
 <?php
 
+use App\Championships\ChampionshipException;
 use App\Championships\Enums\ChampionshipStatus;
 use App\Championships\Enums\GameEventType;
 use App\Championships\Enums\GamePhase;
@@ -13,6 +14,7 @@ use App\Models\ChampionshipTeam;
 use App\Models\Player;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -32,7 +34,7 @@ test('executa torneio determinístico completo de 8 equipes exclusivamente via H
     $this->get('/campeonatos')
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('championships/Index', false)
+            ->component('championships/Index')
             ->has('championships', 0)
             ->has('default_rules'));
 
@@ -245,7 +247,7 @@ test('executa torneio determinístico completo de 8 equipes exclusivamente via H
     $this->get("/campeonatos/{$championship->id}")
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('championships/Show', false)
+            ->component('championships/Show')
             ->where('championship.id', $championship->id)
             ->where('championship.rules.groups_count', 2)
             ->where('status_flags.can_edit_rules', false)
@@ -750,4 +752,22 @@ test('mantém todas as rotas do fluxo casual de pelada funcionando normalmente',
     $this->get('/partidas')->assertOk();
     $this->get('/estatisticas')->assertOk();
     $this->get('/time')->assertOk();
+});
+
+test('mapeia apenas ChampionshipException para erro de validação sem interceptar DomainException genérica', function () {
+    Route::post('/_test/championship-exception', function () {
+        throw new ChampionshipException('Erro específico do campeonato.');
+    })->middleware('web');
+
+    Route::post('/_test/generic-domain-exception', function () {
+        throw new DomainException('Erro de outro domínio.');
+    })->middleware('web');
+
+    $this->from('/campeonatos')
+        ->post('/_test/championship-exception')
+        ->assertRedirect('/campeonatos')
+        ->assertSessionHasErrors(['championship' => 'Erro específico do campeonato.']);
+
+    $this->post('/_test/generic-domain-exception')
+        ->assertStatus(500);
 });

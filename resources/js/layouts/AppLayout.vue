@@ -10,6 +10,7 @@ import {
     Shuffle,
     Timer,
     TrendingUp,
+    Trophy,
     Users,
     X,
 } from 'lucide-vue-next';
@@ -49,6 +50,12 @@ const navigation = [
         compact: 'Partidas',
         href: '/partidas',
         icon: History,
+    },
+    {
+        title: 'Campeonatos',
+        compact: 'Campeonato',
+        href: '/campeonatos',
+        icon: Trophy,
     },
     { title: 'Estatísticas', href: '/estatisticas', icon: TrendingUp },
     { title: 'Meu time', href: '/time', icon: Settings },

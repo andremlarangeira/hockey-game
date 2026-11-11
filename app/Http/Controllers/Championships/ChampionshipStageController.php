@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers\Championships;
 
+use App\Championships\ChampionshipException;
 use App\Championships\Enums\ChampionshipStatus;
 use App\Championships\TournamentEngine;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Championships\DrawGroupsRequest;
 use App\Http\Requests\Championships\ResolveGroupTieRequest;
 use App\Models\Championship;
-use DomainException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -24,7 +24,7 @@ class ChampionshipStageController extends Controller
     ): RedirectResponse {
         if ($championship->status !== ChampionshipStatus::Draft && ! $request->redraw())
         {
-            throw new DomainException('Os grupos já foram sorteados. Confirme a opção de refazer sorteio e informe o motivo.');
+            throw new ChampionshipException('Os grupos já foram sorteados. Confirme a opção de refazer sorteio e informe o motivo.');
         }
 
         $this->engine->drawGroups(

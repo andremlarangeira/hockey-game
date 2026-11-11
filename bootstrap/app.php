@@ -1,5 +1,6 @@
 <?php
 
+use App\Championships\ChampionshipException;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
@@ -26,8 +27,8 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->map(
-            DomainException::class,
-            fn (DomainException $e): ValidationException => ValidationException::withMessages([
+            ChampionshipException::class,
+            fn (ChampionshipException $e): ValidationException => ValidationException::withMessages([
                 'championship' => $e->getMessage(),
             ]),
         );

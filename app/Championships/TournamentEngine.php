@@ -25,7 +25,6 @@ use App\Models\ChampionshipPlayer;
 use App\Models\ChampionshipTeam;
 use App\Models\User;
 use Carbon\CarbonImmutable;
-use DomainException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -53,12 +52,12 @@ final readonly class TournamentEngine
 
         if ($trimmedName === '')
         {
-            throw new DomainException('Informe o nome do campeonato.');
+            throw new ChampionshipException('Informe o nome do campeonato.');
         }
 
         if ($trimmedCity === '')
         {
-            throw new DomainException('Informe a cidade do campeonato.');
+            throw new ChampionshipException('Informe a cidade do campeonato.');
         }
 
         $normalizedStartsOn = $startsOn?->startOfDay();
@@ -66,7 +65,7 @@ final readonly class TournamentEngine
 
         if ($normalizedStartsOn !== null && $normalizedEndsOn !== null && $normalizedEndsOn->lt($normalizedStartsOn))
         {
-            throw new DomainException('A data de encerramento não pode ser anterior à data de início.');
+            throw new ChampionshipException('A data de encerramento não pode ser anterior à data de início.');
         }
 
         $this->validateRules($rules);
@@ -115,17 +114,17 @@ final readonly class TournamentEngine
 
             if ($trimmedName === '')
             {
-                throw new DomainException('Informe o nome do campeonato.');
+                throw new ChampionshipException('Informe o nome do campeonato.');
             }
 
             if ($trimmedCity === '')
             {
-                throw new DomainException('Informe a cidade do campeonato.');
+                throw new ChampionshipException('Informe a cidade do campeonato.');
             }
 
             if ($normalizedStartsOn !== null && $normalizedEndsOn !== null && $normalizedEndsOn->lt($normalizedStartsOn))
             {
-                throw new DomainException('A data de encerramento não pode ser anterior à data de início.');
+                throw new ChampionshipException('A data de encerramento não pode ser anterior à data de início.');
             }
 
             $locked->name = $trimmedName;
@@ -148,7 +147,7 @@ final readonly class TournamentEngine
 
             if ($locked->status !== ChampionshipStatus::Draft)
             {
-                throw new DomainException('As regras do campeonato estão travadas e só podem ser editadas antes do sorteio dos grupos.');
+                throw new ChampionshipException('As regras do campeonato estão travadas e só podem ser editadas antes do sorteio dos grupos.');
             }
 
             $this->validateRules($rules);
@@ -184,13 +183,13 @@ final readonly class TournamentEngine
 
             if ($locked->status !== ChampionshipStatus::Draft)
             {
-                throw new DomainException('Não é possível inscrever novas equipes após o sorteio dos grupos.');
+                throw new ChampionshipException('Não é possível inscrever novas equipes após o sorteio dos grupos.');
             }
 
             $trimmedName = trim($name);
             if ($trimmedName === '')
             {
-                throw new DomainException('Informe o nome da equipe.');
+                throw new ChampionshipException('Informe o nome da equipe.');
             }
 
             $trimmedShortName = $shortName !== null && trim($shortName) !== ''
@@ -202,7 +201,7 @@ final readonly class TournamentEngine
 
             if ($seedPot !== null && $seedPot < 1)
             {
-                throw new DomainException('O pote de sorteio deve ser um número inteiro positivo.');
+                throw new ChampionshipException('O pote de sorteio deve ser um número inteiro positivo.');
             }
 
             $duplicateExists = ChampionshipTeam::withoutGlobalScope('team')
@@ -212,7 +211,7 @@ final readonly class TournamentEngine
 
             if ($duplicateExists)
             {
-                throw new DomainException("Já existe uma equipe inscrita com o nome \"{$trimmedName}\" neste campeonato.");
+                throw new ChampionshipException("Já existe uma equipe inscrita com o nome \"{$trimmedName}\" neste campeonato.");
             }
 
             $logoPath = null;
@@ -222,7 +221,7 @@ final readonly class TournamentEngine
                 $stored = $logo->store("championships/{$locked->user_id}/logos", 'public');
                 if ($stored === false)
                 {
-                    throw new DomainException('Não foi possível salvar o escudo da equipe.');
+                    throw new ChampionshipException('Não foi possível salvar o escudo da equipe.');
                 }
                 $logoPath = $stored;
             }
@@ -271,7 +270,7 @@ final readonly class TournamentEngine
 
             if ($lockedTeam === null)
             {
-                throw new DomainException('A equipe informada não pertence a este campeonato.');
+                throw new ChampionshipException('A equipe informada não pertence a este campeonato.');
             }
 
             $resolvedName = $name ?? $lockedTeam->name;
@@ -282,7 +281,7 @@ final readonly class TournamentEngine
             $trimmedName = trim($resolvedName);
             if ($trimmedName === '')
             {
-                throw new DomainException('Informe o nome da equipe.');
+                throw new ChampionshipException('Informe o nome da equipe.');
             }
 
             $trimmedShortName = $resolvedShortName !== null && trim($resolvedShortName) !== ''
@@ -294,7 +293,7 @@ final readonly class TournamentEngine
 
             if ($seedPot !== null && $seedPot < 1)
             {
-                throw new DomainException('O pote de sorteio deve ser um número inteiro positivo.');
+                throw new ChampionshipException('O pote de sorteio deve ser um número inteiro positivo.');
             }
 
             $duplicateExists = ChampionshipTeam::withoutGlobalScope('team')
@@ -305,7 +304,7 @@ final readonly class TournamentEngine
 
             if ($duplicateExists)
             {
-                throw new DomainException("Já existe outra equipe inscrita com o nome \"{$trimmedName}\" neste campeonato.");
+                throw new ChampionshipException("Já existe outra equipe inscrita com o nome \"{$trimmedName}\" neste campeonato.");
             }
 
             $logoPath = $lockedTeam->logo_path;
@@ -315,7 +314,7 @@ final readonly class TournamentEngine
                 $stored = $logo->store("championships/{$locked->user_id}/logos", 'public');
                 if ($stored === false)
                 {
-                    throw new DomainException('Não foi possível salvar o escudo da equipe.');
+                    throw new ChampionshipException('Não foi possível salvar o escudo da equipe.');
                 }
 
                 if ($lockedTeam->logo_path !== null && $lockedTeam->logo_path !== '')
@@ -355,7 +354,7 @@ final readonly class TournamentEngine
 
             if ($locked->status !== ChampionshipStatus::Draft)
             {
-                throw new DomainException('Equipes não podem ser removidas após o sorteio dos grupos.');
+                throw new ChampionshipException('Equipes não podem ser removidas após o sorteio dos grupos.');
             }
 
             /** @var ChampionshipTeam|null $lockedTeam */
@@ -367,7 +366,7 @@ final readonly class TournamentEngine
 
             if ($lockedTeam === null)
             {
-                throw new DomainException('A equipe informada não pertence a este campeonato.');
+                throw new ChampionshipException('A equipe informada não pertence a este campeonato.');
             }
 
             if ($lockedTeam->logo_path !== null && $lockedTeam->logo_path !== '')
@@ -401,7 +400,7 @@ final readonly class TournamentEngine
 
             if ($locked->status === ChampionshipStatus::Completed)
             {
-                throw new DomainException('Não é possível inscrever jogadores em um campeonato já encerrado.');
+                throw new ChampionshipException('Não é possível inscrever jogadores em um campeonato já encerrado.');
             }
 
             /** @var ChampionshipTeam|null $lockedTeam */
@@ -412,18 +411,18 @@ final readonly class TournamentEngine
 
             if ($lockedTeam === null)
             {
-                throw new DomainException('A equipe informada não pertence a este campeonato.');
+                throw new ChampionshipException('A equipe informada não pertence a este campeonato.');
             }
 
             $trimmedName = trim($name);
             if ($trimmedName === '')
             {
-                throw new DomainException('Informe o nome do jogador.');
+                throw new ChampionshipException('Informe o nome do jogador.');
             }
 
             if ($jerseyNumber < 0 || $jerseyNumber > 999)
             {
-                throw new DomainException('O número da camisa deve estar entre 0 e 999.');
+                throw new ChampionshipException('O número da camisa deve estar entre 0 e 999.');
             }
 
             $jerseyInUse = ChampionshipPlayer::withoutGlobalScope('team')
@@ -433,7 +432,7 @@ final readonly class TournamentEngine
 
             if ($jerseyInUse)
             {
-                throw new DomainException("A camisa #{$jerseyNumber} já está em uso nesta equipe.");
+                throw new ChampionshipException("A camisa #{$jerseyNumber} já está em uso nesta equipe.");
             }
 
             return ChampionshipPlayer::withoutGlobalScope('team')->create([
@@ -473,7 +472,7 @@ final readonly class TournamentEngine
 
             if ($lockedPlayer === null)
             {
-                throw new DomainException('O jogador informado não pertence a este campeonato.');
+                throw new ChampionshipException('O jogador informado não pertence a este campeonato.');
             }
 
             $resolvedName = $name ?? $lockedPlayer->name;
@@ -484,12 +483,12 @@ final readonly class TournamentEngine
             $trimmedName = trim($resolvedName);
             if ($trimmedName === '')
             {
-                throw new DomainException('Informe o nome do jogador.');
+                throw new ChampionshipException('Informe o nome do jogador.');
             }
 
             if ($resolvedJersey < 0 || $resolvedJersey > 999)
             {
-                throw new DomainException('O número da camisa deve estar entre 0 e 999.');
+                throw new ChampionshipException('O número da camisa deve estar entre 0 e 999.');
             }
 
             $jerseyInUse = ChampionshipPlayer::withoutGlobalScope('team')
@@ -500,7 +499,7 @@ final readonly class TournamentEngine
 
             if ($jerseyInUse)
             {
-                throw new DomainException("A camisa #{$resolvedJersey} já está em uso nesta equipe.");
+                throw new ChampionshipException("A camisa #{$resolvedJersey} já está em uso nesta equipe.");
             }
 
             $lockedPlayer->name = $trimmedName;
@@ -529,7 +528,7 @@ final readonly class TournamentEngine
 
             if ($lockedPlayer === null)
             {
-                throw new DomainException('O jogador informado não pertence a este campeonato.');
+                throw new ChampionshipException('O jogador informado não pertence a este campeonato.');
             }
 
             $hasActiveEvents = ChampionshipGameEvent::withoutGlobalScope('team')
@@ -544,7 +543,7 @@ final readonly class TournamentEngine
 
             if ($hasActiveEvents)
             {
-                throw new DomainException('Não é possível remover um jogador que possui gols, assistências ou cobranças registrados em partidas.');
+                throw new ChampionshipException('Não é possível remover um jogador que possui gols, assistências ou cobranças registrados em partidas.');
             }
 
             $lockedPlayer->delete();
@@ -589,7 +588,7 @@ final readonly class TournamentEngine
 
             if ($teamCount < $minRequiredTeams)
             {
-                throw new DomainException(
+                throw new ChampionshipException(
                     "O sorteio exige pelo menos {$minRequiredTeams} equipes inscritas para {$rules->groupsCount} grupo(s).",
                 );
             }
@@ -613,7 +612,7 @@ final readonly class TournamentEngine
                         return $locked;
                     }
 
-                    throw new DomainException('Os grupos já foram sorteados. Confirme a opção de refazer sorteio e informe o motivo.');
+                    throw new ChampionshipException('Os grupos já foram sorteados. Confirme a opção de refazer sorteio e informe o motivo.');
                 }
 
                 $hasStartedOrKnockoutGames = $locked->status !== ChampionshipStatus::GroupStage
@@ -630,12 +629,12 @@ final readonly class TournamentEngine
 
                 if ($hasStartedOrKnockoutGames || $hasRecordedEvents)
                 {
-                    throw new DomainException('Não é possível refazer o sorteio após o início dos jogos.');
+                    throw new ChampionshipException('Não é possível refazer o sorteio após o início dos jogos.');
                 }
 
                 if ($reason === null || trim($reason) === '')
                 {
-                    throw new DomainException('Informe o motivo para refazer o sorteio dos grupos.');
+                    throw new ChampionshipException('Informe o motivo para refazer o sorteio dos grupos.');
                 }
             }
 
@@ -653,7 +652,7 @@ final readonly class TournamentEngine
 
             if ($minGroupSize < 2 || $rules->qualifiersPerGroup > $minGroupSize)
             {
-                throw new DomainException('O número de classificados por grupo excede o tamanho do menor grupo.');
+                throw new ChampionshipException('O número de classificados por grupo excede o tamanho do menor grupo.');
             }
 
             if ($isAlreadyDrawn)
@@ -763,12 +762,12 @@ final readonly class TournamentEngine
 
             if ($lockedGame->is_bye)
             {
-                throw new DomainException('Não é possível agendar um slot de avanço automático (bye).');
+                throw new ChampionshipException('Não é possível agendar um slot de avanço automático (bye).');
             }
 
             if ($lockedGame->status === GameStatus::Finished)
             {
-                throw new DomainException('Não é possível alterar o agendamento de uma partida já encerrada.');
+                throw new ChampionshipException('Não é possível alterar o agendamento de uma partida já encerrada.');
             }
 
             $lockedGame->venue = $command->venue !== null && trim($command->venue) !== ''
@@ -794,17 +793,17 @@ final readonly class TournamentEngine
 
             if ($lockedGame->is_bye)
             {
-                throw new DomainException('Slots de avanço automático (bye) não podem ser iniciados.');
+                throw new ChampionshipException('Slots de avanço automático (bye) não podem ser iniciados.');
             }
 
             if ($lockedGame->home_team_id === null || $lockedGame->away_team_id === null)
             {
-                throw new DomainException('A partida precisa ter as duas equipes definidas antes de ser iniciada.');
+                throw new ChampionshipException('A partida precisa ter as duas equipes definidas antes de ser iniciada.');
             }
 
             if ($lockedGame->status === GameStatus::Finished)
             {
-                throw new DomainException('Esta partida já foi encerrada. Reabra a partida caso precise retificar a súmula.');
+                throw new ChampionshipException('Esta partida já foi encerrada. Reabra a partida caso precise retificar a súmula.');
             }
 
             if ($lockedGame->status === GameStatus::Scheduled)
@@ -830,17 +829,17 @@ final readonly class TournamentEngine
 
             if ($lockedGame->is_bye)
             {
-                throw new DomainException('Não é possível registrar gols em um slot de bye.');
+                throw new ChampionshipException('Não é possível registrar gols em um slot de bye.');
             }
 
             if ($lockedGame->status !== GameStatus::Live)
             {
-                throw new DomainException('A partida precisa estar em andamento (ao vivo) para registrar gols.');
+                throw new ChampionshipException('A partida precisa estar em andamento (ao vivo) para registrar gols.');
             }
 
             if ($lockedGame->home_team_id === null || $lockedGame->away_team_id === null)
             {
-                throw new DomainException('A partida não possui as duas equipes definidas.');
+                throw new ChampionshipException('A partida não possui as duas equipes definidas.');
             }
 
             $rules = $locked->rules;
@@ -849,18 +848,18 @@ final readonly class TournamentEngine
             {
                 if ($lockedGame->phase === GamePhase::Group && ! $rules->allowGroupOvertimeOrShootout)
                 {
-                    throw new DomainException('As regras deste campeonato não permitem prorrogação na fase de grupos.');
+                    throw new ChampionshipException('As regras deste campeonato não permitem prorrogação na fase de grupos.');
                 }
 
                 if ($lockedGame->phase->isKnockout() && $rules->knockoutTieResolution === KnockoutTieResolution::ShootoutOnly)
                 {
-                    throw new DomainException('As regras deste campeonato definem desempate direto nos pênaltis/shootout, sem prorrogação.');
+                    throw new ChampionshipException('As regras deste campeonato definem desempate direto nos pênaltis/shootout, sem prorrogação.');
                 }
             }
 
             if ($command->period < 1)
             {
-                throw new DomainException('O período do gol deve ser maior ou igual a 1.');
+                throw new ChampionshipException('O período do gol deve ser maior ou igual a 1.');
             }
 
             $teamId = $command->side === TeamSide::Home
@@ -874,20 +873,20 @@ final readonly class TournamentEngine
             {
                 if ($maxAssists === 0)
                 {
-                    throw new DomainException('As regras deste campeonato não permitem assistências.');
+                    throw new ChampionshipException('As regras deste campeonato não permitem assistências.');
                 }
 
-                throw new DomainException("As regras deste campeonato permitem no máximo {$maxAssists} assistência(s) por gol.");
+                throw new ChampionshipException("As regras deste campeonato permitem no máximo {$maxAssists} assistência(s) por gol.");
             }
 
             if (in_array($command->scorerId, $assistIds, true))
             {
-                throw new DomainException('O autor do gol não pode dar assistência para o próprio gol.');
+                throw new ChampionshipException('O autor do gol não pode dar assistência para o próprio gol.');
             }
 
             if (count($assistIds) !== count(array_unique($assistIds)))
             {
-                throw new DomainException('As assistências de um gol devem ser de jogadores distintos.');
+                throw new ChampionshipException('As assistências de um gol devem ser de jogadores distintos.');
             }
 
             $playerIdsToValidate = [$command->scorerId, ...$assistIds];
@@ -900,7 +899,7 @@ final readonly class TournamentEngine
 
             if ($validPlayersCount !== count($playerIdsToValidate))
             {
-                throw new DomainException('O autor do gol e os assistentes devem pertencer ao elenco da equipe na partida.');
+                throw new ChampionshipException('O autor do gol e os assistentes devem pertencer ao elenco da equipe na partida.');
             }
 
             $event = ChampionshipGameEvent::withoutGlobalScope('team')->create([
@@ -937,32 +936,32 @@ final readonly class TournamentEngine
 
             if ($lockedGame->is_bye)
             {
-                throw new DomainException('Não é possível registrar cobranças em um slot de bye.');
+                throw new ChampionshipException('Não é possível registrar cobranças em um slot de bye.');
             }
 
             if ($lockedGame->status !== GameStatus::Live)
             {
-                throw new DomainException('A partida precisa estar em andamento (ao vivo) para registrar cobranças de shootout.');
+                throw new ChampionshipException('A partida precisa estar em andamento (ao vivo) para registrar cobranças de shootout.');
             }
 
             if ($lockedGame->home_team_id === null || $lockedGame->away_team_id === null)
             {
-                throw new DomainException('A partida não possui as duas equipes definidas.');
+                throw new ChampionshipException('A partida não possui as duas equipes definidas.');
             }
 
             if ($lockedGame->phase === GamePhase::Group && ! $locked->rules->allowGroupOvertimeOrShootout)
             {
-                throw new DomainException('As regras deste campeonato permitem empate na fase de grupos e não utilizam disputa de shootout.');
+                throw new ChampionshipException('As regras deste campeonato permitem empate na fase de grupos e não utilizam disputa de shootout.');
             }
 
             if ($lockedGame->home_regular_score !== $lockedGame->away_regular_score)
             {
-                throw new DomainException('A disputa de shootout só é permitida quando o placar regulamentar/prorrogação está empatado.');
+                throw new ChampionshipException('A disputa de shootout só é permitida quando o placar regulamentar/prorrogação está empatado.');
             }
 
             if ($command->round < 1)
             {
-                throw new DomainException('A rodada do shootout deve ser maior ou igual a 1.');
+                throw new ChampionshipException('A rodada do shootout deve ser maior ou igual a 1.');
             }
 
             $teamId = $command->side === TeamSide::Home
@@ -977,7 +976,7 @@ final readonly class TournamentEngine
 
             if (! $shooterBelongsToTeam)
             {
-                throw new DomainException('O cobrador deve pertencer ao elenco da equipe na partida.');
+                throw new ChampionshipException('O cobrador deve pertencer ao elenco da equipe na partida.');
             }
 
             $event = ChampionshipGameEvent::withoutGlobalScope('team')->create([
@@ -1023,12 +1022,12 @@ final readonly class TournamentEngine
 
             if ($lockedGame === null)
             {
-                throw new DomainException('O evento informado não pertence a esta partida.');
+                throw new ChampionshipException('O evento informado não pertence a esta partida.');
             }
 
             if ($lockedGame->status !== GameStatus::Live)
             {
-                throw new DomainException('A partida precisa estar em andamento ou reaberta para remover eventos da súmula.');
+                throw new ChampionshipException('A partida precisa estar em andamento ou reaberta para remover eventos da súmula.');
             }
 
             /** @var ChampionshipGameEvent|null $lockedEvent */
@@ -1041,7 +1040,7 @@ final readonly class TournamentEngine
 
             if ($lockedEvent === null)
             {
-                throw new DomainException('Evento não encontrado na súmula.');
+                throw new ChampionshipException('Evento não encontrado na súmula.');
             }
 
             if ($lockedEvent->trashed())
@@ -1112,7 +1111,7 @@ final readonly class TournamentEngine
 
             if ($lockedGame->home_team_id === null || $lockedGame->away_team_id === null)
             {
-                throw new DomainException('A partida precisa ter as duas equipes definidas para ser encerrada.');
+                throw new ChampionshipException('A partida precisa ter as duas equipes definidas para ser encerrada.');
             }
 
             $this->recomputeGameScores($lockedGame);
@@ -1142,7 +1141,7 @@ final readonly class TournamentEngine
                 {
                     if (! $lockedGame->went_to_shootout || $lockedGame->home_shootout_score === $lockedGame->away_shootout_score)
                     {
-                        throw new DomainException(
+                        throw new ChampionshipException(
                             $lockedGame->phase->isKnockout()
                                 ? 'Jogos do mata-mata exigem um vencedor (no tempo normal, prorrogação ou disputa de shootout).'
                                 : 'As regras deste campeonato não permitem empate na fase de grupos; defina o vencedor na prorrogação ou shootout.',
@@ -1196,7 +1195,7 @@ final readonly class TournamentEngine
             $trimmedReason = trim($reason);
             if ($trimmedReason === '')
             {
-                throw new DomainException('O motivo é obrigatório para reabrir uma partida.');
+                throw new ChampionshipException('O motivo é obrigatório para reabrir uma partida.');
             }
 
             $locked = $this->lockChampionship((int) $game->championship_id);
@@ -1204,12 +1203,12 @@ final readonly class TournamentEngine
 
             if ($lockedGame->is_bye)
             {
-                throw new DomainException('Slots de avanço automático (bye) não podem ser reabertos.');
+                throw new ChampionshipException('Slots de avanço automático (bye) não podem ser reabertos.');
             }
 
             if ($lockedGame->status !== GameStatus::Finished)
             {
-                throw new DomainException('Apenas partidas já encerradas podem ser reabertas.');
+                throw new ChampionshipException('Apenas partidas já encerradas podem ser reabertas.');
             }
 
             $actorId = (int) $actor->id;
@@ -1238,7 +1237,7 @@ final readonly class TournamentEngine
 
                 if ($knockoutStarted)
                 {
-                    throw new DomainException('Não é possível reabrir um jogo da fase de grupos pois o mata-mata já foi iniciado.');
+                    throw new ChampionshipException('Não é possível reabrir um jogo da fase de grupos pois o mata-mata já foi iniciado.');
                 }
 
                 $bracketExists = $knockoutGames->isNotEmpty()
@@ -1249,7 +1248,7 @@ final readonly class TournamentEngine
                 {
                     if (! $resetBracket)
                     {
-                        throw new DomainException('A chave do mata-mata já foi gerada. Confirme o reinício da chave para reabrir este jogo.');
+                        throw new ChampionshipException('A chave do mata-mata já foi gerada. Confirme o reinício da chave para reabrir este jogo.');
                     }
 
                     $bracketBeforeSnapshot = [
@@ -1317,7 +1316,7 @@ final readonly class TournamentEngine
 
                 if ($dependentStarted)
                 {
-                    throw new DomainException('Não é possível reabrir esta partida pois a fase seguinte já foi iniciada.');
+                    throw new ChampionshipException('Não é possível reabrir esta partida pois a fase seguinte já foi iniciada.');
                 }
 
                 foreach ($dependentGames as $dependentGame)
@@ -1390,19 +1389,19 @@ final readonly class TournamentEngine
             $resolvedGroup = trim($group);
             if ($resolvedGroup === '')
             {
-                throw new DomainException('Informe o grupo para registrar o desempate manual.');
+                throw new ChampionshipException('Informe o grupo para registrar o desempate manual.');
             }
 
             $trimmedReason = trim($reason);
             if ($trimmedReason === '')
             {
-                throw new DomainException('O motivo é obrigatório para registrar o desempate manual.');
+                throw new ChampionshipException('O motivo é obrigatório para registrar o desempate manual.');
             }
 
             $normalizedIds = array_values(array_map('intval', $orderedTeamIds));
             if (count($normalizedIds) < 2 || count($normalizedIds) !== count(array_unique($normalizedIds)))
             {
-                throw new DomainException('O desempate manual exige ao menos duas equipes distintas do grupo.');
+                throw new ChampionshipException('O desempate manual exige ao menos duas equipes distintas do grupo.');
             }
 
             $matchingCount = ChampionshipTeam::withoutGlobalScope('team')
@@ -1413,7 +1412,7 @@ final readonly class TournamentEngine
 
             if ($matchingCount !== count($normalizedIds))
             {
-                throw new DomainException("Todas as equipes informadas no desempate devem pertencer ao grupo {$resolvedGroup}.");
+                throw new ChampionshipException("Todas as equipes informadas no desempate devem pertencer ao grupo {$resolvedGroup}.");
             }
 
             $currentResolutions = is_array($locked->manual_tie_resolutions)
@@ -1499,7 +1498,7 @@ final readonly class TournamentEngine
 
             if ($locked->status === ChampionshipStatus::Draft)
             {
-                throw new DomainException('Realize o sorteio dos grupos e conclua a fase de grupos antes de gerar o mata-mata.');
+                throw new ChampionshipException('Realize o sorteio dos grupos e conclua a fase de grupos antes de gerar o mata-mata.');
             }
 
             $existingKnockoutGames = ChampionshipGame::withoutGlobalScope('team')
@@ -1522,21 +1521,21 @@ final readonly class TournamentEngine
 
             if ($hasStartedKnockoutGame)
             {
-                throw new DomainException('A chave do mata-mata já possui partidas iniciadas e não pode ser gerada novamente.');
+                throw new ChampionshipException('A chave do mata-mata já possui partidas iniciadas e não pode ser gerada novamente.');
             }
 
             $standings = $this->standingsForLocked($locked);
 
             if ($standings === [])
             {
-                throw new DomainException('Não há grupos disponíveis para gerar a chave do mata-mata.');
+                throw new ChampionshipException('Não há grupos disponíveis para gerar a chave do mata-mata.');
             }
 
             foreach ($standings as $groupCode => $groupStandings)
             {
                 if (! $groupStandings->allGamesFinished)
                 {
-                    throw new DomainException("Todas as partidas da fase de grupos devem estar encerradas antes de gerar o mata-mata (grupo {$groupCode} pendente).");
+                    throw new ChampionshipException("Todas as partidas da fase de grupos devem estar encerradas antes de gerar o mata-mata (grupo {$groupCode} pendente).");
                 }
             }
 
@@ -1558,7 +1557,7 @@ final readonly class TournamentEngine
                     {
                         if (array_intersect($tieGroup, $extraCandidateIds) !== [])
                         {
-                            throw new DomainException("Há um empate técnico pendente de definição manual no grupo {$groupCode}.");
+                            throw new ChampionshipException("Há um empate técnico pendente de definição manual no grupo {$groupCode}.");
                         }
                     }
                 }
@@ -2092,7 +2091,7 @@ final readonly class TournamentEngine
     ): array {
         if (count($explicitGroups) !== $rules->groupsCount)
         {
-            throw new DomainException("O sorteio exige exatamente {$rules->groupsCount} grupo(s).");
+            throw new ChampionshipException("O sorteio exige exatamente {$rules->groupsCount} grupo(s).");
         }
 
         $teamById = [];
@@ -2111,7 +2110,7 @@ final readonly class TournamentEngine
             $normalizedCode = trim((string) $groupCode);
             if ($normalizedCode === '' || ! is_array($teamIds))
             {
-                throw new DomainException('Estrutura de grupos inválida.');
+                throw new ChampionshipException('Estrutura de grupos inválida.');
             }
 
             $groupTeamModels = [];
@@ -2120,11 +2119,11 @@ final readonly class TournamentEngine
                 $teamId = (int) $rawId;
                 if (! isset($teamById[$teamId]))
                 {
-                    throw new DomainException("A equipe #{$teamId} não pertence a este campeonato.");
+                    throw new ChampionshipException("A equipe #{$teamId} não pertence a este campeonato.");
                 }
                 if (isset($seenIds[$teamId]))
                 {
-                    throw new DomainException("A equipe #{$teamId} foi atribuída a mais de um grupo.");
+                    throw new ChampionshipException("A equipe #{$teamId} foi atribuída a mais de um grupo.");
                 }
 
                 $seenIds[$teamId] = true;
@@ -2136,7 +2135,7 @@ final readonly class TournamentEngine
 
         if (count($seenIds) !== count($teams))
         {
-            throw new DomainException('Todas as equipes inscritas devem participar do sorteio dos grupos.');
+            throw new ChampionshipException('Todas as equipes inscritas devem participar do sorteio dos grupos.');
         }
 
         return $result;
@@ -2404,7 +2403,7 @@ final readonly class TournamentEngine
 
         if ($locked === null)
         {
-            throw new DomainException('Campeonato não encontrado.');
+            throw new ChampionshipException('Campeonato não encontrado.');
         }
 
         $this->assertTenantAccess($locked);
@@ -2423,7 +2422,7 @@ final readonly class TournamentEngine
 
         if ($lockedGame === null)
         {
-            throw new DomainException('A partida informada não pertence a este campeonato.');
+            throw new ChampionshipException('A partida informada não pertence a este campeonato.');
         }
 
         return $lockedGame;
@@ -2434,7 +2433,7 @@ final readonly class TournamentEngine
         $authId = auth()->id();
         if ($authId !== null && (int) $championship->user_id !== (int) $authId)
         {
-            throw new DomainException('Este campeonato pertence a outra conta.');
+            throw new ChampionshipException('Este campeonato pertence a outra conta.');
         }
     }
 
@@ -2442,33 +2441,33 @@ final readonly class TournamentEngine
     {
         if ($rules->groupsCount < 1 || $rules->groupsCount > 8)
         {
-            throw new DomainException('O número de grupos deve estar entre 1 e 8.');
+            throw new ChampionshipException('O número de grupos deve estar entre 1 e 8.');
         }
 
         if ($rules->qualifiersPerGroup < 1 || $rules->qualifiersPerGroup > 16)
         {
-            throw new DomainException('O número de classificados por grupo deve ser pelo menos 1.');
+            throw new ChampionshipException('O número de classificados por grupo deve ser pelo menos 1.');
         }
 
         if ($rules->extraBestQualifiers < 0)
         {
-            throw new DomainException('O número de melhores classificados extras não pode ser negativo.');
+            throw new ChampionshipException('O número de melhores classificados extras não pode ser negativo.');
         }
 
         $totalQualifiers = $rules->totalQualifiers();
         if ($totalQualifiers < 2 || $totalQualifiers > 16)
         {
-            throw new DomainException('O total de equipes classificadas para o mata-mata deve estar entre 2 e 16.');
+            throw new ChampionshipException('O total de equipes classificadas para o mata-mata deve estar entre 2 e 16.');
         }
 
         if ($rules->maxAssistsPerGoal < 0 || $rules->maxAssistsPerGoal > 2)
         {
-            throw new DomainException('O máximo de assistências por gol deve ser entre 0 e 2.');
+            throw new ChampionshipException('O máximo de assistências por gol deve ser entre 0 e 2.');
         }
 
         if ($rules->periodMinutes < 1 || $rules->periodsCount < 1 || $rules->overtimeMinutes < 1)
         {
-            throw new DomainException('As configurações de tempo e períodos devem ser maiores que zero.');
+            throw new ChampionshipException('As configurações de tempo e períodos devem ser maiores que zero.');
         }
     }
 
@@ -2476,7 +2475,7 @@ final readonly class TournamentEngine
     {
         if (preg_match('/^#[0-9A-Fa-f]{6}$/', $color) !== 1)
         {
-            throw new DomainException("Cor {$label} inválida. Use o formato hexadecimal #RRGGBB.");
+            throw new ChampionshipException("Cor {$label} inválida. Use o formato hexadecimal #RRGGBB.");
         }
     }
 
@@ -2496,18 +2495,18 @@ final readonly class TournamentEngine
             || str_contains($mime, 'svg')
             || str_contains($clientMime, 'svg')
         ) {
-            throw new DomainException('Arquivos SVG não são permitidos para o escudo da equipe. Envie JPG, PNG ou WEBP.');
+            throw new ChampionshipException('Arquivos SVG não são permitidos para o escudo da equipe. Envie JPG, PNG ou WEBP.');
         }
 
         $extToCheck = $clientExt !== '' ? $clientExt : $guessedExt;
         if (! in_array($extToCheck, $allowedExtensions, true))
         {
-            throw new DomainException('Formato de escudo inválido. Envie apenas imagens JPG, PNG ou WEBP.');
+            throw new ChampionshipException('Formato de escudo inválido. Envie apenas imagens JPG, PNG ou WEBP.');
         }
 
         if ($mime !== '' && ! in_array($mime, $allowedMimes, true))
         {
-            throw new DomainException('Formato de imagem inválido para o escudo. Envie apenas JPG, PNG ou WEBP.');
+            throw new ChampionshipException('Formato de imagem inválido para o escudo. Envie apenas JPG, PNG ou WEBP.');
         }
     }
 

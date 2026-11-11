@@ -6,7 +6,6 @@ use App\Championships\Data\ChampionshipRules;
 use App\Championships\Data\GroupStandings;
 use App\Championships\Data\StandingRow;
 use App\Championships\Enums\GamePhase;
-use DomainException;
 
 final class BracketPlanner
 {
@@ -33,12 +32,12 @@ final class BracketPlanner
 
         if ($expectedQualifiers < 2 || $expectedQualifiers > 16)
         {
-            throw new DomainException('O mata-mata exige entre 2 e 16 equipes classificadas.');
+            throw new ChampionshipException('O mata-mata exige entre 2 e 16 equipes classificadas.');
         }
 
         if ($standingsByGroup === [])
         {
-            throw new DomainException('Não há grupos disponíveis para gerar a chave do mata-mata.');
+            throw new ChampionshipException('Não há grupos disponíveis para gerar a chave do mata-mata.');
         }
 
         ksort($standingsByGroup);
@@ -75,7 +74,7 @@ final class BracketPlanner
             {
                 if (array_intersect($tieGroup, $qualifiedIdsInGroup) !== [])
                 {
-                    throw new DomainException("Há um empate técnico pendente de definição manual no grupo {$groupCode}.");
+                    throw new ChampionshipException("Há um empate técnico pendente de definição manual no grupo {$groupCode}.");
                 }
             }
         }
@@ -84,12 +83,12 @@ final class BracketPlanner
 
         if ($totalQualifiedCount < 2 || $totalQualifiedCount > 16)
         {
-            throw new DomainException('O mata-mata exige entre 2 e 16 equipes classificadas.');
+            throw new ChampionshipException('O mata-mata exige entre 2 e 16 equipes classificadas.');
         }
 
         if ($totalQualifiedCount !== $expectedQualifiers)
         {
-            throw new DomainException('O número de equipes classificadas nos grupos não corresponde às regras do campeonato.');
+            throw new ChampionshipException('O número de equipes classificadas nos grupos não corresponde às regras do campeonato.');
         }
 
         $bracketSize = match (true)
