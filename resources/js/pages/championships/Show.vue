@@ -4,7 +4,7 @@ import GroupsAndStandingsTab from '@/components/championships/GroupsAndStandings
 import KnockoutBracketTab from '@/components/championships/KnockoutBracketTab.vue';
 import RulesTab from '@/components/championships/RulesTab.vue';
 import TeamsAndRostersTab from '@/components/championships/TeamsAndRostersTab.vue';
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     AlertTriangle,
     ArrowLeft,
@@ -14,6 +14,11 @@ import {
     History,
     MapPin,
     Pencil,
+    Copy,
+    ExternalLink,
+    Globe2,
+    Link2,
+    RefreshCw,
     Scale,
     Shield,
     Shuffle,
@@ -30,6 +35,7 @@ import type {
     EnrolledTeamProp,
     GamePhase,
     GroupStandingsProp,
+    PublicLinkProp,
 } from '@/types/championship';
 
 const props = defineProps<{
@@ -46,6 +52,7 @@ const props = defineProps<{
     can_draw: boolean;
     can_generate_bracket: boolean;
     summary: ChampionshipSummaryProp;
+    public_link: PublicLinkProp;
 }>();
 
 type TabKey = 'times' | 'regras' | 'grupos' | 'mata-mata' | 'historico';
@@ -142,6 +149,66 @@ function submitEditDetails() {
         onSuccess: () => closeEditDetails(),
     });
 }
+
+function activatePublicLink() {
+    router.post(
+        `/campeonatos/${props.championship.id}/link-publico`,
+        {},
+        {
+            preserveScroll: true,
+        },
+    );
+}
+
+function regeneratePublicLink() {
+    if (
+        !window.confirm(
+            'Gerar um novo link? O link público atual vai parar de funcionar.',
+        )
+    ) {
+        return;
+    }
+
+    router.post(
+        `/campeonatos/${props.championship.id}/link-publico/regenerar`,
+        {},
+        { preserveScroll: true },
+    );
+}
+
+function disablePublicLink() {
+    if (
+        !window.confirm(
+            'Desativar o link público? Quem tiver o endereço não poderá mais acessar o campeonato.',
+        )
+    ) {
+        return;
+    }
+
+    router.delete(`/campeonatos/${props.championship.id}/link-publico`, {
+        preserveScroll: true,
+    });
+}
+
+async function copyPublicLink() {
+    const url = props.public_link.url;
+    if (!url) return;
+
+    try {
+        await navigator.clipboard.writeText(url);
+        return;
+    } catch {
+        const input = document.createElement('textarea');
+        input.value = url;
+        input.setAttribute('readonly', '');
+        input.style.position = 'fixed';
+        input.style.opacity = '0';
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        input.remove();
+    }
+}
 </script>
 
 <template>
@@ -219,6 +286,82 @@ function submitEditDetails() {
             </div>
         </div>
     </div>
+
+    <section
+        class="mb-5 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
+        aria-labelledby="link-publico-heading"
+    >
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <div class="flex items-center gap-2">
+                    <Globe2 class="size-4 text-[var(--team-primary)]" />
+                    <h2
+                        id="link-publico-heading"
+                        class="text-sm font-black text-slate-950 dark:text-white"
+                    >
+                        Link público
+                    </h2>
+                </div>
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    Compartilhe a classificação, os jogos e as estatísticas sem
+                    dar acesso à gestão.
+                </p>
+            </div>
+
+            <button
+                v-if="!public_link.enabled"
+                type="button"
+                class="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-[var(--team-primary)] px-3.5 py-2 text-xs font-bold text-white hover:brightness-95"
+                @click="activatePublicLink"
+            >
+                <Link2 class="size-4" />
+                Ativar link público
+            </button>
+        </div>
+
+        <div
+            v-if="public_link.enabled && public_link.url"
+            class="mt-4 flex flex-col gap-2 sm:flex-row"
+        >
+            <input
+                :value="public_link.url"
+                readonly
+                aria-label="URL do link público"
+                class="min-h-10 min-w-0 flex-1 rounded-xl border border-slate-300 bg-slate-50 px-3 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+            />
+            <div class="flex flex-wrap gap-2">
+                <button
+                    type="button"
+                    class="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                    @click="copyPublicLink"
+                >
+                    <Copy class="size-3.5" /> Copiar
+                </button>
+                <a
+                    :href="public_link.url"
+                    target="_blank"
+                    rel="noopener"
+                    class="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                    <ExternalLink class="size-3.5" /> Abrir
+                </a>
+                <button
+                    type="button"
+                    class="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-amber-300 px-3 text-xs font-bold text-amber-800 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-950/30"
+                    @click="regeneratePublicLink"
+                >
+                    <RefreshCw class="size-3.5" /> Gerar novo link
+                </button>
+                <button
+                    type="button"
+                    class="min-h-10 rounded-xl border border-red-200 px-3 text-xs font-bold text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/30"
+                    @click="disablePublicLink"
+                >
+                    Desativar
+                </button>
+            </div>
+        </div>
+    </section>
 
     <!-- Domain / Validation Error Banner -->
     <div

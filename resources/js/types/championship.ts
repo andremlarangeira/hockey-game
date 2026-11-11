@@ -317,6 +317,7 @@ export interface ChampionshipIndexPageProps {
 
 export interface ChampionshipShowPageProps {
     championship: ChampionshipProp;
+    public_link: PublicLinkProp;
     teams: EnrolledTeamProp[];
     standings: Record<string, GroupStandingsProp>;
     games: Partial<Record<GamePhase, ChampionshipGameProp[]>>;
@@ -329,6 +330,143 @@ export interface ChampionshipShowPageProps {
     can_draw: boolean;
     can_generate_bracket: boolean;
     summary: ChampionshipSummaryProp;
+}
+
+export interface PublicLinkProp {
+    enabled: boolean;
+    url: string | null;
+}
+
+export interface PublicChampionshipProp {
+    name: string;
+    city: string;
+    venue: string | null;
+    starts_on: string | null;
+    ends_on: string | null;
+    status: ChampionshipStatus;
+    status_label: string;
+}
+
+export interface PublicChampionshipTeamProp {
+    id: number;
+    name: string;
+    short_name: string | null;
+    primary_color: string;
+    secondary_color: string;
+    logo_url: string | null;
+    group_code: string | null;
+}
+
+export interface PublicChampionshipGameProp {
+    id: number;
+    phase: GamePhase;
+    phase_label: string;
+    group_code: string | null;
+    round_number: number;
+    leg_number: number;
+    bracket_position: number | null;
+    home_source: string | null;
+    away_source: string | null;
+    home_team: PublicChampionshipTeamProp | null;
+    away_team: PublicChampionshipTeamProp | null;
+    status: GameStatus;
+    is_bye: boolean;
+    home_regular_score: number;
+    away_regular_score: number;
+    went_to_overtime: boolean;
+    went_to_shootout: boolean;
+    home_shootout_score: number;
+    away_shootout_score: number;
+    winner_team_id: number | null;
+    venue: string | null;
+    scheduled_at: string | null;
+    started_at: string | null;
+    finished_at: string | null;
+}
+
+export interface PublicStandingRowProp {
+    position: number;
+    team_id: number;
+    team_name: string;
+    team_logo_url: string | null;
+    primary_color: string;
+    points: number;
+    played: number;
+    wins: number;
+    draws: number;
+    losses: number;
+    goals_for: number;
+    goals_against: number;
+    goal_difference: number;
+    qualifies: boolean;
+}
+
+export interface PublicGroupStandingsProp {
+    group_code: string;
+    all_games_finished: boolean;
+    rows: PublicStandingRowProp[];
+}
+
+export interface PublicPlayerLeaderRowProp {
+    player_id: number;
+    player_name: string;
+    jersey_number: number;
+    team_id: number;
+    team_name: string;
+    team_logo_url: string | null;
+    goals: number;
+    assists: number;
+    points: number;
+}
+
+export interface PublicPodiumProp {
+    champion_team_id: number | null;
+    champion_team_name: string | null;
+    runner_up_team_id: number | null;
+    runner_up_team_name: string | null;
+    third_place_team_id: number | null;
+    third_place_team_name: string | null;
+}
+
+export interface PublicChampionshipStatsProp {
+    podium: PublicPodiumProp;
+    top_scorers: PublicPlayerLeaderRowProp[];
+    top_assists: PublicPlayerLeaderRowProp[];
+    top_point_leaders: PublicPlayerLeaderRowProp[];
+    total_games: number;
+    finished_games: number;
+    total_goals: number;
+}
+
+export interface PublicChampionshipEventProp {
+    id: number;
+    type: GameEventType;
+    side: TeamSide | null;
+    team_id: number | null;
+    primary_player_name: string | null;
+    first_assist_player_name: string | null;
+    second_assist_player_name: string | null;
+    period: number | null;
+    is_overtime: boolean;
+    elapsed_seconds: number;
+    shootout_round: number | null;
+    shootout_scored: boolean | null;
+    period_mark_type: string | null;
+}
+
+export interface PublicChampionshipShowPageProps {
+    championship: PublicChampionshipProp;
+    teams: PublicChampionshipTeamProp[];
+    games: PublicChampionshipGameProp[];
+    standings: Record<string, PublicGroupStandingsProp>;
+    stats: PublicChampionshipStatsProp;
+}
+
+export interface PublicChampionshipGamePageProps {
+    championship: PublicChampionshipProp;
+    game: PublicChampionshipGameProp;
+    events: PublicChampionshipEventProp[];
+    poll_interval_ms: number | null;
 }
 
 export interface ChampionshipLiveGamePageProps {

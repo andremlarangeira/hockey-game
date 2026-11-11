@@ -78,7 +78,7 @@ test('convidado vê o campeonato e a partida pública com cabeçalhos de privaci
         ->assertHeader('X-Robots-Tag', 'noindex, nofollow')
         ->assertHeader('Referrer-Policy', 'no-referrer')
         ->assertInertia(fn (Assert $page) => $page
-            ->component('public/championships/Show', false)
+            ->component('public/championships/Show', true)
             ->has('championship.status_label')
             ->has('teams', 4)
             ->has('games')
@@ -107,7 +107,7 @@ test('convidado vê o campeonato e a partida pública com cabeçalhos de privaci
     $live = $this->get(route('public.championships.games.show', ['token' => $token, 'game' => $game->id]));
     $live->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('public/championships/Game', false)
+            ->component('public/championships/Game', true)
             ->where('game.home_regular_score', 1)
             ->where('events.0.id', $event->id)
             ->where('events.0.primary_player_name', $players[0]->name)
