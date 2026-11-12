@@ -447,6 +447,7 @@ const showStartConfirm = ref(false);
 
 function confirmStartGame() {
     if (submitting.value) return;
+    void sound.unlock(sounds.value);
     submitting.value = true;
     localError.value = '';
     router.post(
@@ -561,6 +562,7 @@ function submitGoalRecord(assistIds: number[]) {
     const current = goalDialog.value;
     if (!current || !current.scorer || submitting.value) return;
 
+    void sound.unlock(sounds.value);
     submitting.value = true;
     localError.value = '';
 

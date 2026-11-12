@@ -235,6 +235,7 @@ function goToMatch() {
                     maxlength="50"
                     class="min-w-0 flex-1 bg-transparent text-lg font-black"
                     :aria-label="`Nome da equipe ${index + 1}`"
+                    @input="persistDraw"
                     @change="persistDraw"
                 />
                 <div
