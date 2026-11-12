@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\PlayerRequest;
 use App\Models\Player;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -54,7 +56,10 @@ class PlayerController extends Controller
 
     public function presence(Request $request, Player $player): RedirectResponse
     {
-        $player->update(['present' => $request->validate(['present' => ['required', 'boolean']])['present']]);
+        $player->update([
+            'present' => $request->validate(['present' => ['required', 'boolean']])['present'],
+            'presence_changed_at' => now(),
+        ]);
 
         return back();
     }
@@ -62,9 +67,40 @@ class PlayerController extends Controller
     public function presenceAll(Request $request): RedirectResponse
     {
         $present = $request->validate(['present' => ['required', 'boolean']])['present'];
-        $request->user()->players()->update(['present' => $present]);
+        $request->user()->players()->update(['present' => $present, 'presence_changed_at' => now()]);
 
         return back();
+    }
+
+    public function syncPresence(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'changes' => ['required', 'array', 'max:500'],
+            'changes.*.player_id' => ['required', 'integer'],
+            'changes.*.present' => ['required', 'boolean'],
+            'changes.*.changed_at' => ['required', 'date'],
+        ]);
+        $players = $request->user()->players()->whereIn('id', collect($data['changes'])->pluck('player_id'))->get()->keyBy('id');
+        $applied = [];
+        $processed = [];
+        foreach ($data['changes'] as $change)
+        {
+            $player = $players->get($change['player_id']);
+            if (! $player)
+            {
+                continue;
+            }
+            $processed[] = $player->id;
+            $changedAt = Carbon::parse($change['changed_at'])->utc();
+            if ($player->presence_changed_at !== null && $player->presence_changed_at->greaterThanOrEqualTo($changedAt))
+            {
+                continue;
+            }
+            $player->update(['present' => $change['present'], 'presence_changed_at' => $changedAt]);
+            $applied[] = $player->id;
+        }
+
+        return response()->json(['applied' => $applied, 'processed' => $processed]);
     }
 
     public function destroy(Player $player): RedirectResponse

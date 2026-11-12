@@ -14,6 +14,7 @@ class StoreMatchRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'client_uuid' => ['nullable', 'uuid'],
             'started_at' => ['nullable', 'date'],
             'finished_at' => ['nullable', 'date', 'after_or_equal:started_at'],
             'home_score' => ['required', 'integer', 'min:0', 'max:255'],
@@ -96,7 +97,7 @@ class StoreMatchRequest extends FormRequest
     {
         return [function (Validator $validator): void {
             $team = $this->user();
-            $knownNames = $team->players()->pluck('name', 'id');
+            $knownPlayerIds = $team->players()->pluck('id');
             $roster = $this->roster();
             $ids = [];
             foreach ($roster->home->players as $player)
@@ -113,19 +114,9 @@ class StoreMatchRequest extends FormRequest
             }
             foreach ($ids as $id)
             {
-                if (! $knownNames->has($id))
+                if (! $knownPlayerIds->contains($id))
                 {
                     $validator->errors()->add('roster', 'O elenco contém um jogador que não pertence ao seu time.');
-                }
-            }
-            foreach (['home', 'away'] as $side)
-            {
-                foreach ($roster->team($side)->players as $player)
-                {
-                    if (($knownNames[$player['id']] ?? null) !== $player['name'])
-                    {
-                        $validator->errors()->add('roster', 'O nome salvo de um jogador não corresponde ao cadastro atual.');
-                    }
                 }
             }
             $homeGoals = 0;

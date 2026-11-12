@@ -28,6 +28,28 @@ test('presença em massa e individual funcionam apenas no time conectado', funct
     expect($player->fresh()->present)->toBeTrue();
 });
 
+test('sincroniza presença por jogador usando a alteração mais recente e respeita a conta', function () {
+    [$team, $player] = $this->teamWithPlayer();
+    [$other, $otherPlayer] = $this->teamWithPlayer();
+    $newer = now()->addMinute();
+    $player->update(['present' => true, 'presence_changed_at' => $newer]);
+
+    $this->actingAs($team)->postJson('/jogadores/presenca/sincronizar', [
+        'changes' => [
+            ['player_id' => $player->id, 'present' => false, 'changed_at' => now()->subMinute()->toISOString()],
+            ['player_id' => $otherPlayer->id, 'present' => false, 'changed_at' => now()->addMinutes(2)->toISOString()],
+        ],
+    ])->assertOk()->assertJsonPath('processed', [$player->id]);
+
+    expect($player->fresh()->present)->toBeTrue()
+        ->and($otherPlayer->fresh()->present)->toBeTrue();
+
+    $this->postJson('/jogadores/presenca/sincronizar', [
+        'changes' => [['player_id' => $player->id, 'present' => false, 'changed_at' => now()->addMinutes(2)->toISOString()]],
+    ])->assertOk()->assertJsonPath('applied', [$player->id]);
+    expect($player->fresh()->present)->toBeFalse();
+});
+
 test('uploads rejeitam executáveis disfarçados e imagens grandes', function () {
     $team = User::factory()->create();
     $this->actingAs($team)->post('/jogadores', [

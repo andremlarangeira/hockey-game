@@ -24,7 +24,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property CarbonImmutable|null $started_at
  * @property int $goals_count
  */
-#[Fillable(['home_score', 'away_score', 'settings', 'roster', 'timeline', 'started_at', 'finished_at'])]
+#[Fillable(['client_uuid', 'home_score', 'away_score', 'settings', 'roster', 'timeline', 'started_at', 'finished_at'])]
 class HockeyMatch extends Model
 {
     use BelongsToTeam;

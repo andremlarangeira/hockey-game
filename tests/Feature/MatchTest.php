@@ -3,6 +3,7 @@
 use App\Models\Goal;
 use App\Models\HockeyMatch;
 use App\Models\Player;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 
 require_once __DIR__.'/../matchHelpers.php';
@@ -71,6 +72,51 @@ test('salva partida com tempo por período personalizado configurado no placar',
     $this->actingAs($team)->post('/partidas', $payload)->assertRedirect();
     $match = HockeyMatch::withoutGlobalScopes()->latest('id')->firstOrFail();
     expect($match->settings->minutes)->toBe(2);
+});
+
+test('aceita jogador renomeado no elenco salvo offline', function () {
+    [$team, $scorer] = $this->teamWithPlayer();
+    $payload = matchPayload($team, $scorer);
+    $scorer->update(['name' => 'Nome atualizado depois da partida']);
+
+    $this->actingAs($team)->post('/partidas', $payload)->assertRedirect();
+    expect(HockeyMatch::count())->toBe(1);
+});
+
+test('não duplica uma partida reenviada com o mesmo uuid do cliente', function () {
+    [$team, $scorer] = $this->teamWithPlayer();
+    $payload = [...matchPayload($team, $scorer), 'client_uuid' => (string) Str::uuid()];
+
+    $this->actingAs($team)->post('/partidas', $payload)->assertRedirect();
+    $this->post('/partidas', $payload)->assertRedirect();
+    expect(HockeyMatch::count())->toBe(1);
+});
+
+test('a API JSON cria uma partida e reconhece o reenvio pelo uuid', function () {
+    [$team, $scorer] = $this->teamWithPlayer();
+    $payload = [...matchPayload($team, $scorer), 'client_uuid' => (string) Str::uuid()];
+
+    $this->actingAs($team)
+        ->postJson('/partidas', $payload)
+        ->assertCreated()
+        ->assertJsonPath('duplicate', null)
+        ->assertJsonStructure(['id', 'url']);
+    $this->postJson('/partidas', $payload)
+        ->assertOk()
+        ->assertJsonPath('duplicate', true);
+
+    expect(HockeyMatch::count())->toBe(1);
+});
+
+test('a API JSON informa erros de validação', function () {
+    [$team, $scorer] = $this->teamWithPlayer();
+    $payload = matchPayload($team, $scorer);
+    $payload['home_score'] = -1;
+
+    $this->actingAs($team)
+        ->postJson('/partidas', $payload)
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('home_score');
 });
 
 test('dono exclui partida, gols e suas estatísticas', function () {

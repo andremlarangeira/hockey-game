@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
 
-#[Fillable(['name', 'jersey_number', 'photo_path', 'level', 'present'])]
+#[Fillable(['name', 'jersey_number', 'photo_path', 'level', 'present', 'presence_changed_at'])]
 class Player extends Model
 {
     use BelongsToTeam;
@@ -29,7 +29,7 @@ class Player extends Model
 
     protected function casts(): array
     {
-        return ['level' => 'decimal:1', 'present' => 'boolean'];
+        return ['level' => 'decimal:1', 'present' => 'boolean', 'presence_changed_at' => 'datetime'];
     }
 
     /**

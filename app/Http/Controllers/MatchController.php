@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreMatchRequest;
 use App\Models\HockeyMatch;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class MatchController extends Controller
 {
@@ -43,11 +45,29 @@ class MatchController extends Controller
         ]);
     }
 
-    public function store(StoreMatchRequest $request): \Symfony\Component\HttpFoundation\Response
+    public function store(StoreMatchRequest $request): JsonResponse|HttpResponse
     {
         $data = $request->validated();
+        if (! empty($data['client_uuid']))
+        {
+            $existing = $request->user()->matches()->where('client_uuid', $data['client_uuid'])->first();
+            if ($existing)
+            {
+                if ($request->wantsJson())
+                {
+                    return response()->json([
+                        'id' => $existing->id,
+                        'url' => route('matches.show', $existing),
+                        'duplicate' => true,
+                    ]);
+                }
+
+                return Inertia::location(route('matches.show', $existing));
+            }
+        }
         $match = DB::transaction(function () use ($request, $data): HockeyMatch {
             $match = $request->user()->matches()->create([
+                'client_uuid' => $data['client_uuid'] ?? null,
                 'home_score' => $data['home_score'], 'away_score' => $data['away_score'],
                 'settings' => $request->settings(), 'roster' => $request->roster(),
                 'timeline' => $data['timeline'], 'started_at' => $data['started_at'] ?? null,
@@ -57,6 +77,14 @@ class MatchController extends Controller
 
             return $match;
         });
+
+        if ($request->wantsJson())
+        {
+            return response()->json([
+                'id' => $match->id,
+                'url' => route('matches.show', $match),
+            ], 201);
+        }
 
         return Inertia::location(route('matches.show', $match));
     }

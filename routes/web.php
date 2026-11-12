@@ -10,6 +10,7 @@ use App\Http\Controllers\Championships\PublicChampionshipController;
 use App\Http\Controllers\DrawController;
 use App\Http\Controllers\MatchController;
 use App\Http\Controllers\PlayerController;
+use App\Http\Controllers\SessionStateController;
 use App\Http\Controllers\StatsController;
 use App\Http\Controllers\TeamController;
 use App\Models\HockeyMatch;
@@ -24,6 +25,8 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('jogadores', PlayerController::class)->parameters(['jogadores' => 'player'])->except(['show', 'create', 'edit'])->names('players');
     Route::patch('jogadores/{player}/presenca', [PlayerController::class, 'presence'])->name('players.presence');
     Route::post('presenca', [PlayerController::class, 'presenceAll'])->name('players.presence-all');
+    Route::post('jogadores/presenca/sincronizar', [PlayerController::class, 'syncPresence'])->name('players.presence.sync');
+    Route::get('sessao/estado', SessionStateController::class)->name('session.state');
     Route::get('sorteio', [DrawController::class, 'index'])->name('draw.index');
     Route::post('sorteio', [DrawController::class, 'store'])->name('draw.store');
     Route::get('partida', [MatchController::class, 'create'])->name('matches.create');
