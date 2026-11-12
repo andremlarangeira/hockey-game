@@ -13,7 +13,7 @@ class BalancedDraw
      * @param  Collection<int, array{id: int, name: string, jersey_number: int, level: float, photo_url: string|null, present: bool}>  $players
      * @return array{teams: array<int, array{id: string, name: string, color: string, players: array<int, array{id: int, name: string, jersey_number: int, level: float, photo_url: string|null, present: bool}>, total: float|int, average: float}>, reserves: array<int, array{id: int, name: string, jersey_number: int, level: float, photo_url: string|null, present: bool}>}
      */
-    public function draw(Collection $players, string $mode = 'players', int $size = 4): array
+    public function draw(Collection $players, string $mode = 'players', int $size = 4, ?callable $random = null): array
     {
         $present = $players->filter(fn (array $player): bool => $player['present'] === true)->values();
         if ($present->count() < 2 || ! in_array($mode, ['players', 'teams'], true) || $size < 1)
@@ -47,8 +47,9 @@ class BalancedDraw
         $reserves = collect();
         for ($attempt = 0; $attempt < 240; $attempt++)
         {
-            $participants = $present->shuffle()->take($participantCount)
-                ->sortByDesc(fn (array $player): float => ((float) $player['level']) + random_int(0, 100) / 100000)->values();
+            $participants = $this->shuffle($present->all(), $random);
+            $participants = collect(array_slice($participants, 0, $participantCount))
+                ->sortByDesc(fn (array $player): float => ((float) $player['level']) + $this->randomInt(0, 100, $random) / 100000)->values();
             $teams = array_fill(0, $teamCount, []);
             $direction = 1;
             $index = 0;
@@ -72,8 +73,7 @@ class BalancedDraw
             $score = max($totals) - min($totals);
             if ($score < $bestScore)
             {
-                $shuffle = range(0, $teamCount - 1);
-                shuffle($shuffle);
+                $shuffle = $this->shuffle(range(0, $teamCount - 1), $random);
                 $best = array_map(fn (int $index): array => $teams[$index], $shuffle);
                 $drawnIds = $participants->pluck('id')->all();
                 $reserves = $present->reject(fn (array $player): bool => in_array($player['id'], $drawnIds, true))->values();
@@ -97,5 +97,27 @@ class BalancedDraw
             ])->values()->all(),
             'reserves' => $reserves->all(),
         ];
+    }
+
+    /**
+     * @template T
+     *
+     * @param  array<int, T>  $items
+     * @return array<int, T>
+     */
+    private function shuffle(array $items, ?callable $random): array
+    {
+        for ($index = count($items) - 1; $index > 0; $index--)
+        {
+            $swap = $this->randomInt(0, $index, $random);
+            [$items[$index], $items[$swap]] = [$items[$swap], $items[$index]];
+        }
+
+        return $items;
+    }
+
+    private function randomInt(int $min, int $max, ?callable $random): int
+    {
+        return $random ? $random($min, $max) : random_int($min, $max);
     }
 }
