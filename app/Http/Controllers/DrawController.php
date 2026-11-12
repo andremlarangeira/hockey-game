@@ -12,7 +12,7 @@ use Inertia\Response;
 
 class DrawController extends Controller
 {
-    public function index(Request $request, BalancedDraw $draw): Response
+    public function index(Request $request): Response
     {
         $players = $request->user()->players()->where('present', true)->orderBy('name')->get()
             ->map(fn (Player $player): array => $player->toDrawPlayer())
@@ -20,18 +20,8 @@ class DrawController extends Controller
         $mode = $request->session()->get('draw_mode', 'players');
         $size = $request->session()->get('draw_size', 4);
 
-        try
-        {
-            $result = $draw->draw($players, $mode, $size);
-        }
-        catch (\InvalidArgumentException)
-        {
-            $result = ['teams' => [], 'reserves' => []];
-        }
-
         return Inertia::render('draw/Index', [
             'players' => $players,
-            'result' => $result,
             'mode' => $mode,
             'size' => $size,
             'error' => $players->count() < 2 ? 'Marque pelo menos 2 jogadores presentes para sortear.' : null,

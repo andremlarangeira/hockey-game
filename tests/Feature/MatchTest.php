@@ -5,6 +5,8 @@ use App\Models\HockeyMatch;
 use App\Models\Player;
 use Inertia\Testing\AssertableInertia as Assert;
 
+require_once __DIR__.'/../matchHelpers.php';
+
 test('salva placar, elenco, gols e tempos no time correto', function () {
     [$team, $scorer] = $this->teamWithPlayer();
     $other = Player::factory()->for($team)->create(['name' => 'Marcador Dois', 'jersey_number' => 11, 'level' => 3]);
@@ -69,4 +71,42 @@ test('salva partida com tempo por período personalizado configurado no placar',
     $this->actingAs($team)->post('/partidas', $payload)->assertRedirect();
     $match = HockeyMatch::withoutGlobalScopes()->latest('id')->firstOrFail();
     expect($match->settings->minutes)->toBe(2);
+});
+
+test('dono exclui partida, gols e suas estatísticas', function () {
+    [$team, $scorer] = $this->teamWithPlayer();
+    $assist = Player::factory()->for($team)->create(['name' => 'Assistente', 'jersey_number' => 12]);
+    $payload = matchPayload($team, $scorer, $assist);
+    $payload['goals'][0]['assist_id'] = $assist->id;
+    $payload['goals'][0]['assist_name'] = $assist->name;
+    $this->actingAs($team)->post('/partidas', $payload)->assertRedirect();
+    $match = HockeyMatch::withoutGlobalScopes()->firstOrFail();
+
+    $before = collect($this->get('/estatisticas')->assertOk()->viewData('page')['props']['players']);
+    expect($before->firstWhere('id', $scorer->id)['goals'])->toBe(1)
+        ->and($before->firstWhere('id', $scorer->id)['points'])->toBe(1)
+        ->and($before->firstWhere('id', $assist->id)['assists'])->toBe(1)
+        ->and($before->firstWhere('id', $assist->id)['points'])->toBe(1);
+
+    $this->delete("/partidas/$match->id")->assertRedirect('/partidas')->assertSessionHas('success');
+
+    expect(HockeyMatch::withoutGlobalScopes()->find($match->id))->toBeNull()
+        ->and(Goal::withoutGlobalScopes()->where('match_id', $match->id)->exists())->toBeFalse();
+    $after = collect($this->get('/estatisticas')->assertOk()->viewData('page')['props']['players']);
+    expect($after->firstWhere('id', $scorer->id)['goals'])->toBe(0)
+        ->and($after->firstWhere('id', $scorer->id)['points'])->toBe(0)
+        ->and($after->firstWhere('id', $assist->id)['assists'])->toBe(0)
+        ->and($after->firstWhere('id', $assist->id)['points'])->toBe(0);
+});
+
+test('não permite excluir partida de outra conta e visitante é redirecionado', function () {
+    [$owner, $scorer] = $this->teamWithPlayer();
+    $this->actingAs($owner)->post('/partidas', matchPayload($owner, $scorer));
+    $match = HockeyMatch::withoutGlobalScopes()->firstOrFail();
+    [$other] = $this->teamWithPlayer();
+
+    $this->actingAs($other)->delete("/partidas/$match->id")->assertNotFound();
+    expect(HockeyMatch::withoutGlobalScopes()->find($match->id))->not->toBeNull()
+        ->and(Goal::withoutGlobalScopes()->where('match_id', $match->id)->exists())->toBeTrue();
+    $this->actingAsGuest()->delete("/partidas/$match->id")->assertRedirect('/login');
 });

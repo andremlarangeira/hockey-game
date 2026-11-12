@@ -30,6 +30,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('partidas', [MatchController::class, 'index'])->name('matches.index');
     Route::post('partidas', [MatchController::class, 'store'])->name('matches.store');
     Route::get('partidas/{match}', [MatchController::class, 'show'])->name('matches.show');
+    Route::delete('partidas/{match}', [MatchController::class, 'destroy'])->name('matches.destroy');
     Route::get('estatisticas', StatsController::class)->name('stats.index');
     Route::get('time', [TeamController::class, 'edit'])->name('team.edit');
     Route::patch('time', [TeamController::class, 'update'])->name('team.update');

@@ -27,6 +27,7 @@ import type {
     TimelineEvent,
 } from '@/types/hockey';
 import { formatClock } from '@/lib/matchClock';
+import { load as loadDraw } from '@/lib/drawStorage';
 import { transitionSounds } from '@/lib/matchClockCore';
 
 const page = usePage();
@@ -100,9 +101,11 @@ const phaseLabel = computed(
 );
 const restoring = ref(true);
 try {
-    const saved = JSON.parse(
-        sessionStorage.getItem('hockey-teams') ?? 'null',
-    ) as DrawResult | null;
+    const saved =
+        loadDraw(localStorage, page.props.team.id) ??
+        (JSON.parse(
+            sessionStorage.getItem('hockey-teams') ?? 'null',
+        ) as DrawResult | null);
     if (saved?.teams?.length) {
         teams.value = saved.teams;
         selected.value = {

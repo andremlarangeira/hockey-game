@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreMatchRequest;
 use App\Models\HockeyMatch;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -66,5 +67,15 @@ class MatchController extends Controller
             'match' => $match,
             'goals' => $match->goals()->orderBy('recorded_at')->get(),
         ]);
+    }
+
+    public function destroy(HockeyMatch $match): RedirectResponse
+    {
+        DB::transaction(function () use ($match): void {
+            $match->goals()->delete();
+            $match->delete();
+        });
+
+        return to_route('matches.index')->with('success', 'Partida excluída com sucesso.');
     }
 }

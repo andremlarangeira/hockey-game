@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
-import { ArrowLeft, Calendar, Check } from 'lucide-vue-next';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { ArrowLeft, Calendar, Check, Trash2 } from 'lucide-vue-next';
 import { formatClock } from '@/lib/matchClock';
 import type {
     GoalEvent,
@@ -38,6 +38,16 @@ const eventNames: Record<string, string> = {
     goal_added: 'Gol marcado',
     goal_removed: 'Gol desfeito',
 };
+function destroyMatch() {
+    if (
+        !window.confirm(
+            'Excluir esta partida salva? Os gols dela também saem das estatísticas.',
+        )
+    )
+        return;
+
+    router.delete(`/partidas/${props.match.id}`);
+}
 </script>
 <template>
     <Head
@@ -66,6 +76,12 @@ const eventNames: Record<string, string> = {
             class="mt-5 inline-flex items-center gap-2 rounded-full bg-green-900 px-3 py-1 text-xs text-green-100"
             ><Check class="size-4" />Partida salva</span
         >
+        <button
+            class="mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl border border-red-400/50 px-3 text-sm font-bold text-red-200"
+            @click="destroyMatch"
+        >
+            <Trash2 class="size-4" />Excluir partida
+        </button>
     </section>
     <section
         class="mt-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"

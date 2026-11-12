@@ -1,24 +1,27 @@
 <script setup lang="ts">
 import PlayerPhoto from '@/components/hockey/PlayerPhoto.vue';
-import { Head, Link, router } from '@inertiajs/vue3';
-import { ArrowRight, GripVertical, RotateCcw, Shuffle } from 'lucide-vue-next';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { ArrowRight, GripVertical, Shuffle } from 'lucide-vue-next';
 import draggable from 'vuedraggable';
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+import { load, reconcile, save as saveDraw } from '@/lib/drawStorage';
 import type { DrawResult, DrawTeam, Player } from '@/types/hockey';
 
 const props = defineProps<{
     players: Player[];
-    result: DrawResult;
     mode: 'players' | 'teams';
     size: number;
     error?: string;
 }>();
-const teams = ref<DrawTeam[]>(props.result.teams.map((team) => ({ ...team })));
-const reserves = ref<Player[]>(props.result.reserves ?? []);
+const page = usePage();
+const accountId = page.props.team.id;
+const teams = ref<DrawTeam[]>([]);
+const reserves = ref<Player[]>([]);
 const mode = ref<'players' | 'teams'>(props.mode);
 const size = ref(props.size);
 const loading = ref(false);
 const error = ref(props.error || '');
+const reconciliationNotice = ref('');
 const options = computed(() =>
     mode.value === 'players' ? [2, 3, 4, 5, 6, 7, 8] : [2, 3, 4, 5, 6, 7, 8],
 );
@@ -30,6 +33,47 @@ const average = (players: Player[]) =>
               maximumFractionDigits: 2,
           })
         : '0';
+function persistDraw() {
+    saveDraw(localStorage, accountId, {
+        teams: teams.value,
+        reserves: reserves.value,
+        mode: mode.value,
+        size: size.value,
+    });
+}
+function reconciliationMessage(removedCount: number, addedCount: number) {
+    const messages: string[] = [];
+    if (removedCount)
+        messages.push(
+            `${removedCount} jogador${removedCount === 1 ? '' : 'es'} ${
+                removedCount === 1 ? 'saiu' : 'saíram'
+            } da lista de presentes e ${removedCount === 1 ? 'foi' : 'foram'} removido${
+                removedCount === 1 ? '' : 's'
+            }.`,
+        );
+    if (addedCount)
+        messages.push(
+            `${addedCount} novo${addedCount === 1 ? '' : 's'} jogador${
+                addedCount === 1 ? '' : 'es'
+            } ${addedCount === 1 ? 'foi colocado' : 'foram colocados'} nos reservas.`,
+        );
+    return messages.join(' ');
+}
+onMounted(() => {
+    const saved = load(localStorage, accountId);
+    if (!saved) return;
+
+    const reconciled = reconcile(saved, props.players);
+    teams.value = reconciled.draw.teams;
+    reserves.value = reconciled.draw.reserves;
+    mode.value = reconciled.draw.mode;
+    size.value = reconciled.draw.size;
+    reconciliationNotice.value = reconciliationMessage(
+        reconciled.removedCount,
+        reconciled.addedCount,
+    );
+    persistDraw();
+});
 async function draw() {
     loading.value = true;
     error.value = '';
@@ -57,6 +101,7 @@ async function draw() {
         const result = data as DrawResult;
         teams.value = result.teams;
         reserves.value = result.reserves;
+        persistDraw();
         sessionStorage.removeItem('hockey-match');
     } finally {
         loading.value = false;
@@ -68,8 +113,10 @@ function totals(team: DrawTeam) {
 }
 function update() {
     teams.value.forEach(totals);
+    persistDraw();
 }
 function goToMatch() {
+    persistDraw();
     sessionStorage.setItem(
         'hockey-teams',
         JSON.stringify({ teams: teams.value, reserves: reserves.value }),
@@ -162,6 +209,12 @@ function goToMatch() {
         >
             {{ error }}
         </p>
+        <p
+            v-if="reconciliationNotice"
+            class="mt-3 rounded-lg bg-blue-50 p-3 text-sm text-blue-800 dark:bg-blue-950/40 dark:text-blue-200"
+        >
+            {{ reconciliationNotice }}
+        </p>
         <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">
             O sorteio é aleatório e prioriza somas de estrelas próximas. No modo
             por quantidade de equipas, todos entram e cada equipe precisa ter
@@ -182,6 +235,7 @@ function goToMatch() {
                     maxlength="50"
                     class="min-w-0 flex-1 bg-transparent text-lg font-black"
                     :aria-label="`Nome da equipe ${index + 1}`"
+                    @change="persistDraw"
                 />
                 <div
                     class="text-right text-xs font-bold text-slate-500 dark:text-slate-400"
@@ -241,6 +295,7 @@ function goToMatch() {
                 :delay="100"
                 :delay-on-touch-only="true"
                 :animation="150"
+                @change="update"
                 ><template #item="{ element: player }"
                     ><div
                         :data-player-id="player.id"
@@ -281,5 +336,11 @@ function goToMatch() {
             class="mt-2 inline-flex items-center gap-2 text-sm font-bold text-amber-900 underline"
             >Marcar presença<ArrowRight class="size-4"
         /></Link>
+    </div>
+    <div
+        v-else
+        class="mt-5 rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-center text-sm text-slate-600 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300"
+    >
+        Pressione “Sortear equipes” para montar as equipes.
     </div>
 </template>

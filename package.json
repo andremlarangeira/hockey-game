@@ -11,6 +11,7 @@
         "check:fix": "vp check --fix",
         "types:check": "vue-tsc --noEmit",
         "test:clock": "node tests/Unit/clock.test.mjs",
+        "test:draw-storage": "node tests/Unit/drawStorage.test.mjs",
         "test:public-refresh": "node tests/Unit/publicRefreshLoop.test.mjs",
         "test:e2e": "node tests/Browser/smoke.mjs"
     },

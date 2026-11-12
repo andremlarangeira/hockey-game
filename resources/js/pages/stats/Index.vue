@@ -3,7 +3,12 @@ import PlayerPhoto from '@/components/hockey/PlayerPhoto.vue';
 import { Head } from '@inertiajs/vue3';
 import type { Player } from '@/types/hockey';
 defineProps<{
-    players: (Player & { goals: number; assists: number; games: number })[];
+    players: (Player & {
+        goals: number;
+        assists: number;
+        points: number;
+        games: number;
+    })[];
 }>();
 </script>
 <template>
@@ -19,7 +24,7 @@ defineProps<{
     <section
         class="mt-5 overflow-x-auto rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
     >
-        <table class="w-full min-w-[500px] text-left text-sm">
+        <table class="w-full min-w-[600px] text-left text-sm">
             <thead
                 class="bg-slate-50 text-xs tracking-wider text-slate-500 uppercase dark:bg-slate-800/50 dark:text-slate-400"
             >
@@ -28,6 +33,7 @@ defineProps<{
                     <th class="p-4 text-center">Jogos</th>
                     <th class="p-4 text-center">Gols</th>
                     <th class="p-4 text-center">Assistências</th>
+                    <th class="p-4 text-center">Pontos</th>
                 </tr>
             </thead>
             <tbody>
@@ -53,6 +59,9 @@ defineProps<{
                     </td>
                     <td class="p-3 text-center text-xl font-black">
                         {{ player.assists }}
+                    </td>
+                    <td class="p-3 text-center text-xl font-black">
+                        {{ player.points }}
                     </td>
                 </tr>
             </tbody>
