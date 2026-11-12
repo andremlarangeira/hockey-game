@@ -37,5 +37,5 @@ jobs:
         run: composer test && npm run types:check
       - name: Build de produção
         run: npm run build
-      - name: Verificar relógio
-        run: npm run test:clock
+      - name: Verificar módulos locais
+        run: npm run test:audio && npm run test:clock && npm run test:draw-storage && npm run test:balanced-draw && npm run test:offline && npm run test:match-queue && npm run test:match-save && npm run test:public-refresh

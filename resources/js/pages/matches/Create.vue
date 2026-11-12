@@ -29,6 +29,13 @@ import type {
 import { formatClock } from '@/lib/matchClock';
 import { load as loadDraw } from '@/lib/drawStorage';
 import { transitionSounds } from '@/lib/matchClockCore';
+import { loadQueue } from '@/lib/matchQueue';
+import { enqueueMatchBeforeClearingDraft } from '@/lib/matchSave';
+import {
+    offlineStatus,
+    refreshOfflineStatus,
+    syncNow,
+} from '@/lib/offlineSync';
 
 const page = usePage();
 const draftKey = `hockey-rascunho:${page.props.team.id}`;
@@ -55,7 +62,13 @@ const dialog = ref<{ team: 'home' | 'away'; scorer: Player | null } | null>(
     null,
 );
 const saving = ref(false);
+const queuedForCurrentMatch = ref(false);
 const error = ref('');
+const notice = ref('');
+const queued = computed(() => {
+    void offlineStatus.value.revision;
+    return loadQueue(localStorage, page.props.team.id).length;
+});
 let recordedTransitions = 0;
 const wake = useWakeLock();
 const sound = useMatchAudio();
@@ -265,7 +278,6 @@ function finishAndSave() {
     clock.finish();
     recordClock('finish');
     void wake.release();
-    localStorage.removeItem(draftKey);
     save();
 }
 function resetMatch() {
@@ -287,6 +299,7 @@ function resetMatch() {
     recordedTransitions = 0;
     dialog.value = null;
     error.value = '';
+    queuedForCurrentMatch.value = false;
     void wake.release();
 }
 watch(
@@ -446,17 +459,13 @@ function upload(event: Event, key: 'start' | 'end' | 'rest_end') {
         name: file.name,
     };
 }
-function save() {
-    if (saving.value) return;
+function matchPayload(): Record<string, unknown> | null {
     if (!roster.value || !clock.state.startedAt) {
         error.value = 'Comece a partida antes de salvar.';
-        return;
+        return null;
     }
-    saving.value = true;
-    error.value = '';
-    router.post(
-        '/partidas',
-        {
+    return JSON.parse(
+        JSON.stringify({
             roster: roster.value,
             settings: config.value,
             goals: goals.value,
@@ -465,20 +474,40 @@ function save() {
             away_score: awayScore.value,
             started_at: clock.state.startedAt,
             finished_at: new Date().toISOString(),
-        },
-        {
-            onError: (errors) => {
-                error.value =
-                    Object.values(errors)[0] || 'Confira os dados da partida.';
-                saving.value = false;
-            },
-            onSuccess: () => {
-                sessionStorage.removeItem('hockey-teams');
-                localStorage.removeItem(draftKey);
-            },
-            preserveScroll: true,
-        },
+        }),
+    ) as Record<string, unknown>;
+}
+async function save() {
+    if (saving.value || queuedForCurrentMatch.value) return;
+    const payload = matchPayload();
+    if (!payload) return;
+    saving.value = true;
+    error.value = '';
+    let queued;
+    try {
+        queued = enqueueMatchBeforeClearingDraft(
+            localStorage,
+            page.props.team.id,
+            payload,
+            draftKey,
+        );
+    } catch {
+        error.value =
+            'Não foi possível guardar a partida no aparelho. O rascunho foi mantido.';
+        saving.value = false;
+        return;
+    }
+    queuedForCurrentMatch.value = true;
+    sessionStorage.removeItem('hockey-teams');
+    refreshOfflineStatus();
+    notice.value =
+        'Partida guardada no aparelho. Será enviada quando houver conexão.';
+    const uploaded = await syncNow();
+    saving.value = false;
+    const saved = uploaded.find(
+        (item) => item.client_uuid === queued.client_uuid,
     );
+    if (saved?.url) router.visit(saved.url);
 }
 onBeforeUnmount(() => {
     void wake.release();
@@ -515,6 +544,16 @@ onBeforeUnmount(() => {
         <Link v-if="!roster" href="/sorteio" class="font-bold underline"
             >Ir para o sorteio</Link
         >
+    </div>
+    <div
+        v-if="notice"
+        class="mb-4 rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-800 dark:border-green-800/60 dark:bg-green-950/60 dark:text-green-200"
+        role="status"
+    >
+        {{ notice }}
+        <button class="ml-2 font-bold underline" @click="resetMatch">
+            Iniciar nova partida
+        </button>
     </div>
     <section
         v-if="showConfig"
@@ -876,7 +915,7 @@ onBeforeUnmount(() => {
         <div v-if="!isFullscreen" class="mt-3 flex gap-2">
             <button
                 class="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white text-sm font-bold disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900"
-                :disabled="saving"
+                :disabled="saving || queuedForCurrentMatch"
                 @click="
                     clock.state.phase === 'finished' ? save() : finishAndSave()
                 "
@@ -884,6 +923,18 @@ onBeforeUnmount(() => {
                 <Save class="size-5" />Salvar partida
             </button>
         </div>
+        <div
+            v-if="queued"
+            class="mt-3 flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
+        >
+            <span>{{ queued }} partida(s) aguardando envio.</span>
+            <button class="font-bold underline" @click="syncNow">
+                Enviar agora
+            </button>
+        </div>
+        <p v-if="offlineStatus.error" class="mt-2 text-sm text-red-700">
+            {{ offlineStatus.error }} A partida continua aguardando envio.
+        </p>
         <section
             v-if="!isFullscreen"
             class="mt-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"

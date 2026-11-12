@@ -1,16 +1,25 @@
 <script setup lang="ts">
 import PlayerPhoto from '@/components/hockey/PlayerPhoto.vue';
 import StarRating from '@/components/hockey/StarRating.vue';
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { Pencil, Plus, Search, Trash2, Users, X } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { Player } from '@/types/hockey';
+import { changePresence, loadPlayers } from '@/lib/offlineStorage';
+import { syncNow } from '@/lib/offlineSync';
 
 const props = defineProps<{ players: Player[]; presentCount: number }>();
+const page = usePage();
+const accountId = (page.props.team as { id: number }).id;
+const players = ref<Player[]>(
+    loadPlayers(localStorage, accountId, props.players),
+);
+const online = ref(navigator.onLine);
 const editing = ref<Player | null>(null);
 const showForm = ref(false);
 const search = ref('');
 const photoPreview = ref<string | null>(null);
+const offlineMessage = ref('');
 const form = useForm<{
     name: string;
     jersey_number: number | '';
@@ -27,13 +36,39 @@ const form = useForm<{
     remove_photo: false,
 });
 const filteredPlayers = computed(() =>
-    props.players.filter((player) =>
+    players.value.filter((player) =>
         `${player.name} ${player.jersey_number}`
             .toLowerCase()
             .includes(search.value.toLowerCase()),
     ),
 );
+const presentCount = computed(
+    () => players.value.filter((player) => player.present).length,
+);
+const requiresConnection = (action: string): boolean => {
+    if (online.value) return false;
+    offlineMessage.value = `Sem conexão — conecte-se para ${action}.`;
+    return true;
+};
+const updateOnline = () => {
+    online.value = navigator.onLine;
+};
+onMounted(() => {
+    window.addEventListener('online', updateOnline);
+    window.addEventListener('offline', updateOnline);
+});
+onBeforeUnmount(() => {
+    window.removeEventListener('online', updateOnline);
+    window.removeEventListener('offline', updateOnline);
+});
+watch(
+    () => props.players,
+    (serverPlayers) => {
+        players.value = loadPlayers(localStorage, accountId, serverPlayers);
+    },
+);
 function openNew() {
+    if (requiresConnection('cadastrar jogadores')) return;
     editing.value = null;
     showForm.value = true;
     photoPreview.value = null;
@@ -42,6 +77,7 @@ function openNew() {
     form.level = 3;
 }
 function openEdit(player: Player) {
+    if (requiresConnection('editar jogadores')) return;
     editing.value = player;
     showForm.value = true;
     photoPreview.value = player.photo_url;
@@ -63,6 +99,7 @@ function preview(event: Event) {
     photoPreview.value = file ? URL.createObjectURL(file) : null;
 }
 function save() {
+    if (requiresConnection('salvar jogadores')) return;
     if (editing.value) {
         form.transform((data) => ({ ...data, _method: 'patch' })).post(
             `/jogadores/${editing.value.id}`,
@@ -81,16 +118,30 @@ function save() {
     }
 }
 function presenceAll(present: boolean) {
-    router.post('/presenca', { present }, { preserveScroll: true });
+    const changedAt = new Date().toISOString();
+    for (const player of players.value)
+        players.value = changePresence(
+            localStorage,
+            accountId,
+            players.value,
+            player.id,
+            present,
+            changedAt,
+        );
+    void syncNow();
 }
 function toggle(player: Player) {
-    router.patch(
-        `/jogadores/${player.id}/presenca`,
-        { present: !player.present },
-        { preserveScroll: true },
+    players.value = changePresence(
+        localStorage,
+        accountId,
+        players.value,
+        player.id,
+        !player.present,
     );
+    void syncNow();
 }
 function remove(player: Player) {
+    if (requiresConnection('remover jogadores')) return;
     if (
         window.confirm(
             `Remover ${player.name}? Os gols do histórico serão preservados.`,
@@ -116,11 +167,22 @@ function remove(player: Player) {
             </p>
         </div>
         <button
-            class="flex min-h-12 items-center gap-2 rounded-xl bg-[var(--team-primary)] px-4 font-bold text-[var(--team-primary-text)]"
+            class="flex min-h-12 items-center gap-2 rounded-xl bg-[var(--team-primary)] px-4 font-bold text-[var(--team-primary-text)] disabled:cursor-not-allowed disabled:opacity-50"
             data-test="novo-jogador"
+            :disabled="!online"
             @click="openNew"
         >
             <Plus class="size-5" />Novo jogador
+        </button>
+    </div>
+    <div
+        v-if="offlineMessage"
+        class="mb-4 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/50 dark:text-amber-100"
+        role="status"
+    >
+        {{ offlineMessage }}
+        <button class="font-bold underline" @click="offlineMessage = ''">
+            Fechar
         </button>
     </div>
     <section
@@ -203,15 +265,17 @@ function remove(player: Player) {
                 </label>
                 <div class="flex shrink-0">
                     <button
-                        class="flex size-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                        class="flex size-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 dark:text-slate-400 dark:hover:bg-slate-800"
                         :aria-label="`Editar ${player.name}`"
+                        :disabled="!online"
                         @click="openEdit(player)"
                     >
                         <Pencil class="size-4" />
                     </button>
                     <button
-                        class="flex size-8 items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 dark:text-slate-400"
+                        class="flex size-8 items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40 dark:text-slate-400"
                         :aria-label="`Remover ${player.name}`"
+                        :disabled="!online"
                         @click="remove(player)"
                     >
                         <Trash2 class="size-4" />
@@ -230,7 +294,8 @@ function remove(player: Player) {
             Cadastre nome, número, foto e nível dos jogadores.
         </p>
         <button
-            class="mt-5 rounded-xl bg-slate-900 px-5 py-3 font-bold text-white dark:bg-slate-700"
+            class="mt-5 rounded-xl bg-slate-900 px-5 py-3 font-bold text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-700"
+            :disabled="!online"
             @click="openNew"
         >
             Cadastrar primeiro jogador
@@ -275,10 +340,11 @@ function remove(player: Player) {
                     >
                     <div>
                         <label
-                            class="cursor-pointer rounded-xl bg-slate-100 px-4 py-3 text-sm font-bold dark:bg-slate-800"
+                            class="cursor-pointer rounded-xl bg-slate-100 px-4 py-3 text-sm font-bold has-disabled:cursor-not-allowed has-disabled:opacity-50 dark:bg-slate-800"
                             >Adicionar foto<input
                                 type="file"
                                 class="sr-only"
+                                :disabled="!online"
                                 accept="image/jpeg,image/png,image/webp"
                                 @change="preview"
                         /></label>

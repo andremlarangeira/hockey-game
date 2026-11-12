@@ -5,6 +5,7 @@ export interface Player {
     photo_url: string | null;
     level: number | string;
     present: boolean;
+    presence_changed_at?: string | null;
 }
 
 export interface DrawTeam {

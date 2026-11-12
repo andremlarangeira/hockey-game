@@ -5,6 +5,8 @@ import { ArrowRight, GripVertical, Shuffle } from 'lucide-vue-next';
 import draggable from 'vuedraggable';
 import { computed, onMounted, ref } from 'vue';
 import { load, reconcile, save as saveDraw } from '@/lib/drawStorage';
+import { balancedDraw } from '@/lib/balancedDraw';
+import { loadPlayers } from '@/lib/offlineStorage';
 import type { DrawResult, DrawTeam, Player } from '@/types/hockey';
 
 const props = defineProps<{
@@ -15,6 +17,11 @@ const props = defineProps<{
 }>();
 const page = usePage();
 const accountId = page.props.team.id;
+const players = ref<Player[]>(
+    loadPlayers(localStorage, accountId, props.players).filter(
+        (player) => player.present,
+    ),
+);
 const teams = ref<DrawTeam[]>([]);
 const reserves = ref<Player[]>([]);
 const mode = ref<'players' | 'teams'>(props.mode);
@@ -63,7 +70,10 @@ onMounted(() => {
     const saved = load(localStorage, accountId);
     if (!saved) return;
 
-    const reconciled = reconcile(saved, props.players);
+    players.value = loadPlayers(localStorage, accountId, props.players).filter(
+        (player) => player.present,
+    );
+    const reconciled = reconcile(saved, players.value);
     teams.value = reconciled.draw.teams;
     reserves.value = reconciled.draw.reserves;
     mode.value = reconciled.draw.mode;
@@ -78,6 +88,14 @@ async function draw() {
     loading.value = true;
     error.value = '';
     try {
+        if (!navigator.onLine) {
+            const result = balancedDraw(players.value, mode.value, size.value);
+            teams.value = result.teams;
+            reserves.value = result.reserves;
+            persistDraw();
+            sessionStorage.removeItem('hockey-match');
+            return;
+        }
         const csrf =
             document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
                 ?.content ?? '';

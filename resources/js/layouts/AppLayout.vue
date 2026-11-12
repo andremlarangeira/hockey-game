@@ -2,6 +2,8 @@
 import TeamLogo from '@/components/hockey/TeamLogo.vue';
 import { computed, ref } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
+import { clearOfflineSnapshots } from '@/lib/offlineStorage';
+import { offlineStatus, syncNow } from '@/lib/offlineSync';
 import {
     History,
     LogOut,
@@ -19,6 +21,7 @@ const page = usePage();
 const team = computed(
     () =>
         page.props.team as {
+            id: number;
             name: string;
             logo_url: string | null;
             primary_color: string;
@@ -67,6 +70,14 @@ const isActive = (href: string): boolean => {
     const [path] = page.url.split('?');
     return path === href || path.startsWith(`${href}/`);
 };
+function signOut() {
+    const accountId = team.value?.id;
+    if (accountId) clearOfflineSnapshots(localStorage, accountId);
+    navigator.serviceWorker?.controller?.postMessage({
+        type: 'CLEAR_OFFLINE_CACHE',
+    });
+    router.post('/logout');
+}
 </script>
 
 <template>
@@ -124,7 +135,7 @@ const isActive = (href: string): boolean => {
             </nav>
             <button
                 class="mt-4 flex min-h-14 w-full items-center gap-3 rounded-xl border border-white/15 px-4 transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-[var(--team-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 focus-visible:outline-none"
-                @click="router.post('/logout')"
+                @click="signOut"
             >
                 <LogOut class="size-5" />Sair
             </button>
@@ -152,7 +163,7 @@ const isActive = (href: string): boolean => {
                 </nav>
                 <button
                     class="mt-auto flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm text-slate-600 transition-colors hover:bg-white hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-[var(--team-primary)] focus-visible:ring-offset-2 focus-visible:outline-none dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white dark:focus-visible:ring-offset-slate-950"
-                    @click="router.post('/logout')"
+                    @click="signOut"
                 >
                     <LogOut class="size-5" />Sair
                 </button>
@@ -166,6 +177,46 @@ const isActive = (href: string): boolean => {
                     role="status"
                 >
                     {{ flash.success }}
+                </div>
+                <div
+                    v-if="
+                        offlineStatus.offline ||
+                        offlineStatus.syncing ||
+                        offlineStatus.pendingMatches ||
+                        offlineStatus.relogin ||
+                        offlineStatus.error
+                    "
+                    class="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                    role="status"
+                >
+                    <span v-if="offlineStatus.relogin"
+                        >Entre novamente para enviar as partidas.
+                        <a href="/login" class="underline">Entrar</a></span
+                    >
+                    <span v-else-if="offlineStatus.syncing"
+                        >Sincronizando…</span
+                    >
+                    <span v-else-if="offlineStatus.offline">Sem conexão</span>
+                    <span v-else
+                        >{{ offlineStatus.pendingMatches }} partida(s)
+                        aguardando envio</span
+                    >
+                    <button
+                        v-if="
+                            !offlineStatus.offline &&
+                            !offlineStatus.relogin &&
+                            offlineStatus.pendingMatches
+                        "
+                        class="underline"
+                        @click="syncNow"
+                    >
+                        Enviar agora
+                    </button>
+                    <span
+                        v-if="offlineStatus.error"
+                        class="w-full text-red-700 dark:text-red-300"
+                        >{{ offlineStatus.error }}</span
+                    >
                 </div>
                 <slot />
             </main>

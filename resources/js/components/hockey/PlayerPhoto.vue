@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import type { Player } from '@/types/hockey';
 const props = withDefaults(
     defineProps<{
@@ -17,15 +17,17 @@ const initials = computed(() =>
         .slice(0, 2)
         .join(''),
 );
+const photoAvailable = ref(true);
 </script>
 
 <template>
     <img
-        v-if="player.photo_url"
+        v-if="player.photo_url && photoAvailable"
         :src="player.photo_url"
         :alt="`Foto de ${player.name}`"
         class="shrink-0 rounded-xl border border-slate-200 object-cover dark:border-slate-700"
         :class="size"
+        @error="photoAvailable = false"
     />
     <span
         v-else
