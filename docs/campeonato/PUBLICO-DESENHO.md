@@ -1,4 +1,4 @@
-You implement a feature in this Laravel 13 / PHP 8.5 / Inertia v3 / Vue 3 / TS / Tailwind repo (git worktree /home/andre/Documents/laravel/hockey-times-publico, branch feat/campeonato-publico). App "Na Quadra" (pt-BR). Championship module already exists under app/Championships, app/Http/Controllers/Championships, resources/js/pages/championships.
+You implement a feature in this Laravel 13 / PHP 8.5 / Inertia v3 / Vue 3 / TS / Tailwind repo (git worktree /home/andre/Documents/laravel/hockey-times-publico, branch feat/campeonato-publico). App "Hockey Game" (pt-BR). Championship module already exists under app/Championships, app/Http/Controllers/Championships, resources/js/pages/championships.
 HARD RULES:
 - Do NOT run git commit/push/reset/checkout/stash or any history-changing git. The orchestrator commits.
 - Do NOT edit .env, .lerd.yaml, .php-version, .node-version. Do NOT run php artisan migrate*, db:*, serve, tinker against a DB, or lerd. Tests use sqlite :memory: via phpunit.xml: run only `php artisan test --compact [path]`.

@@ -92,14 +92,14 @@ test('cria campeonato, atualiza detalhes e trava edição de regras após o sort
 
     $engine->updateDetails(
         championship: $championship,
-        name: 'Copa Municipal Na Quadra',
+        name: 'Copa Municipal Hockey Game',
         city: 'Campinas',
         venue: 'Arena Central',
         startsOn: CarbonImmutable::parse('2026-11-16'),
         endsOn: CarbonImmutable::parse('2026-11-23'),
     );
 
-    expect($championship->fresh()->name)->toBe('Copa Municipal Na Quadra')
+    expect($championship->fresh()->name)->toBe('Copa Municipal Hockey Game')
         ->and($championship->fresh()->city)->toBe('Campinas')
         ->and($championship->fresh()->venue)->toBe('Arena Central');
 

@@ -51,7 +51,7 @@ test('executa torneio determinístico completo de 8 equipes exclusivamente via H
 
     // 3. Update championship details & set rules (2 groups, 2 qualify, third place on, max 2 assists)
     $this->patch("/campeonatos/{$championship->id}", [
-        'name' => 'Copa Municipal Na Quadra',
+        'name' => 'Copa Municipal Hockey Game',
         'city' => 'São Paulo',
         'venue' => 'Arena Ibirapuera',
         'starts_on' => '2026-11-12',
@@ -72,7 +72,7 @@ test('executa torneio determinístico completo de 8 equipes exclusivamente via H
         'overtime_minutes' => 5,
     ])->assertRedirect();
 
-    expect($championship->fresh()->name)->toBe('Copa Municipal Na Quadra')
+    expect($championship->fresh()->name)->toBe('Copa Municipal Hockey Game')
         ->and($championship->fresh()->rules->groupsCount)->toBe(2)
         ->and($championship->fresh()->rules->qualifiersPerGroup)->toBe(2)
         ->and($championship->fresh()->rules->hasThirdPlaceMatch)->toBeTrue()

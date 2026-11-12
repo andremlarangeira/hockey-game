@@ -147,7 +147,7 @@ const submit = () =>
                 Aparência
             </legend>
             <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                Escolha como o Na Quadra é exibido neste dispositivo.
+                Escolha como o Hockey Game é exibido neste dispositivo.
             </p>
             <div
                 role="radiogroup"

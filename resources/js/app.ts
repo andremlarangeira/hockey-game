@@ -9,7 +9,7 @@ import {
     warmOfflinePages,
 } from '@/lib/offlineSync';
 
-const appName = 'Na Quadra';
+const appName = 'Hockey Game';
 
 initializeTheme();
 
@@ -61,7 +61,7 @@ void createInertiaApp({
                             navigator.serviceWorker.controller &&
                             location.pathname !== '/partida' &&
                             window.confirm(
-                                'Há uma nova versão do Na Quadra. Atualizar agora?',
+                                'Há uma nova versão do Hockey Game. Atualizar agora?',
                             )
                         )
                             worker.postMessage({ type: 'SKIP_WAITING' });

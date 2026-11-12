@@ -1,4 +1,4 @@
-# Na Quadra
+# Hockey Game
 
 Aplicativo para organizar times de hockey informal: elenco e presença, sorteio equilibrado, cronômetro, gols e histórico.
 

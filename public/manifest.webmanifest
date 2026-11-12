@@ -1,6 +1,6 @@
 {
-    "name": "Na Quadra",
-    "short_name": "Na Quadra",
+    "name": "Hockey Game",
+    "short_name": "Hockey Game",
     "start_url": "/jogadores",
     "scope": "/",
     "display": "standalone",

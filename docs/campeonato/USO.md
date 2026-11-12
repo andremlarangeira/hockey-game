@@ -1,6 +1,6 @@
 # Guia de Uso — Módulo de Campeonatos (`/campeonatos`)
 
-Este documento descreve em detalhes o funcionamento e o fluxo operacional do módulo de **Campeonatos** do aplicativo **Na Quadra**.
+Este documento descreve em detalhes o funcionamento e o fluxo operacional do módulo de **Campeonatos** do aplicativo **Hockey Game**.
 
 ---
 
@@ -133,7 +133,7 @@ Para corrigir erros de súmula após o encerramento de um jogo:
 
 ## 4. Notas de Deploy e Migrações
 
-Ao atualizar uma instalação existente do **Na Quadra** com o módulo de Campeonatos:
+Ao atualizar uma instalação existente do **Hockey Game** com o módulo de Campeonatos:
 
 1. **Banco de dados (6 novas migrações)**:
    - As migrações criam exclusivamente as 6 novas tabelas do módulo (`championships`, `championship_teams`, `championship_players`, `championship_games`, `championship_game_events` e `championship_audit_logs`), sem modificar tabelas pré-existentes.

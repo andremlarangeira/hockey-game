@@ -10,7 +10,7 @@ defineProps<{ title?: string; description?: string }>();
             <div class="mb-7 flex items-center gap-3 text-white">
                 <img src="/logo.png" alt="" class="size-14 shrink-0" />
                 <div>
-                    <p class="text-2xl font-black">Na Quadra</p>
+                    <p class="text-2xl font-black">Hockey Game</p>
                     <p class="text-xs text-slate-400">
                         Seu hockey. Suas equipes.
                     </p>

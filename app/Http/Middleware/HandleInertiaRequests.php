@@ -23,7 +23,7 @@ class HandleInertiaRequests extends Middleware
 
         return [
             ...parent::share($request),
-            'name' => 'Na Quadra',
+            'name' => 'Hockey Game',
             'auth' => ['user' => $team],
             'flash' => ['success' => $request->session()->get('success')],
             'team' => $team ? [

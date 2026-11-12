@@ -6,7 +6,7 @@ Grounding do sistema existente: `grounding.md`.
 
 ## Problema
 
-Organizar um campeonato municipal de hóquei dentro do app Na Quadra (cada conta = uma organização/tenant):
+Organizar um campeonato municipal de hóquei dentro do app Hockey Game (cada conta = uma organização/tenant):
 inscrição de times externos (nome, escudo, elenco com número/posição/goleiro), regras configuráveis antes do
 sorteio, sorteio persistente de grupos, turno (e opcionalmente returno) por grupo, classificação automática,
 desempates bem definidos, mata-mata gerado da classificação, placar ao vivo com gols/assistências/períodos

@@ -2,7 +2,7 @@
     "$schema": "https://getcomposer.org/schema.json",
     "name": "andre-larangeira/hockey-times",
     "type": "project",
-    "description": "Na Quadra: gerenciamento de equipes e partidas de hockey informal.",
+    "description": "Hockey Game: gerenciamento de equipes e partidas de hockey informal.",
     "keywords": [
         "hockey",
         "laravel",

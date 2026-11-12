@@ -1,4 +1,4 @@
-# Grounding: Na Quadra (hockey-times) — current architecture (Phase A)
+# Grounding: Hockey Game (hockey-times) — current architecture (Phase A)
 
 Stack: Laravel 13, PHP 8.5, Inertia v3 + Vue 3 + TypeScript, Fortify auth, Pest tests (sqlite :memory: via phpunit.xml), vite-plus (`npm run build`, `npm run types:check`, `npm run test:clock`). pt-BR UI. Pint, PHPStan config present.
 

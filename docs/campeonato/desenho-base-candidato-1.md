@@ -4,7 +4,7 @@
 
 ## 1. Problem
 
-**Na Quadra** (`hockey-times`) currently supports a single-club pickup ("pelada") workflow: one account maintains its own `players`, draws balanced ad-hoc teams in memory (`/sorteio`), runs a 100% client-side scoreboard (`/partida`), and persists completed casual games in `matches` and `goals` (with at most 1 assist per goal and `StatsController` aggregating `SELECT count(*) FROM goals WHERE user_id = ?` across the entire table).
+**Hockey Game** (`hockey-times`) currently supports a single-club pickup ("pelada") workflow: one account maintains its own `players`, draws balanced ad-hoc teams in memory (`/sorteio`), runs a 100% client-side scoreboard (`/partida`), and persists completed casual games in `matches` and `goals` (with at most 1 assist per goal and `StatsController` aggregating `SELECT count(*) FROM goals WHERE user_id = ?` across the entire table).
 
 The owner now needs to organize **city-wide championships (`/campeonatos`)** inside the same account, featuring:
 1. **External enrolled teams and rosters**: Teams with name, colors, logo upload, and players (name, jersey number, position, goalkeeper flag) that are **not** part of the user's pickup `players` pool and must never pollute `/jogadores` or `/estatisticas`.

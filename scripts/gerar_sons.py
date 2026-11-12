@@ -1,4 +1,4 @@
-"""Gera os efeitos sonoros do Na Quadra.
+"""Gera os efeitos sonoros do Hockey Game.
 
 O arquivo `public/sons/apito-inicio.wav` padrão provém de uma gravação real de
 apito de árbitro em domínio público (CC0 1.0) no Wikimedia Commons:
