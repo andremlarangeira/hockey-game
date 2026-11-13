@@ -7,6 +7,7 @@ import {
 } from '@/lib/offlineStorage';
 import { flushQueue, loadQueue } from '@/lib/matchQueue';
 import type { Player } from '@/types/hockey';
+import { initialInertiaPage, type InertiaPage } from '@/lib/inertiaPage';
 
 interface Identity {
     id: number;
@@ -25,6 +26,8 @@ const revision = ref(0);
 const online = ref(navigator.onLine);
 let syncRequested = false;
 let warmed = false;
+let warmedAccountId: number | null = null;
+let listenersStarted = false;
 let currentInertiaVersion: string | null = null;
 export const offlineStatus = computed(() => ({
     revision: revision.value,
@@ -54,8 +57,7 @@ function replaceCsrf(token: string): void {
     if (element) element.content = token;
 }
 
-async function session(): Promise<boolean> {
-    if (!account.value) return false;
+async function session(identity: Identity): Promise<boolean> {
     const response = await fetch('/sessao/estado', {
         headers: {
             Accept: 'application/json',
@@ -63,11 +65,16 @@ async function session(): Promise<boolean> {
         },
         credentials: 'same-origin',
     });
-    if (!response.ok || response.redirected) {
-        relogin.value =
-            response.status === 401 ||
-            response.status === 419 ||
-            response.redirected;
+    if (
+        response.status === 401 ||
+        response.status === 419 ||
+        response.redirected
+    ) {
+        relogin.value = true;
+        return false;
+    }
+    if (!response.ok) {
+        lastError.value = `Não foi possível verificar a sessão (HTTP ${response.status}). Tente novamente.`;
         return false;
     }
     const state = (await response.json()) as {
@@ -75,7 +82,7 @@ async function session(): Promise<boolean> {
         account_id: number;
         csrf_token: string;
     };
-    if (!state.authenticated || state.account_id !== account.value.id) {
+    if (!state.authenticated || state.account_id !== identity.id) {
         relogin.value = true;
         return false;
     }
@@ -91,7 +98,14 @@ export function showOfflineNavigationMessage(): void {
 export async function syncNow(): Promise<
     Array<{ client_uuid: string; url?: string }>
 > {
-    if (!account.value || !navigator.onLine) return [];
+    const identity = account.value;
+    if (!identity) {
+        lastError.value =
+            'Não foi possível sincronizar: a conta não está carregada.';
+        refreshOfflineStatus();
+        return [];
+    }
+    if (!navigator.onLine) return [];
     if (syncing.value) {
         syncRequested = true;
         return [];
@@ -102,8 +116,9 @@ export async function syncNow(): Promise<
     try {
         do {
             syncRequested = false;
-            if (!(await session())) break;
-            const changes = pendingPresence(localStorage, account.value.id);
+            if (!(await session(identity))) break;
+            if (account.value?.id !== identity.id) break;
+            const changes = pendingPresence(localStorage, identity.id);
             if (changes.length) {
                 const response = await fetch(
                     '/jogadores/presenca/sincronizar',
@@ -130,16 +145,16 @@ export async function syncNow(): Promise<
                 const data = (await response.json()) as { processed: number[] };
                 acknowledgePresence(
                     localStorage,
-                    account.value.id,
+                    identity.id,
                     changes.filter((change) =>
                         data.processed.includes(change.player_id),
                     ),
                 );
             }
-            const queue = loadQueue(localStorage, account.value.id);
+            const queue = loadQueue(localStorage, identity.id);
             const result = await flushQueue(
                 localStorage,
-                account.value.id,
+                identity.id,
                 async (item) => {
                     try {
                         const response = await fetch('/partidas', {
@@ -184,7 +199,7 @@ export async function syncNow(): Promise<
             uploaded.push(...result.uploaded);
             const initialIds = new Set(queue.map((item) => item.client_uuid));
             if (
-                loadQueue(localStorage, account.value.id).some(
+                loadQueue(localStorage, identity.id).some(
                     (item) => !initialIds.has(item.client_uuid),
                 )
             )
@@ -202,17 +217,15 @@ export async function syncNow(): Promise<
     return uploaded;
 }
 
+export function updateInertiaPage(page: InertiaPage | null): void {
+    currentInertiaVersion =
+        typeof page?.version === 'string' ? page.version : '';
+}
+
 function inertiaVersion(): string {
     if (currentInertiaVersion !== null) return currentInertiaVersion;
-    const raw =
-        document.querySelector<HTMLElement>('[data-page]')?.dataset.page;
-    if (!raw) return (currentInertiaVersion = '');
-    try {
-        return (currentInertiaVersion =
-            (JSON.parse(raw) as { version?: string }).version ?? '');
-    } catch {
-        return (currentInertiaVersion = '');
-    }
+    updateInertiaPage(initialInertiaPage());
+    return currentInertiaVersion ?? '';
 }
 
 async function warm(url: string, inertia = false): Promise<Response | null> {
@@ -240,10 +253,15 @@ export async function warmOfflinePages(
 ): Promise<void> {
     if (!navigator.onLine || (warmed && !force)) return;
     warmed = true;
+    warmedAccountId = identity.id;
     const pages = ['/jogadores', '/sorteio', '/partida'];
+    // O HTML só pode ser guardado pelo próprio service worker; sem controller
+    // (primeira visita ou dev) o aquecimento roda de novo no controllerchange.
+    navigator.serviceWorker?.controller?.postMessage({
+        type: 'WARM_PAGES',
+        urls: pages,
+    });
     for (const url of pages) {
-        const documentResponse = await warm(url);
-        void documentResponse;
         const inertia = await warm(url, true);
         if (url === '/jogadores' && inertia) {
             const data = (await inertia
@@ -263,19 +281,30 @@ export function startOfflineSync(
     identity: Identity | null,
     warmPages = true,
 ): void {
-    if (!identity) return;
+    if (!listenersStarted) {
+        listenersStarted = true;
+        window.addEventListener('online', () => {
+            online.value = true;
+            if (account.value) void syncNow();
+        });
+        window.addEventListener('offline', () => {
+            online.value = false;
+        });
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && account.value)
+                void syncNow();
+        });
+    }
+    if (!identity) {
+        account.value = null;
+        warmed = false;
+        warmedAccountId = null;
+        refreshOfflineStatus();
+        return;
+    }
+    if (warmedAccountId !== identity.id) warmed = false;
     account.value = identity;
     saveIdentity(localStorage, identity);
     if (warmPages) void warmOfflinePages(identity);
     void syncNow();
-    window.addEventListener('online', () => {
-        online.value = true;
-        void syncNow();
-    });
-    window.addEventListener('offline', () => {
-        online.value = false;
-    });
-    document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') void syncNow();
-    });
 }

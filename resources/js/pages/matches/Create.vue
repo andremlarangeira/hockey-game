@@ -291,6 +291,7 @@ function resetMatch() {
         return;
     clock.configure(config.value);
     clock.reset();
+    sound.stop();
     localStorage.removeItem(draftKey);
     roster.value = null;
     showConfig.value = true;

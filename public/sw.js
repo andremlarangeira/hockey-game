@@ -1,4 +1,4 @@
-const VERSION = 'v2';
+const VERSION = 'v3';
 const PAGES_CACHE = `na-quadra-pages-${VERSION}`;
 const ASSETS_CACHE = `na-quadra-assets-${VERSION}`;
 const ROUTES = new Set(['/jogadores', '/sorteio', '/partida']);
@@ -157,7 +157,30 @@ self.addEventListener('message', (event) => {
         event.waitUntil(caches.delete(PAGES_CACHE));
     if (event.data?.type === 'PRECACHE_ASSETS')
         event.waitUntil(precacheAssets());
+    if (event.data?.type === 'WARM_PAGES')
+        event.waitUntil(warmPages(event.data.urls));
 });
+
+async function warmPages(urls) {
+    const cache = await caches.open(PAGES_CACHE);
+    for (const url of Array.isArray(urls) ? urls : []) {
+        if (typeof url !== 'string') continue;
+        const path = new URL(url, self.location.origin).pathname;
+        if (!ROUTES.has(path)) continue;
+        const request = new Request(new URL(path, self.location.origin), {
+            credentials: 'same-origin',
+            headers: { Accept: 'text/html' },
+            cache: 'no-store',
+        });
+        try {
+            const response = await fetch(request);
+            if (validPageResponse(request, response, false))
+                await cache.put(pageKey(request, false), response.clone());
+        } catch {
+            // A próxima abertura online tenta novamente.
+        }
+    }
+}
 
 async function pageNetworkFirst(request, inertia) {
     const cache = await caches.open(PAGES_CACHE);
@@ -173,6 +196,18 @@ async function pageNetworkFirst(request, inertia) {
             ? Response.error()
             : (await caches.open(ASSETS_CACHE)).match('/offline.html');
     }
+}
+
+async function offlineNavigationFallback(pathname) {
+    if (pathname === '/' || pathname === '/dashboard') {
+        const cache = await caches.open(PAGES_CACHE);
+        const jogadores = new Request(
+            new URL('/jogadores', self.location.origin),
+        );
+        const cached = await cache.match(pageKey(jogadores, false));
+        if (cached) return cached;
+    }
+    return (await caches.open(ASSETS_CACHE)).match('/offline.html');
 }
 
 async function assetCacheFirst(request, networkFirst = false) {
@@ -202,9 +237,7 @@ self.addEventListener('fetch', (event) => {
     }
     if (request.mode === 'navigate') {
         event.respondWith(
-            fetch(request).catch(async () =>
-                (await caches.open(ASSETS_CACHE)).match('/offline.html'),
-            ),
+            fetch(request).catch(() => offlineNavigationFallback(url.pathname)),
         );
         return;
     }

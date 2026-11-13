@@ -6,8 +6,10 @@ import SettingsLayout from '@/layouts/settings/Layout.vue';
 import {
     showOfflineNavigationMessage,
     startOfflineSync,
+    updateInertiaPage,
     warmOfflinePages,
 } from '@/lib/offlineSync';
+import { initialInertiaPage, type InertiaPage } from '@/lib/inertiaPage';
 
 const appName = 'Hockey Game';
 
@@ -37,18 +39,30 @@ void createInertiaApp({
     },
     progress: { color: '#166534' },
 }).then(() => {
-    const raw =
-        document.querySelector<HTMLElement>('[data-page]')?.dataset.page;
-    const team = raw
-        ? ((
-              JSON.parse(raw) as {
-                  props?: { team?: Parameters<typeof startOfflineSync>[0] };
-              }
-          ).props?.team ?? null)
-        : null;
     const usesServiceWorker =
         import.meta.env.PROD && 'serviceWorker' in navigator;
-    startOfflineSync(team, !usesServiceWorker);
+    let team: Parameters<typeof startOfflineSync>[0] = null;
+    let started = false;
+    // O login é uma visita Inertia: a conta precisa ser lida a cada navegação,
+    // mas a sincronização só reinicia quando o time muda.
+    const syncPage = (page: InertiaPage | null) => {
+        updateInertiaPage(page);
+        const next =
+            (page?.props?.team as Parameters<typeof startOfflineSync>[0]) ??
+            null;
+        if (started && next?.id === team?.id) {
+            team = next;
+            return;
+        }
+        started = true;
+        team = next;
+        startOfflineSync(team, !usesServiceWorker);
+        if (usesServiceWorker && team) void warmOfflinePages(team);
+    };
+
+    syncPage(initialInertiaPage());
+    router.on('navigate', (event) => syncPage(event.detail.page));
+
     if (usesServiceWorker)
         void navigator.serviceWorker
             .register('/sw.js', { scope: '/' })

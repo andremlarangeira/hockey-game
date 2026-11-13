@@ -2,6 +2,7 @@ import { computed, onBeforeUnmount, onMounted, reactive } from 'vue';
 import type { MatchSettings } from '@/types/hockey';
 import { formatClock } from '@/lib/matchClock';
 import { MatchClockCore } from '@/lib/matchClockCore';
+import { createMatchClockTransitions } from '@/lib/matchClockTransitions';
 
 export function useMatchClock(
     settings: MatchSettings,
@@ -9,6 +10,7 @@ export function useMatchClock(
     onCountdown: (second: number) => void,
 ) {
     const clock = new MatchClockCore(settings);
+    const transitionView = createMatchClockTransitions(clock);
     const state = reactive({
         phase: clock.phase,
         period: 1,
@@ -55,7 +57,9 @@ export function useMatchClock(
     });
     return reactive({
         state,
-        transitions: computed(() => clock.transitions),
+        get transitions() {
+            return transitionView.transitions;
+        },
         export: () => clock.export(),
         running: computed(() =>
             ['countdown', 'period', 'rest'].includes(state.phase),

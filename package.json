@@ -18,7 +18,9 @@
         "test:match-queue": "node tests/Unit/matchQueue.test.mjs",
         "test:match-save": "node tests/Unit/matchSave.test.mjs",
         "test:public-refresh": "node tests/Unit/publicRefreshLoop.test.mjs",
-        "test:e2e": "node tests/Browser/smoke.mjs"
+        "test:inertia-page": "node tests/Unit/inertiaPage.test.mjs",
+        "test:e2e": "node tests/Browser/smoke.mjs",
+        "test:e2e:offline": "node tests/Browser/offline.mjs"
     },
     "dependencies": {
         "@inertiajs/vite": "^3.0.0",

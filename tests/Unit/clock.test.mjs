@@ -18,8 +18,16 @@ const source = readFileSync(
     };`,
 );
 writeFileSync(`${temp}/matchClockCore.ts`, source);
+writeFileSync(
+    `${temp}/matchClockTransitions.ts`,
+    readFileSync(
+        `${cwd}/resources/js/lib/matchClockTransitions.ts`,
+        'utf8',
+    ).replace('@/lib/matchClockCore', './matchClockCore'),
+);
 execFileSync(`${cwd}/node_modules/typescript/bin/tsc`, [
     `${temp}/matchClockCore.ts`,
+    `${temp}/matchClockTransitions.ts`,
     '--target',
     'ES2022',
     '--module',
@@ -30,6 +38,9 @@ execFileSync(`${cwd}/node_modules/typescript/bin/tsc`, [
 writeFileSync(`${temp}/package.json`, '{"type":"commonjs"}');
 const { MatchClockCore, transitionSounds } = await import(
     `${temp}/matchClockCore.js`
+);
+const { createMatchClockTransitions } = await import(
+    `${temp}/matchClockTransitions.js`
 );
 let now = 0;
 const clock = new MatchClockCore({
@@ -95,6 +106,26 @@ const unspecifiedCountdown = new MatchClockCore({
 unspecifiedCountdown.start();
 unspecifiedCountdown.reset();
 assert.equal(unspecifiedCountdown.remaining, 60);
+
+// O consumidor precisa enxergar o novo array depois de reiniciar uma partida.
+const secondMatch = new MatchClockCore({
+    minutes: 1,
+    periods: 1,
+    rest_seconds: 5,
+    countdown_seconds: 1,
+});
+const transitionView = createMatchClockTransitions(secondMatch);
+const visibleTransitions = () => transitionView.transitions;
+secondMatch.start(0);
+secondMatch.tick(1_000);
+assert.equal(visibleTransitions().length, 1);
+const firstMatchTransitions = visibleTransitions();
+secondMatch.reset();
+secondMatch.start(10_000);
+secondMatch.tick(11_000);
+assert.equal(visibleTransitions().length, 1);
+assert.notEqual(visibleTransitions(), firstMatchTransitions);
+assert.equal(visibleTransitions()[0].at, new Date(11_000).toISOString());
 const serialized = new MatchClockCore({
     minutes: 1,
     periods: 2,
