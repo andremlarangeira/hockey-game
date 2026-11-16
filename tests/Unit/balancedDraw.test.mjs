@@ -27,7 +27,13 @@ execFileSync(`${cwd}/node_modules/typescript/bin/tsc`, [
     temp,
 ]);
 writeFileSync(`${temp}/package.json`, '{"type":"commonjs"}');
-const { balancedDraw } = await import(`${temp}/balancedDraw.js`);
+const {
+    applyTeamColorsToRoster,
+    applyTeamColorsToTeams,
+    balancedDraw,
+    drawPalette,
+    readableText,
+} = await import(`${temp}/balancedDraw.js`);
 
 const players = (count = 18) =>
     Array.from({ length: count }, (_, index) => ({
@@ -96,3 +102,159 @@ for (const scenario of phpScenarios) {
 assert.throws(() => balancedDraw([], 'players', 4, seeded()));
 assert.throws(() => balancedDraw(players(8), 'invalid', 4, seeded()));
 assert.throws(() => balancedDraw(players(8), 'players', 0, seeded()));
+
+const withTeamDefaults = balancedDraw(
+    players(16),
+    'teams',
+    4,
+    seeded(),
+    '#166534',
+    '#f59e0b',
+);
+assert.deepEqual(
+    withTeamDefaults.teams.map((team) => team.color),
+    ['#166534', '#f59e0b', '#eab308', '#16a34a'],
+    'usa as cores de Meu time nas duas primeiras equipes e mantém o restante da paleta',
+);
+
+const deduplicated = balancedDraw(
+    players(16),
+    'teams',
+    4,
+    seeded(),
+    '#eab308',
+    '#16a34a',
+);
+assert.deepEqual(
+    deduplicated.teams.map((team) => team.color),
+    ['#eab308', '#16a34a', '#9333ea', '#ea580c'],
+    'evita duplicar as duas primeiras cores nas equipes 3+',
+);
+
+const withFallbacks = balancedDraw(
+    players(12),
+    'teams',
+    3,
+    seeded(),
+    '',
+    'invalida',
+);
+assert.deepEqual(
+    withFallbacks.teams.map((team) => team.color),
+    ['#2563eb', '#dc2626', '#eab308'],
+    'usa azul e vermelho como fallback quando as cores são vazias ou inválidas',
+);
+assert.deepEqual(drawPalette(null, '#abc'), [
+    '#2563eb',
+    '#dc2626',
+    '#eab308',
+    '#16a34a',
+    '#9333ea',
+    '#ea580c',
+    '#0891b2',
+    '#db2777',
+]);
+
+assert.equal(readableText('#166534'), '#ffffff');
+assert.equal(readableText('#2563eb'), '#ffffff');
+assert.equal(readableText('#dc2626'), '#ffffff');
+assert.equal(readableText('#0f172a'), '#ffffff');
+assert.equal(readableText('#f59e0b'), '#0f172a');
+assert.equal(readableText('#eab308'), '#0f172a');
+assert.equal(readableText('#84cc16'), '#0f172a');
+assert.equal(readableText('#ffffff'), '#0f172a');
+assert.equal(readableText('invalida'), '#ffffff');
+
+const recoloredTeams = applyTeamColorsToTeams(
+    [
+        {
+            id: 'equipe-2',
+            name: 'Lobos Renomeados',
+            color: '#dc2626',
+            players: players(2),
+        },
+        {
+            id: 'equipe-1',
+            name: 'Tigres Renomeados',
+            color: '#2563eb',
+            players: players(2),
+        },
+        {
+            id: 'equipe-3',
+            name: 'Ursos',
+            color: '#eab308',
+            players: players(2),
+        },
+    ],
+    '#0f766e',
+    '#f59e0b',
+);
+assert.equal(recoloredTeams[0].color, '#f59e0b');
+assert.equal(recoloredTeams[1].color, '#0f766e');
+assert.equal(recoloredTeams[2].color, '#eab308');
+
+const swappedRoster = applyTeamColorsToRoster(
+    {
+        home: {
+            id: 'equipe-2',
+            name: 'Time Visitante no Topo',
+            color: '#dc2626',
+            players: players(2),
+        },
+        away: {
+            id: 'equipe-1',
+            name: 'Time Casa em Baixo',
+            color: '#2563eb',
+            players: players(2),
+        },
+    },
+    '#166534',
+    '#f59e0b',
+);
+assert.equal(
+    swappedRoster.home.color,
+    '#f59e0b',
+    'identifica equipe-2 pelo id estável mesmo quando está em home',
+);
+assert.equal(
+    swappedRoster.away.color,
+    '#166534',
+    'identifica equipe-1 pelo id estável mesmo quando está em away',
+);
+
+const allPlayers = players(4);
+const legacyDrawList = [
+    {
+        name: 'Primeiro Sorteado',
+        color: '#2563eb',
+        players: allPlayers.slice(0, 2),
+    },
+    {
+        name: 'Segundo Sorteado',
+        color: '#dc2626',
+        players: allPlayers.slice(2, 4),
+    },
+];
+const legacyRoster = applyTeamColorsToRoster(
+    {
+        home: {
+            name: 'Segundo Sorteado',
+            color: '#dc2626',
+            players: allPlayers.slice(2, 4),
+        },
+        away: {
+            name: 'Primeiro Sorteado',
+            color: '#2563eb',
+            players: allPlayers.slice(0, 2),
+        },
+    },
+    '#166534',
+    '#f59e0b',
+    legacyDrawList,
+);
+assert.equal(
+    legacyRoster.home.color,
+    '#f59e0b',
+    'sem id estável, usa a ordem da lista do sorteio e não a ordem home/away do roster',
+);
+assert.equal(legacyRoster.away.color, '#166534');

@@ -34,13 +34,21 @@ class DrawController extends Controller
             'mode' => ['required', 'in:players,teams'],
             'size' => ['required', 'integer', 'between:1,30'],
         ]);
-        $players = $request->user()->players()->where('present', true)->get()
+        $user = $request->user();
+        $players = $user->players()->where('present', true)->get()
             ->map(fn (Player $player): array => $player->toDrawPlayer())
             ->values();
 
         try
         {
-            $result = $draw->draw($players, $data['mode'], $data['size']);
+            $result = $draw->draw(
+                $players,
+                $data['mode'],
+                $data['size'],
+                null,
+                $user->primary_color,
+                $user->secondary_color,
+            );
         }
         catch (\InvalidArgumentException $exception)
         {

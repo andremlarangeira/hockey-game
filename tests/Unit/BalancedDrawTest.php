@@ -1,6 +1,7 @@
 <?php
 
 use App\Services\BalancedDraw;
+use App\Support\TeamColors;
 use Illuminate\Support\Collection;
 
 function drawPlayers(int $count = 18): Collection
@@ -69,4 +70,43 @@ test('apenas presentes participam e grupos inválidos são rejeitados', function
     $result = (new BalancedDraw)->draw($players, 'players', 4);
     expect(collect($result['teams'])->pluck('players')->flatten(1)->pluck('id')->all())->each->toBeLessThanOrEqual(8);
     expect(fn () => (new BalancedDraw)->draw(drawPlayers(3), 'teams', 3))->toThrow(InvalidArgumentException::class);
+});
+
+test('usa as cores de Meu time nas duas primeiras equipes e mantém o restante da paleta sem duplicar', function () {
+    $service = new BalancedDraw;
+
+    $defaults = $service->draw(drawPlayers(16), 'teams', 4, null, '#166534', '#f59e0b');
+    expect(array_column($defaults['teams'], 'color'))
+        ->toBe(['#166534', '#f59e0b', '#eab308', '#16a34a']);
+
+    $deduplicated = $service->draw(drawPlayers(16), 'teams', 4, null, '#eab308', '#16a34a');
+    expect(array_column($deduplicated['teams'], 'color'))
+        ->toBe(['#eab308', '#16a34a', '#9333ea', '#ea580c']);
+});
+
+test('usa azul e vermelho como fallback quando as cores não são informadas ou são inválidas', function () {
+    $service = new BalancedDraw;
+
+    $withoutCustom = $service->draw(drawPlayers(12), 'teams', 3);
+    expect(array_column($withoutCustom['teams'], 'color'))
+        ->toBe(['#2563eb', '#dc2626', '#eab308']);
+
+    $invalidBoth = $service->draw(drawPlayers(12), 'teams', 3, null, '', 'nao-hex');
+    expect(array_column($invalidBoth['teams'], 'color'))
+        ->toBe(['#2563eb', '#dc2626', '#eab308']);
+
+    $partialValid = $service->draw(drawPlayers(8), 'teams', 2, null, '#0f766e', '#123');
+    expect(array_column($partialValid['teams'], 'color'))
+        ->toBe(['#0f766e', '#dc2626']);
+});
+
+test('calcula texto legível por contraste e protege utilitários contra hex inválido', function () {
+    expect(TeamColors::readableText('#166534'))->toBe('#ffffff')
+        ->and(TeamColors::readableText('#2563eb'))->toBe('#ffffff')
+        ->and(TeamColors::readableText('#dc2626'))->toBe('#ffffff')
+        ->and(TeamColors::readableText('#f59e0b'))->toBe('#0f172a')
+        ->and(TeamColors::readableText('#eab308'))->toBe('#0f172a')
+        ->and(TeamColors::readableText('#ffffff'))->toBe('#0f172a')
+        ->and(TeamColors::readableText('invalida'))->toBe('#ffffff')
+        ->and(TeamColors::adjustForLightText('invalida'))->toBe('#2563eb');
 });

@@ -19,7 +19,9 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $team = $request->user();
-        $primary = TeamColors::adjustForLightText($team === null ? '#166534' : ($team->primary_color ?? '#166534'));
+        $primary = TeamColors::adjustForLightText(
+            $team === null ? '#166534' : TeamColors::normalizeHex($team->primary_color, TeamColors::DEFAULT_PRIMARY),
+        );
 
         return [
             ...parent::share($request),
@@ -29,7 +31,8 @@ class HandleInertiaRequests extends Middleware
             'team' => $team ? [
                 'id' => $team->id,
                 'name' => $team->name, 'logo_url' => $team->logo_url,
-                'primary_color' => $primary, 'secondary_color' => $team->secondary_color ?? '#84cc16',
+                'primary_color' => $primary,
+                'secondary_color' => TeamColors::normalizeHex($team->secondary_color, TeamColors::DEFAULT_SECONDARY),
                 'primary_text' => '#ffffff',
             ] : null,
         ];

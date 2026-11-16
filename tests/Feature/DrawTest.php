@@ -24,5 +24,33 @@ test('sorteio por post retorna equipes e visitante é redirecionado', function (
     $this->post('/sorteio')->assertRedirect('/login');
     $this->actingAs($team)->postJson('/sorteio', ['mode' => 'players', 'size' => 2])
         ->assertOk()
-        ->assertJsonCount(2, 'teams');
+        ->assertJsonCount(2, 'teams')
+        ->assertJsonPath('teams.0.color', '#166534')
+        ->assertJsonPath('teams.1.color', '#f59e0b');
+});
+
+test('sorteio usa as cores customizadas de Meu time e cai para azul e vermelho quando inválidas', function () {
+    [$team] = $this->teamWithPlayer([
+        'primary_color' => '#0f766e',
+        'secondary_color' => '#eab308',
+    ]);
+    Player::factory()->for($team)->count(5)->create();
+
+    $this->actingAs($team)
+        ->postJson('/sorteio', ['mode' => 'teams', 'size' => 3])
+        ->assertOk()
+        ->assertJsonPath('teams.0.id', 'equipe-1')
+        ->assertJsonPath('teams.0.color', '#0f766e')
+        ->assertJsonPath('teams.1.id', 'equipe-2')
+        ->assertJsonPath('teams.1.color', '#eab308')
+        ->assertJsonPath('teams.2.id', 'equipe-3')
+        ->assertJsonPath('teams.2.color', '#16a34a');
+
+    $team->forceFill(['primary_color' => '', 'secondary_color' => 'invalida']);
+
+    $this->actingAs($team)
+        ->postJson('/sorteio', ['mode' => 'players', 'size' => 2])
+        ->assertOk()
+        ->assertJsonPath('teams.0.color', '#2563eb')
+        ->assertJsonPath('teams.1.color', '#dc2626');
 });

@@ -27,7 +27,12 @@ import type {
     TimelineEvent,
 } from '@/types/hockey';
 import { formatClock } from '@/lib/matchClock';
-import { load as loadDraw } from '@/lib/drawStorage';
+import {
+    applyTeamColorsToRoster,
+    applyTeamColorsToTeams,
+    readableText,
+} from '@/lib/balancedDraw';
+import { load as loadDraw, save as saveDraw } from '@/lib/drawStorage';
 import { transitionSounds } from '@/lib/matchClockCore';
 import { loadQueue } from '@/lib/matchQueue';
 import { enqueueMatchBeforeClearingDraft } from '@/lib/matchSave';
@@ -97,7 +102,7 @@ const disabledGoals = computed(
     () => clock.state.phase !== 'period' || clock.state.paused,
 );
 function readableColor(hex: string) {
-    return hex === '#f59e0b' || hex === '#84cc16' ? '#111827' : '#fff';
+    return readableText(hex);
 }
 const phaseLabel = computed(
     () =>
@@ -113,18 +118,43 @@ const phaseLabel = computed(
         })[clock.state.phase],
 );
 const restoring = ref(true);
+let rawDrawTeams: DrawTeam[] = [];
 try {
-    const saved =
-        loadDraw(localStorage, page.props.team.id) ??
-        (JSON.parse(
-            sessionStorage.getItem('hockey-teams') ?? 'null',
-        ) as DrawResult | null);
+    const savedLocal = loadDraw(localStorage, page.props.team.id);
+    const savedSession = !savedLocal
+        ? (JSON.parse(
+              sessionStorage.getItem('hockey-teams') ?? 'null',
+          ) as DrawResult | null)
+        : null;
+    const saved = savedLocal ?? savedSession;
     if (saved?.teams?.length) {
-        teams.value = saved.teams;
+        rawDrawTeams = saved.teams;
+        teams.value = applyTeamColorsToTeams(
+            saved.teams,
+            page.props.team?.primary_color,
+            page.props.team?.secondary_color,
+        );
         selected.value = {
-            home: saved.teams[0].id,
-            away: saved.teams[1]?.id ?? '',
+            home: teams.value[0]!.id,
+            away: teams.value[1]?.id ?? '',
         };
+        if (savedLocal) {
+            saveDraw(localStorage, page.props.team.id, {
+                teams: teams.value,
+                reserves: savedLocal.reserves,
+                mode: savedLocal.mode,
+                size: savedLocal.size,
+            });
+        }
+        if (sessionStorage.getItem('hockey-teams')) {
+            sessionStorage.setItem(
+                'hockey-teams',
+                JSON.stringify({
+                    teams: teams.value,
+                    reserves: saved.reserves ?? [],
+                }),
+            );
+        }
     }
 } catch {
     sessionStorage.removeItem('hockey-teams');
@@ -143,8 +173,15 @@ onMounted(() => {
             localStorage.getItem(draftKey) ?? 'null',
         ) as StoredDraft | null;
         if (draft && draft.roster?.home?.players) {
-            roster.value = draft.roster;
-            teams.value = [draft.roster.home, draft.roster.away];
+            roster.value = applyTeamColorsToRoster(
+                draft.roster,
+                page.props.team?.primary_color,
+                page.props.team?.secondary_color,
+                rawDrawTeams,
+            );
+            if (!teams.value.length) {
+                teams.value = [roster.value.home, roster.value.away];
+            }
             goals.value = draft.goals ?? [];
             timeline.value = draft.timeline ?? [];
             Object.assign(config.value, draft.config);
@@ -159,12 +196,44 @@ onMounted(() => {
             clock.configure(config.value);
             recordTransitions();
             if (clock.state.phase !== 'idle') showConfig.value = false;
+            if (clock.state.phase !== 'finished') {
+                localStorage.setItem(
+                    draftKey,
+                    JSON.stringify({
+                        roster: roster.value,
+                        goals: goals.value,
+                        timeline: timeline.value,
+                        config: config.value,
+                        serializedClock: clock.export(),
+                    }),
+                );
+            }
         }
     } catch {
         localStorage.removeItem(draftKey);
     }
     restoring.value = false;
 });
+watch(
+    () => [page.props.team?.primary_color, page.props.team?.secondary_color],
+    ([primaryColor, secondaryColor]) => {
+        if (teams.value.length) {
+            teams.value = applyTeamColorsToTeams(
+                teams.value,
+                primaryColor,
+                secondaryColor,
+            );
+        }
+        if (roster.value) {
+            roster.value = applyTeamColorsToRoster(
+                roster.value,
+                primaryColor,
+                secondaryColor,
+                rawDrawTeams,
+            );
+        }
+    },
+);
 function confirmTeams() {
     const home = teams.value.find((team) => team.id === selected.value.home);
     const away = teams.value.find((team) => team.id === selected.value.away);
@@ -616,7 +685,7 @@ onBeforeUnmount(() => {
         <div v-if="roster">
             <div class="grid grid-cols-2 gap-3">
                 <div
-                    class="rounded-xl p-3 text-center font-bold text-white"
+                    class="rounded-xl p-3 text-center font-bold"
                     :style="{
                         background: roster.home.color,
                         color: readableColor(roster.home.color),
@@ -625,7 +694,7 @@ onBeforeUnmount(() => {
                     {{ roster.home.name }}
                 </div>
                 <div
-                    class="rounded-xl p-3 text-center font-bold text-white"
+                    class="rounded-xl p-3 text-center font-bold"
                     :style="{
                         background: roster.away.color,
                         color: readableColor(roster.away.color),
@@ -859,7 +928,7 @@ onBeforeUnmount(() => {
             </div>
             <div class="grid grid-cols-2 gap-3 p-3">
                 <button
-                    class="min-h-16 rounded-xl text-xl font-black text-white disabled:opacity-30 sm:min-h-20 sm:text-2xl"
+                    class="min-h-16 rounded-xl text-xl font-black disabled:opacity-30 sm:min-h-20 sm:text-2xl"
                     :style="{
                         background: roster.home.color,
                         color: readableColor(roster.home.color),
@@ -870,7 +939,7 @@ onBeforeUnmount(() => {
                 >
                     + GOL</button
                 ><button
-                    class="min-h-16 rounded-xl text-xl font-black text-white disabled:opacity-30 sm:min-h-20 sm:text-2xl"
+                    class="min-h-16 rounded-xl text-xl font-black disabled:opacity-30 sm:min-h-20 sm:text-2xl"
                     :style="{
                         background: roster.away.color,
                         color: readableColor(roster.away.color),
@@ -953,8 +1022,11 @@ onBeforeUnmount(() => {
                 class="mt-3 flex items-center gap-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-800/50"
             >
                 <span
-                    class="flex size-10 items-center justify-center rounded-lg font-black text-white"
-                    :style="{ background: roster[goal.team].color }"
+                    class="flex size-10 items-center justify-center rounded-lg font-black"
+                    :style="{
+                        background: roster[goal.team].color,
+                        color: readableColor(roster[goal.team].color),
+                    }"
                     >{{ goal.period }}º</span
                 >
                 <div class="min-w-0 flex-1">

@@ -3,6 +3,7 @@
 use App\Models\Goal;
 use App\Models\HockeyMatch;
 use App\Models\Player;
+use App\Support\TeamColors;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -60,8 +61,29 @@ test('oferece apito e buzzer grave como sons padrão da partida', function () {
     $this->actingAs($team)->get('/partida')->assertOk()->assertInertia(fn (Assert $page) => $page
         ->component('matches/Create')
         ->where('sounds.start.file', '/sons/apito-inicio.wav')
-        ->where('sounds.end.file', '/sons/buzzer-fim.wav'));
+        ->where('sounds.end.file', '/sons/buzzer-fim.wav')
+        ->where('team.primary_color', '#166534')
+        ->where('team.secondary_color', '#f59e0b'));
     expect(public_path('sons/apito-inicio.wav'))->toBeFile();
+});
+
+test('compartilha as cores de Meu time no cronômetro e usa azul e vermelho como fallback quando inválidas', function () {
+    [$team] = $this->teamWithPlayer([
+        'primary_color' => '#0f766e',
+        'secondary_color' => '#eab308',
+    ]);
+
+    $this->actingAs($team)->get('/partida')->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->component('matches/Create')
+        ->where('team.primary_color', TeamColors::adjustForLightText('#0f766e'))
+        ->where('team.secondary_color', '#eab308'));
+
+    $team->forceFill(['primary_color' => '', 'secondary_color' => 'invalida']);
+
+    $this->actingAs($team)->get('/partida')->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->component('matches/Create')
+        ->where('team.primary_color', '#2563eb')
+        ->where('team.secondary_color', '#dc2626'));
 });
 
 test('salva partida com tempo por período personalizado configurado no placar', function () {

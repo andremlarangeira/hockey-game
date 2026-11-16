@@ -112,3 +112,39 @@ assert.deepEqual(reconciled.draw.teams[0].players, [
 assert.equal(reconciled.draw.teams[0].total, 3.5);
 assert.equal(reconciled.draw.teams[0].average, 3.5);
 assert.deepEqual(reconciled.draw.reserves, [player(3, 'Novo', 1.5)]);
+
+save(storage, 42, {
+    teams: [
+        {
+            id: 'equipe-2',
+            name: 'Segundos',
+            color: '#dc2626',
+            players: [player(1, 'Um', 3)],
+            total: 3,
+            average: 3,
+        },
+        {
+            id: 'equipe-1',
+            name: 'Primeiros',
+            color: '#2563eb',
+            players: [player(2, 'Dois', 3)],
+            total: 3,
+            average: 3,
+        },
+    ],
+    reserves: [],
+    mode: 'teams',
+    size: 2,
+});
+const loadedWithTeamColors = load(storage, 42, '#166534', '#f59e0b');
+assert.equal(loadedWithTeamColors?.teams[0].color, '#f59e0b');
+assert.equal(loadedWithTeamColors?.teams[1].color, '#166534');
+
+const reconciledWithColors = reconcile(
+    load(storage, 42),
+    [player(1, 'Um', 3), player(2, 'Dois', 3)],
+    '#0f766e',
+    'invalida',
+);
+assert.equal(reconciledWithColors.draw.teams[0].color, '#dc2626');
+assert.equal(reconciledWithColors.draw.teams[1].color, '#0f766e');

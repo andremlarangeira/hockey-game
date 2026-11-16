@@ -3,9 +3,9 @@ import PlayerPhoto from '@/components/hockey/PlayerPhoto.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { ArrowRight, GripVertical, Shuffle } from 'lucide-vue-next';
 import draggable from 'vuedraggable';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { load, reconcile, save as saveDraw } from '@/lib/drawStorage';
-import { balancedDraw } from '@/lib/balancedDraw';
+import { applyTeamColorsToTeams, balancedDraw } from '@/lib/balancedDraw';
 import { loadPlayers } from '@/lib/offlineStorage';
 import type { DrawResult, DrawTeam, Player } from '@/types/hockey';
 
@@ -73,7 +73,12 @@ onMounted(() => {
     players.value = loadPlayers(localStorage, accountId, props.players).filter(
         (player) => player.present,
     );
-    const reconciled = reconcile(saved, players.value);
+    const reconciled = reconcile(
+        saved,
+        players.value,
+        page.props.team?.primary_color,
+        page.props.team?.secondary_color,
+    );
     teams.value = reconciled.draw.teams;
     reserves.value = reconciled.draw.reserves;
     mode.value = reconciled.draw.mode;
@@ -84,12 +89,31 @@ onMounted(() => {
     );
     persistDraw();
 });
+watch(
+    () => [page.props.team?.primary_color, page.props.team?.secondary_color],
+    ([primaryColor, secondaryColor]) => {
+        if (!teams.value.length) return;
+        teams.value = applyTeamColorsToTeams(
+            teams.value,
+            primaryColor,
+            secondaryColor,
+        );
+        persistDraw();
+    },
+);
 async function draw() {
     loading.value = true;
     error.value = '';
     try {
         if (!navigator.onLine) {
-            const result = balancedDraw(players.value, mode.value, size.value);
+            const result = balancedDraw(
+                players.value,
+                mode.value,
+                size.value,
+                undefined,
+                page.props.team?.primary_color,
+                page.props.team?.secondary_color,
+            );
             teams.value = result.teams;
             reserves.value = result.reserves;
             persistDraw();

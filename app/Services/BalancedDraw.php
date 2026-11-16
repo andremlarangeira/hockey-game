@@ -2,19 +2,27 @@
 
 namespace App\Services;
 
+use App\Support\TeamColors;
 use Illuminate\Support\Collection;
 use InvalidArgumentException;
 
 class BalancedDraw
 {
-    private const COLORS = ['#2563eb', '#dc2626', '#eab308', '#16a34a', '#9333ea', '#ea580c', '#0891b2', '#db2777'];
+    private const COLORS = TeamColors::DRAW_PALETTE;
 
     /**
      * @param  Collection<int, array{id: int, name: string, jersey_number: int, level: float, photo_url: string|null, present: bool}>  $players
+     * @param  array<int|string, string|null>|string|null  $primaryColor
      * @return array{teams: array<int, array{id: string, name: string, color: string, players: array<int, array{id: int, name: string, jersey_number: int, level: float, photo_url: string|null, present: bool}>, total: float|int, average: float}>, reserves: array<int, array{id: int, name: string, jersey_number: int, level: float, photo_url: string|null, present: bool}>}
      */
-    public function draw(Collection $players, string $mode = 'players', int $size = 4, ?callable $random = null): array
-    {
+    public function draw(
+        Collection $players,
+        string $mode = 'players',
+        int $size = 4,
+        ?callable $random = null,
+        array|string|null $primaryColor = null,
+        ?string $secondaryColor = null,
+    ): array {
         $present = $players->filter(fn (array $player): bool => $player['present'] === true)->values();
         if ($present->count() < 2 || ! in_array($mode, ['players', 'teams'], true) || $size < 1)
         {
@@ -86,11 +94,13 @@ class BalancedDraw
             throw new InvalidArgumentException('Não foi possível sortear as equipes.');
         }
 
+        $palette = TeamColors::drawPalette($primaryColor, $secondaryColor);
+
         return [
             'teams' => collect($best)->map(fn (array $team, int $index): array => [
                 'id' => 'equipe-'.($index + 1),
                 'name' => 'Equipe '.($index + 1),
-                'color' => self::COLORS[$index],
+                'color' => $palette[$index],
                 'players' => $team,
                 'total' => (float) array_sum(array_column($team, 'level')),
                 'average' => round(array_sum(array_column($team, 'level')) / count($team), 2),
