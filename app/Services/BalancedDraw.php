@@ -8,8 +8,6 @@ use InvalidArgumentException;
 
 class BalancedDraw
 {
-    private const COLORS = TeamColors::DRAW_PALETTE;
-
     /**
      * @param  Collection<int, array{id: int, name: string, jersey_number: int, level: float, photo_url: string|null, present: bool}>  $players
      * @param  array<int|string, string|null>|string|null  $primaryColor
