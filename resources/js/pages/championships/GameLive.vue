@@ -181,6 +181,21 @@ const phaseLabel = computed(() => {
     }[clock.state.phase];
 });
 
+const countdownLabel = computed(() => {
+    switch (clock.state.countdownReason) {
+        case 'goal':
+            return 'Após o gol';
+        case 'restart':
+            return 'Reinício';
+        case 'next_period':
+            return 'Próximo tempo';
+        default:
+            return isOvertimeMode.value
+                ? 'Início da prorrogação'
+                : 'Início da partida';
+    }
+});
+
 const statusLabels: Record<GameStatus, string> = {
     scheduled: 'Agendado',
     live: 'Ao vivo',
@@ -400,6 +415,16 @@ async function toggleClock() {
     saveClockToStorage();
 }
 
+async function restartWithCountdown() {
+    if (clock.state.phase !== 'period') return;
+    await sound.unlock(sounds.value);
+    if (clock.state.phase !== 'period') return;
+    if (clock.restartCountdown('restart')) {
+        void wake.request();
+        saveClockToStorage();
+    }
+}
+
 function resetClock() {
     if (
         clock.state.phase !== 'idle' &&
@@ -589,7 +614,7 @@ function submitGoalRecord(assistIds: number[]) {
             preserveScroll: true,
             onSuccess: () => {
                 if (clock.state.phase === 'period' && !clock.state.paused) {
-                    clock.restartCountdown();
+                    clock.restartCountdown('goal');
                     saveClockToStorage();
                 }
                 goalDialog.value = null;
@@ -1065,17 +1090,20 @@ function formatDateTime(iso: string | null): string {
             <span
                 class="block text-xs font-black tracking-widest text-amber-950 uppercase"
             >
-                {{
-                    goalEvents.length
-                        ? 'Recomeço após gol'
-                        : 'Preparem-se para o apito'
-                }}
+                {{ countdownLabel }}
             </span>
             <strong
                 class="block text-4xl font-black text-amber-950 tabular-nums"
             >
                 {{ clock.state.remaining }}
             </strong>
+            <span class="text-xs font-bold text-amber-950">
+                {{
+                    clock.state.paused
+                        ? 'Contagem pausada'
+                        : 'Preparem-se para o apito'
+                }}
+            </span>
         </div>
 
         <!-- Teams, Big Score, and Clock -->
@@ -1311,11 +1339,29 @@ function formatDateTime(iso: string | null): string {
                                 ? 'Iniciar cronômetro'
                                 : clock.state.phase === 'finished'
                                   ? 'Reiniciar período'
-                                  : clock.state.paused
-                                    ? 'Continuar cronômetro'
-                                    : 'Pausar cronômetro'
+                                  : clock.state.phase === 'countdown'
+                                    ? clock.state.paused
+                                        ? 'Continuar contagem'
+                                        : 'Pausar contagem'
+                                    : clock.state.paused
+                                      ? 'Continuar cronômetro'
+                                      : 'Pausar cronômetro'
                         }}
                     </span>
+                </button>
+
+                <button
+                    v-if="
+                        clock.state.phase === 'period' &&
+                        config.countdown_seconds > 0
+                    "
+                    type="button"
+                    class="flex min-h-12 items-center justify-center gap-1.5 rounded-xl border border-amber-400/50 bg-amber-400/15 px-3.5 text-xs font-bold text-amber-300 transition hover:bg-amber-400/25 sm:text-sm"
+                    data-test="reiniciar-com-contagem"
+                    @click="restartWithCountdown"
+                >
+                    <Timer class="size-4 shrink-0" />
+                    Reiniciar com contagem
                 </button>
 
                 <button

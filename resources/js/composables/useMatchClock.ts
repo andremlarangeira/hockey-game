@@ -1,7 +1,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive } from 'vue';
 import type { MatchSettings } from '@/types/hockey';
 import { formatClock } from '@/lib/matchClock';
-import { MatchClockCore } from '@/lib/matchClockCore';
+import { type CountdownReason, MatchClockCore } from '@/lib/matchClockCore';
 import { createMatchClockTransitions } from '@/lib/matchClockTransitions';
 
 export function useMatchClock(
@@ -18,6 +18,7 @@ export function useMatchClock(
         elapsed: 0,
         paused: false,
         startedAt: null as string | null,
+        countdownReason: clock.countdownReason as CountdownReason | null,
     });
     let timer: ReturnType<typeof setInterval> | undefined;
     let countdownSecond: number | null = null;
@@ -31,21 +32,18 @@ export function useMatchClock(
             elapsed: clock.elapsed,
             paused: clock.paused,
             startedAt: clock.startedAt,
+            countdownReason: clock.countdownReason,
         });
         if (previous !== clock.transitions.length) onTransition();
-        const second =
-            state.phase === 'countdown' && !state.paused
-                ? state.remaining
-                : null;
-        if (
-            second !== null &&
-            second > 0 &&
-            second <= 5 &&
-            second !== countdownSecond
-        ) {
-            onCountdown(second);
+        if (state.phase !== 'countdown') {
+            countdownSecond = null;
+        } else if (!state.paused) {
+            const second = state.remaining;
+            if (second > 0 && second <= 5 && second !== countdownSecond) {
+                onCountdown(second);
+            }
+            countdownSecond = second;
         }
-        countdownSecond = second;
     };
     onMounted(() => {
         timer = setInterval(sync, 200);
@@ -89,8 +87,8 @@ export function useMatchClock(
             clock.reset();
             sync();
         },
-        restartCountdown: () => {
-            const restarted = clock.restartCountdown();
+        restartCountdown: (reason: 'goal' | 'restart' = 'goal') => {
+            const restarted = clock.restartCountdown(Date.now(), reason);
             sync();
             return restarted;
         },

@@ -33,7 +33,10 @@ class StatsController extends Controller
         return Inertia::render('stats/Index', [
             'players' => $request->user()->players()->leftJoinSub($goalCounts, 'gols', fn (JoinClause $join) => $join->on('players.id', '=', 'gols.player_id'))
                 ->leftJoinSub($assistCounts, 'passes', fn (JoinClause $join) => $join->on('players.id', '=', 'passes.player_id'))
-                ->orderByDesc(DB::raw('coalesce(gols.total, 0)'))->orderBy('players.name')
+                ->orderByDesc(DB::raw('coalesce(gols.total, 0) + coalesce(passes.total, 0)'))
+                ->orderByDesc(DB::raw('coalesce(gols.total, 0)'))
+                ->orderByDesc(DB::raw('coalesce(passes.total, 0)'))
+                ->orderBy('players.name')
                 ->select('players.*')->selectRaw('coalesce(gols.total, 0) as goals, coalesce(passes.total, 0) as assists, coalesce(gols.total, 0) + coalesce(passes.total, 0) as points')->get()
                 ->map(fn (Player $player) => [...$player->toArray(), 'games' => $games[$player->id] ?? 0]),
         ]);

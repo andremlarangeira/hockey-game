@@ -1,5 +1,6 @@
 import type { MatchSettings } from '@/types/hockey';
 export type ClockPhase = 'idle' | 'countdown' | 'period' | 'rest' | 'finished';
+export type CountdownReason = 'initial' | 'goal' | 'restart' | 'next_period';
 export interface ClockTransition {
     at: string;
     elapsed: number;
@@ -22,6 +23,7 @@ type Stage = {
     phase: Exclude<ClockPhase, 'idle'>;
     number: number;
     end: number;
+    reason?: CountdownReason;
 };
 export class MatchClockCore {
     phase: ClockPhase = 'idle';
@@ -99,18 +101,38 @@ export class MatchClockCore {
         this.remaining = Math.ceil((this.current.end - now) / 1000);
         if (this.phase === 'period') this.playStartedAt = now;
     }
+    get countdownReason(): CountdownReason | null {
+        if (this.phase !== 'countdown' || this.index < 0) return null;
+        const current = this.current;
+        if (current.reason) return current.reason;
+        return current.number === 0 ? 'initial' : 'next_period';
+    }
     /** Insere uma pré-contagem sem consumir o tempo restante do período. */
-    restartCountdown(now = Date.now()): boolean {
-        if (this.phase !== 'period' || this.paused) return false;
-        this.tick(now);
+    restartCountdown(
+        now = Date.now(),
+        reason: 'goal' | 'restart' = 'goal',
+    ): boolean {
+        if (this.phase !== 'period') return false;
+        if (!this.paused) {
+            this.tick(now);
+        }
         if (this.phase !== 'period' || this.settings.countdown_seconds <= 0)
             return false;
+        if (this.paused) {
+            const pauseShift = Math.max(0, now - (this.pausedAt ?? now));
+            for (let i = this.index; i < this.stages.length; i++)
+                this.stages[i].end += pauseShift;
+            this.paused = false;
+            this.pausedAt = null;
+        } else {
+            this.stopPlaying(now);
+        }
         const duration = this.settings.countdown_seconds * 1000;
-        this.stopPlaying(now);
         this.stages.splice(this.index, 0, {
             phase: 'countdown',
             number: this.period,
             end: now + duration,
+            reason,
         });
         for (let i = this.index + 1; i < this.stages.length; i++)
             this.stages[i].end += duration;
@@ -276,6 +298,7 @@ export class MatchClockCore {
                 phase: 'countdown',
                 number: 0,
                 end: (at += this.settings.countdown_seconds * 1000),
+                reason: 'initial',
             });
         if (includeLeadingRest && startPeriod <= this.settings.periods)
             stages.push({
@@ -289,6 +312,7 @@ export class MatchClockCore {
                     phase: 'countdown',
                     number: i,
                     end: (at += this.settings.countdown_seconds * 1000),
+                    reason: 'next_period',
                 });
             stages.push({
                 phase: 'period',

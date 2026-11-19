@@ -10,6 +10,7 @@ import {
     RotateCcw,
     Save,
     Settings2,
+    Timer,
     Volume2,
     X,
 } from 'lucide-vue-next';
@@ -117,6 +118,18 @@ const phaseLabel = computed(
             finished: 'Fim de partida',
         })[clock.state.phase],
 );
+const countdownLabel = computed(() => {
+    switch (clock.state.countdownReason) {
+        case 'goal':
+            return 'Após o gol';
+        case 'restart':
+            return 'Reinício';
+        case 'next_period':
+            return 'Próximo tempo';
+        default:
+            return 'Início da partida';
+    }
+});
 const restoring = ref(true);
 let rawDrawTeams: DrawTeam[] = [];
 try {
@@ -283,6 +296,21 @@ async function toggleMatch() {
         const wasPaused = clock.state.paused;
         clock.togglePause();
         recordClock(wasPaused ? 'resume' : 'pause');
+    }
+}
+async function restartWithCountdown() {
+    if (clock.state.phase !== 'period') return;
+    await sound.unlock(sounds.value);
+    if (clock.state.phase !== 'period') return;
+    if (clock.restartCountdown('restart')) {
+        void wake.request();
+        timeline.value.push({
+            at: new Date().toISOString(),
+            type: 'pre_start',
+            period: clock.state.period,
+            elapsed_seconds: clock.state.elapsed,
+            details: { motivo: 'reinicio' },
+        });
     }
 }
 function recordClock(type: string, at?: string) {
@@ -458,7 +486,7 @@ function assist(player: Player | null) {
         elapsed_seconds: clock.state.elapsed,
         details: { scorer: current.scorer.name },
     });
-    if (clock.restartCountdown()) {
+    if (!clock.state.paused && clock.restartCountdown('goal')) {
         timeline.value.push({
             at: new Date().toISOString(),
             type: 'pre_start',
@@ -850,7 +878,7 @@ onBeforeUnmount(() => {
                 <span
                     class="block text-xs font-black tracking-widest text-amber-950 uppercase"
                 >
-                    {{ goals.length ? 'Após o gol' : 'Início da partida' }}
+                    {{ countdownLabel }}
                 </span>
                 <strong
                     class="block text-4xl font-black text-amber-950 tabular-nums"
@@ -858,7 +886,11 @@ onBeforeUnmount(() => {
                     {{ clock.state.remaining }}
                 </strong>
                 <span class="text-xs font-bold text-amber-950">
-                    Preparem-se para o apito
+                    {{
+                        clock.state.paused
+                            ? 'Contagem pausada'
+                            : 'Preparem-se para o apito'
+                    }}
                 </span>
             </div>
             <div
@@ -951,10 +983,10 @@ onBeforeUnmount(() => {
                     + GOL
                 </button>
             </div>
-            <div class="flex gap-2 px-3 pb-3">
+            <div class="flex flex-wrap gap-2 px-3 pb-3">
                 <button
                     v-if="clock.state.phase !== 'finished'"
-                    class="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--team-primary)] font-bold text-[var(--team-primary-text)]"
+                    class="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--team-primary)] px-3 font-bold text-[var(--team-primary-text)]"
                     data-test="iniciar-cronometro"
                     @click="toggleMatch"
                 >
@@ -963,10 +995,25 @@ onBeforeUnmount(() => {
                     />{{
                         clock.state.phase === 'idle'
                             ? 'Iniciar partida'
-                            : clock.state.paused
-                              ? 'Continuar'
-                              : 'Pausar'
+                            : clock.state.phase === 'countdown'
+                              ? clock.state.paused
+                                  ? 'Continuar contagem'
+                                  : 'Pausar contagem'
+                              : clock.state.paused
+                                ? 'Continuar'
+                                : 'Pausar'
                     }}</button
+                ><button
+                    v-if="
+                        clock.state.phase === 'period' &&
+                        config.countdown_seconds > 0
+                    "
+                    type="button"
+                    class="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-amber-400/50 bg-amber-400/15 px-3 text-sm font-bold text-amber-300 hover:bg-amber-400/25"
+                    data-test="reiniciar-com-contagem"
+                    @click="restartWithCountdown"
+                >
+                    <Timer class="size-4 shrink-0" />Reiniciar com contagem</button
                 ><button
                     class="flex min-h-12 items-center gap-2 rounded-xl border border-white/20 px-3 text-sm font-bold"
                     :disabled="!goals.length"

@@ -19,53 +19,96 @@ defineProps<{
         >
             Desempenho no time
         </p>
-        <h1 class="mt-1 text-2xl font-black">Artilharia e assistências</h1>
+        <h1 class="mt-1 text-2xl font-black">Pontuação dos jogadores</h1>
     </div>
     <section
-        class="mt-5 overflow-x-auto rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
+        class="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
     >
-        <table class="w-full min-w-[600px] text-left text-sm">
+        <table class="w-full text-left text-sm">
             <thead
                 class="bg-slate-50 text-xs tracking-wider text-slate-500 uppercase dark:bg-slate-800/50 dark:text-slate-400"
             >
                 <tr>
-                    <th class="p-4">Jogador</th>
-                    <th class="p-4 text-center">Jogos</th>
-                    <th class="p-4 text-center">Gols</th>
-                    <th class="p-4 text-center">Assistências</th>
-                    <th class="p-4 text-center">Pontos</th>
+                    <th class="px-2.5 py-2.5 sm:p-4">Jogador</th>
+                    <th
+                        class="w-10 px-1.5 py-2.5 text-center sm:w-20 sm:p-4"
+                        title="Jogos"
+                    >
+                        <abbr title="Jogos" class="no-underline">J</abbr>
+                    </th>
+                    <th
+                        class="w-10 px-1.5 py-2.5 text-center sm:w-20 sm:p-4"
+                        title="Gols"
+                    >
+                        <abbr title="Gols" class="no-underline">G</abbr>
+                    </th>
+                    <th
+                        class="w-10 px-1.5 py-2.5 text-center sm:w-20 sm:p-4"
+                        title="Assistências"
+                    >
+                        <abbr title="Assistências" class="no-underline">A</abbr>
+                    </th>
+                    <th
+                        class="w-11 bg-amber-50/70 px-1.5 py-2.5 text-center font-black text-amber-950 sm:w-24 sm:p-4 dark:bg-amber-950/30 dark:text-amber-300"
+                        title="Pontos"
+                    >
+                        <abbr title="Pontos" class="no-underline">Pts</abbr>
+                    </th>
                 </tr>
             </thead>
             <tbody>
                 <tr
-                    v-for="player in players"
+                    v-for="(player, index) in players"
                     :key="player.id"
                     :data-player-id="player.id"
                     class="border-t border-slate-100 dark:border-slate-800"
                 >
-                    <td class="p-3">
-                        <div class="flex items-center gap-3">
-                            <PlayerPhoto :player="player" size="size-10" /><span
-                                class="font-bold"
+                    <td class="max-w-0 px-2.5 py-2 sm:p-3">
+                        <div class="flex min-w-0 items-center gap-2 sm:gap-3">
+                            <span
+                                class="w-4 shrink-0 text-center text-xs font-bold text-slate-400 tabular-nums dark:text-slate-500"
+                                >{{ index + 1 }}</span
+                            >
+                            <PlayerPhoto
+                                :player="player"
+                                size="size-8 text-xs sm:size-10 sm:text-sm"
+                            />
+                            <span
+                                class="line-clamp-2 min-w-0 flex-1 leading-snug font-bold break-words"
+                                :title="player.name"
                                 >{{ player.name }}</span
                             >
                         </div>
                     </td>
-                    <td class="p-3 text-center text-xl font-black">
+                    <td
+                        class="px-1.5 py-2 text-center text-base font-black tabular-nums sm:p-3 sm:text-xl"
+                    >
                         {{ player.games }}
                     </td>
-                    <td class="p-3 text-center text-xl font-black">
+                    <td
+                        class="px-1.5 py-2 text-center text-base font-black tabular-nums sm:p-3 sm:text-xl"
+                    >
                         {{ player.goals }}
                     </td>
-                    <td class="p-3 text-center text-xl font-black">
+                    <td
+                        class="px-1.5 py-2 text-center text-base font-black tabular-nums sm:p-3 sm:text-xl"
+                    >
                         {{ player.assists }}
                     </td>
-                    <td class="p-3 text-center text-xl font-black">
+                    <td
+                        class="bg-amber-50/70 px-1.5 py-2 text-center text-base font-black text-amber-950 tabular-nums sm:p-3 sm:text-xl dark:bg-amber-950/30 dark:text-amber-300"
+                    >
                         {{ player.points }}
                     </td>
                 </tr>
             </tbody>
         </table>
+        <p
+            v-if="players.length"
+            class="border-t border-slate-100 px-3 py-2 text-center text-xs text-slate-500 sm:px-4 sm:text-left dark:border-slate-800 dark:text-slate-400"
+        >
+            J = jogos · G = gols · A = assistências · Pts = pontos
+        </p>
         <p
             v-if="!players.length"
             class="p-8 text-center text-sm text-slate-500 dark:text-slate-400"

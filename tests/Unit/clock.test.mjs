@@ -424,6 +424,244 @@ assert.equal(
     jumpedTransitionCount,
 );
 
+// Pausa/retomada e export/restore durante contagem inicial e pós-gol.
+const pausedInitialCountdown = new MatchClockCore({
+    minutes: 1,
+    periods: 2,
+    rest_seconds: 10,
+    countdown_seconds: 5,
+});
+pausedInitialCountdown.start(0);
+assert.equal(pausedInitialCountdown.phase, 'countdown');
+assert.equal(pausedInitialCountdown.countdownReason, 'initial');
+pausedInitialCountdown.tick(2_000);
+assert.equal(pausedInitialCountdown.remaining, 3);
+pausedInitialCountdown.togglePause(2_000);
+assert.equal(pausedInitialCountdown.paused, true);
+pausedInitialCountdown.tick(20_000);
+assert.equal(pausedInitialCountdown.phase, 'countdown');
+assert.equal(pausedInitialCountdown.remaining, 3);
+assert.equal(pausedInitialCountdown.transitions.length, 0);
+
+const restoredInitialCountdown = new MatchClockCore({
+    minutes: 1,
+    periods: 2,
+    rest_seconds: 10,
+    countdown_seconds: 5,
+});
+restoredInitialCountdown.restore(pausedInitialCountdown.export());
+assert.equal(restoredInitialCountdown.phase, 'countdown');
+assert.equal(restoredInitialCountdown.paused, true);
+assert.equal(restoredInitialCountdown.remaining, 3);
+assert.equal(restoredInitialCountdown.countdownReason, 'initial');
+restoredInitialCountdown.tick(40_000);
+assert.equal(restoredInitialCountdown.remaining, 3);
+assert.equal(restoredInitialCountdown.transitions.length, 0);
+restoredInitialCountdown.togglePause(40_000);
+assert.equal(restoredInitialCountdown.paused, false);
+restoredInitialCountdown.tick(42_000);
+assert.equal(restoredInitialCountdown.phase, 'countdown');
+assert.equal(restoredInitialCountdown.remaining, 1);
+restoredInitialCountdown.tick(43_000);
+assert.equal(restoredInitialCountdown.phase, 'period');
+assert.equal(restoredInitialCountdown.period, 1);
+assert.equal(restoredInitialCountdown.remaining, 60);
+assert.equal(restoredInitialCountdown.elapsed, 0);
+assert.equal(restoredInitialCountdown.transitions.length, 1);
+assert.deepEqual(transitionSounds(restoredInitialCountdown.transitions[0]), [
+    'start',
+]);
+
+// Export/restore enquanto a contagem pós-gol está pausada.
+restoredInitialCountdown.tick(58_000);
+assert.equal(restoredInitialCountdown.elapsed, 15);
+assert.equal(restoredInitialCountdown.remaining, 45);
+assert.equal(restoredInitialCountdown.restartCountdown(58_000, 'goal'), true);
+assert.equal(restoredInitialCountdown.phase, 'countdown');
+assert.equal(restoredInitialCountdown.countdownReason, 'goal');
+restoredInitialCountdown.tick(59_000);
+assert.equal(restoredInitialCountdown.remaining, 4);
+restoredInitialCountdown.togglePause(59_000);
+assert.equal(restoredInitialCountdown.paused, true);
+const pausedPostGoalSnapshot = restoredInitialCountdown.export();
+const restoredPausedPostGoal = new MatchClockCore({
+    minutes: 1,
+    periods: 2,
+    rest_seconds: 10,
+    countdown_seconds: 5,
+});
+restoredPausedPostGoal.restore(pausedPostGoalSnapshot);
+assert.equal(restoredPausedPostGoal.phase, 'countdown');
+assert.equal(restoredPausedPostGoal.paused, true);
+assert.equal(restoredPausedPostGoal.remaining, 4);
+assert.equal(restoredPausedPostGoal.elapsed, 15);
+assert.equal(restoredPausedPostGoal.countdownReason, 'goal');
+restoredPausedPostGoal.tick(90_000);
+assert.equal(restoredPausedPostGoal.remaining, 4);
+restoredPausedPostGoal.togglePause(90_000);
+restoredPausedPostGoal.tick(94_000);
+assert.equal(restoredPausedPostGoal.phase, 'period');
+assert.equal(restoredPausedPostGoal.remaining, 45);
+assert.equal(restoredPausedPostGoal.elapsed, 15);
+assert.deepEqual(transitionSounds(restoredPausedPostGoal.transitions.at(-1)), [
+    'start',
+]);
+
+// Reiniciar com contagem a partir de período rodando.
+const restartFromRunning = new MatchClockCore({
+    minutes: 1,
+    periods: 2,
+    rest_seconds: 10,
+    countdown_seconds: 5,
+});
+restartFromRunning.start(0);
+restartFromRunning.tick(5_000);
+restartFromRunning.tick(23_000);
+assert.equal(restartFromRunning.phase, 'period');
+assert.equal(restartFromRunning.elapsed, 18);
+assert.equal(restartFromRunning.remaining, 42);
+assert.equal(restartFromRunning.restartCountdown(23_000, 'restart'), true);
+assert.equal(restartFromRunning.phase, 'countdown');
+assert.equal(restartFromRunning.paused, false);
+assert.equal(restartFromRunning.countdownReason, 'restart');
+assert.equal(restartFromRunning.remaining, 5);
+assert.equal(restartFromRunning.elapsed, 18);
+restartFromRunning.tick(25_000);
+assert.equal(restartFromRunning.phase, 'countdown');
+assert.equal(restartFromRunning.remaining, 3);
+assert.equal(restartFromRunning.elapsed, 18);
+restartFromRunning.tick(28_000);
+assert.equal(restartFromRunning.phase, 'period');
+assert.equal(restartFromRunning.period, 1);
+assert.equal(restartFromRunning.remaining, 42);
+assert.equal(restartFromRunning.elapsed, 18);
+assert.equal(restartFromRunning.transitions.length, 2);
+assert.equal(restartFromRunning.transitions[1].ended, 'countdown');
+assert.equal(restartFromRunning.transitions[1].started, 'period');
+assert.deepEqual(transitionSounds(restartFromRunning.transitions[1]), [
+    'start',
+]);
+restartFromRunning.tick(70_000);
+assert.equal(restartFromRunning.phase, 'rest');
+assert.equal(restartFromRunning.remaining, 10);
+assert.equal(restartFromRunning.elapsed, 60);
+restartFromRunning.tick(80_000);
+assert.equal(restartFromRunning.phase, 'countdown');
+assert.equal(restartFromRunning.countdownReason, 'next_period');
+assert.equal(restartFromRunning.period, 2);
+assert.equal(restartFromRunning.remaining, 5);
+restartFromRunning.tick(85_000);
+assert.equal(restartFromRunning.phase, 'period');
+assert.equal(restartFromRunning.period, 2);
+assert.equal(restartFromRunning.remaining, 60);
+restartFromRunning.tick(145_000);
+assert.equal(restartFromRunning.phase, 'finished');
+assert.equal(restartFromRunning.elapsed, 120);
+
+// Reiniciar com contagem a partir de período pausado + export/restore no meio da contagem.
+const restartFromPaused = new MatchClockCore({
+    minutes: 1,
+    periods: 2,
+    rest_seconds: 10,
+    countdown_seconds: 5,
+});
+restartFromPaused.start(0);
+restartFromPaused.tick(5_000);
+restartFromPaused.tick(30_000);
+assert.equal(restartFromPaused.elapsed, 25);
+assert.equal(restartFromPaused.remaining, 35);
+restartFromPaused.togglePause(30_000);
+assert.equal(restartFromPaused.paused, true);
+restartFromPaused.tick(70_000);
+assert.equal(restartFromPaused.elapsed, 25);
+assert.equal(restartFromPaused.remaining, 35);
+assert.equal(restartFromPaused.restartCountdown(70_000, 'restart'), true);
+assert.equal(restartFromPaused.phase, 'countdown');
+assert.equal(restartFromPaused.paused, false);
+assert.equal(restartFromPaused.countdownReason, 'restart');
+assert.equal(restartFromPaused.remaining, 5);
+assert.equal(restartFromPaused.elapsed, 25);
+restartFromPaused.tick(72_000);
+assert.equal(restartFromPaused.remaining, 3);
+assert.equal(restartFromPaused.elapsed, 25);
+
+const restoredMidRestart = new MatchClockCore({
+    minutes: 1,
+    periods: 2,
+    rest_seconds: 10,
+    countdown_seconds: 5,
+});
+restoredMidRestart.restore(restartFromPaused.export());
+assert.equal(restoredMidRestart.phase, 'countdown');
+assert.equal(restoredMidRestart.countdownReason, 'restart');
+assert.equal(restoredMidRestart.remaining, 3);
+assert.equal(restoredMidRestart.elapsed, 25);
+restoredMidRestart.tick(75_000);
+assert.equal(restoredMidRestart.phase, 'period');
+assert.equal(restoredMidRestart.period, 1);
+assert.equal(restoredMidRestart.remaining, 35);
+assert.equal(restoredMidRestart.elapsed, 25);
+assert.deepEqual(transitionSounds(restoredMidRestart.transitions.at(-1)), [
+    'start',
+]);
+restoredMidRestart.tick(110_000);
+assert.equal(restoredMidRestart.phase, 'rest');
+assert.equal(restoredMidRestart.remaining, 10);
+assert.equal(restoredMidRestart.elapsed, 60);
+restoredMidRestart.tick(120_000);
+assert.equal(restoredMidRestart.phase, 'countdown');
+assert.equal(restoredMidRestart.period, 2);
+assert.equal(restoredMidRestart.remaining, 5);
+restoredMidRestart.tick(125_000);
+assert.equal(restoredMidRestart.phase, 'period');
+assert.equal(restoredMidRestart.period, 2);
+assert.equal(restoredMidRestart.remaining, 60);
+restoredMidRestart.tick(185_000);
+assert.equal(restoredMidRestart.phase, 'finished');
+assert.equal(restoredMidRestart.elapsed, 120);
+
+// Pausa durante a contagem de reinício + export/restore.
+restartFromPaused.togglePause(72_000);
+assert.equal(restartFromPaused.paused, true);
+const restoredPausedRestart = new MatchClockCore({
+    minutes: 1,
+    periods: 2,
+    rest_seconds: 10,
+    countdown_seconds: 5,
+});
+restoredPausedRestart.restore(restartFromPaused.export());
+restoredPausedRestart.tick(87_000);
+assert.equal(restoredPausedRestart.phase, 'countdown');
+assert.equal(restoredPausedRestart.remaining, 3);
+restoredPausedRestart.togglePause(87_000);
+restoredPausedRestart.tick(90_000);
+assert.equal(restoredPausedRestart.phase, 'period');
+assert.equal(restoredPausedRestart.remaining, 35);
+assert.equal(restoredPausedRestart.elapsed, 25);
+
+// Comportamento com countdown_seconds = 0 quando o período está pausado.
+const noCountdownPaused = new MatchClockCore({
+    minutes: 1,
+    periods: 1,
+    rest_seconds: 5,
+    countdown_seconds: 0,
+});
+noCountdownPaused.start(0);
+noCountdownPaused.tick(15_000);
+noCountdownPaused.togglePause(15_000);
+assert.equal(noCountdownPaused.paused, true);
+assert.equal(noCountdownPaused.remaining, 45);
+assert.equal(noCountdownPaused.elapsed, 15);
+assert.equal(noCountdownPaused.restartCountdown(30_000, 'restart'), false);
+assert.equal(noCountdownPaused.phase, 'period');
+assert.equal(noCountdownPaused.paused, true);
+assert.equal(noCountdownPaused.remaining, 45);
+assert.equal(noCountdownPaused.elapsed, 15);
+noCountdownPaused.togglePause(30_000);
+noCountdownPaused.tick(35_000);
+assert.equal(noCountdownPaused.remaining, 40);
+assert.equal(noCountdownPaused.elapsed, 20);
+
 console.log(
     'Relógio: pré-contagem, pós-gol, pausa, descanso, tempos, atraso, configuração e recuperação passaram.',
 );
