@@ -29,7 +29,7 @@ class PlayerController extends Controller
         $data = $request->safe()->except(['photo', 'remove_photo']);
         if ($request->hasFile('photo'))
         {
-            $data['photo_path'] = $request->file('photo')->store('jogadores/'.$request->user()->id, 'public');
+            $data['photo_path'] = $request->file('photo')->store('jogadores/'.$request->user()->id, config('filesystems.media_disk'));
         }
         $request->user()->players()->create($data);
 
@@ -43,15 +43,15 @@ class PlayerController extends Controller
         {
             if ($player->photo_path !== null && $player->photo_path !== '')
             {
-                Storage::disk('public')->delete($player->photo_path);
+                Storage::disk(config('filesystems.media_disk'))->delete($player->photo_path);
             }
-            $data['photo_path'] = $request->file('photo')->store('jogadores/'.$request->user()->id, 'public');
+            $data['photo_path'] = $request->file('photo')->store('jogadores/'.$request->user()->id, config('filesystems.media_disk'));
         }
         elseif ($request->boolean('remove_photo'))
         {
             if ($player->photo_path !== null && $player->photo_path !== '')
             {
-                Storage::disk('public')->delete($player->photo_path);
+                Storage::disk(config('filesystems.media_disk'))->delete($player->photo_path);
             }
             $data['photo_path'] = null;
         }
@@ -113,7 +113,7 @@ class PlayerController extends Controller
     {
         if ($player->photo_path !== null && $player->photo_path !== '')
         {
-            Storage::disk('public')->delete($player->photo_path);
+            Storage::disk(config('filesystems.media_disk'))->delete($player->photo_path);
         }
         $player->delete();
 

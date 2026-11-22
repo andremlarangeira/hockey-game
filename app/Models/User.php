@@ -47,6 +47,6 @@ class User extends Authenticatable
     /** @return Attribute<string|null, never> */
     protected function logoUrl(): Attribute
     {
-        return Attribute::get(fn (): ?string => $this->logo_path ? Storage::disk('public')->url($this->logo_path) : null);
+        return Attribute::get(fn (): ?string => $this->logo_path ? Storage::disk(config('filesystems.media_disk'))->url($this->logo_path) : null);
     }
 }

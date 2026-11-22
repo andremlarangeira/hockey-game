@@ -6,7 +6,8 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
 test('cadastra, edita e valida um jogador com meia estrela', function () {
-    Storage::fake('public');
+    $disk = config('filesystems.media_disk');
+    Storage::fake($disk);
     $team = User::factory()->create();
     $this->actingAs($team)->post('/jogadores', [
         'name' => 'Camisa Dez', 'jersey_number' => 10, 'level' => 4.5, 'present' => true,
@@ -14,14 +15,15 @@ test('cadastra, edita e valida um jogador com meia estrela', function () {
     ])->assertRedirect();
     $player = Player::firstOrFail();
     expect((float) $player->level)->toBe(4.5)->and($player->photo_path)->not->toBeNull();
-    Storage::disk('public')->assertExists($player->photo_path);
+    Storage::disk($disk)->assertExists($player->photo_path);
     $this->patch("/jogadores/$player->id", ['name' => 'Camisa Onze', 'jersey_number' => 12, 'level' => 3.5, 'present' => false])->assertRedirect();
     expect($player->fresh()->name)->toBe('Camisa Onze')->and((bool) $player->fresh()->present)->toBeFalse();
     $this->post('/jogadores', ['name' => 'Repetido', 'jersey_number' => 12, 'level' => 4.1, 'present' => true])->assertSessionHasErrors(['jersey_number', 'level']);
 });
 
 test('atualiza a foto de um jogador que ainda não tinha foto', function () {
-    Storage::fake('public');
+    $disk = config('filesystems.media_disk');
+    Storage::fake($disk);
     $team = User::factory()->create();
 
     $this->actingAs($team)->post('/jogadores', [
@@ -41,11 +43,12 @@ test('atualiza a foto de um jogador que ainda não tinha foto', function () {
 
     $player->refresh();
     expect($player->photo_path)->not->toBeNull();
-    Storage::disk('public')->assertExists($player->photo_path);
+    Storage::disk($disk)->assertExists($player->photo_path);
 });
 
 test('remove um jogador que não possui foto sem erro', function () {
-    Storage::fake('public');
+    $disk = config('filesystems.media_disk');
+    Storage::fake($disk);
     $team = User::factory()->create();
 
     $this->actingAs($team)->post('/jogadores', [

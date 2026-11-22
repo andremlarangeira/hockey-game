@@ -269,7 +269,7 @@ final readonly class TournamentEngine
             if ($logo !== null)
             {
                 $this->assertRasterLogo($logo);
-                $stored = $logo->store("championships/{$locked->user_id}/logos", 'public');
+                $stored = $logo->store("championships/{$locked->user_id}/logos", config('filesystems.media_disk'));
                 if ($stored === false)
                 {
                     throw new ChampionshipException('Não foi possível salvar o escudo da equipe.');
@@ -362,7 +362,7 @@ final readonly class TournamentEngine
             if ($logo !== null)
             {
                 $this->assertRasterLogo($logo);
-                $stored = $logo->store("championships/{$locked->user_id}/logos", 'public');
+                $stored = $logo->store("championships/{$locked->user_id}/logos", config('filesystems.media_disk'));
                 if ($stored === false)
                 {
                     throw new ChampionshipException('Não foi possível salvar o escudo da equipe.');
@@ -370,14 +370,14 @@ final readonly class TournamentEngine
 
                 if ($lockedTeam->logo_path !== null && $lockedTeam->logo_path !== '')
                 {
-                    Storage::disk('public')->delete($lockedTeam->logo_path);
+                    Storage::disk(config('filesystems.media_disk'))->delete($lockedTeam->logo_path);
                 }
 
                 $logoPath = $stored;
             }
             elseif ($removeLogo && $lockedTeam->logo_path !== null && $lockedTeam->logo_path !== '')
             {
-                Storage::disk('public')->delete($lockedTeam->logo_path);
+                Storage::disk(config('filesystems.media_disk'))->delete($lockedTeam->logo_path);
                 $logoPath = null;
             }
 
@@ -422,7 +422,7 @@ final readonly class TournamentEngine
 
             if ($lockedTeam->logo_path !== null && $lockedTeam->logo_path !== '')
             {
-                Storage::disk('public')->delete($lockedTeam->logo_path);
+                Storage::disk(config('filesystems.media_disk'))->delete($lockedTeam->logo_path);
             }
 
             ChampionshipPlayer::withoutGlobalScope('team')

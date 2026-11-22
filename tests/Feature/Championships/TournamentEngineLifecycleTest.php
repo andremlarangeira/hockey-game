@@ -124,7 +124,8 @@ test('cria campeonato, atualiza detalhes e trava edição de regras após o sort
 });
 
 test('gerencia inscrição, atualização e remoção de equipes com upload de escudo raster, exclusão do antigo e rejeição de SVG', function () {
-    Storage::fake('public');
+    $disk = config('filesystems.media_disk');
+    Storage::fake($disk);
 
     $user = User::factory()->create();
     $this->actingAs($user);
@@ -145,7 +146,7 @@ test('gerencia inscrição, atualização e remoção de equipes com upload de e
 
     expect($team->logo_path)->not->toBeNull()
         ->and($team->logo_path)->toStartWith("championships/{$user->id}/logos/");
-    Storage::disk('public')->assertExists($team->logo_path);
+    Storage::disk($disk)->assertExists($team->logo_path);
 
     $oldLogoPath = $team->logo_path;
     $secondLogo = UploadedFile::fake()->image('tigres-novo.webp', 200, 200);
@@ -165,8 +166,8 @@ test('gerencia inscrição, atualização e remoção de equipes com upload de e
         ->and($team->fresh()->seed_pot)->toBe(2)
         ->and($team->fresh()->logo_path)->not->toBe($oldLogoPath);
 
-    Storage::disk('public')->assertMissing($oldLogoPath);
-    Storage::disk('public')->assertExists($team->fresh()->logo_path);
+    Storage::disk($disk)->assertMissing($oldLogoPath);
+    Storage::disk($disk)->assertExists($team->fresh()->logo_path);
 
     // Rejects SVG upload and preserves current raster logo
     $currentLogoPath = $team->fresh()->logo_path;
@@ -174,7 +175,7 @@ test('gerencia inscrição, atualização e remoção de equipes com upload de e
 
     expect(fn () => $engine->updateTeam(team: $team, logo: $svgFile))
         ->toThrow(DomainException::class, 'SVG');
-    Storage::disk('public')->assertExists($currentLogoPath);
+    Storage::disk($disk)->assertExists($currentLogoPath);
 
     expect(fn () => $engine->enrollTeam(
         championship: $championship,
@@ -187,7 +188,7 @@ test('gerencia inscrição, atualização e remoção de equipes com upload de e
 
     // Removing team in draft deletes its logo from disk
     $engine->removeTeam($team);
-    Storage::disk('public')->assertMissing($currentLogoPath);
+    Storage::disk($disk)->assertMissing($currentLogoPath);
     expect(ChampionshipTeam::count())->toBe(0);
 
     // Once groups are drawn, enrollTeam and removeTeam are blocked

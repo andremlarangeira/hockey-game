@@ -25,7 +25,8 @@ beforeEach(function () {
 });
 
 test('executa torneio determinístico completo de 8 equipes exclusivamente via HTTP com reabertura da final e atualização do pódio', function () {
-    Storage::fake('public');
+    $disk = config('filesystems.media_disk');
+    Storage::fake($disk);
 
     $user = User::factory()->create();
     $this->actingAs($user);
@@ -103,7 +104,7 @@ test('executa torneio determinístico completo de 8 equipes exclusivamente via H
     expect($teams)->toHaveCount(8)
         ->and($teams[0]->logo_path)->not->toBeNull()
         ->and($teams[0]->logo_url)->not->toBeNull();
-    Storage::disk('public')->assertExists($teams[0]->logo_path);
+    Storage::disk($disk)->assertExists($teams[0]->logo_path);
 
     // Update team 2 details via PATCH
     $this->patch("/campeonatos/{$championship->id}/equipes/{$teams[1]->id}", [
@@ -513,7 +514,7 @@ test('executa torneio determinístico completo de 8 equipes exclusivamente via H
 });
 
 test('rejeita upload de escudo em formato SVG ou arquivo que não seja imagem raster', function () {
-    Storage::fake('public');
+    Storage::fake(config('filesystems.media_disk'));
 
     $user = User::factory()->create();
     $this->actingAs($user);

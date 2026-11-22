@@ -54,17 +54,7 @@ class ChampionshipTeam extends Model
 
     public function getLogoUrlAttribute(): ?string
     {
-        if (! $this->logo_path)
-        {
-            return null;
-        }
-
-        if (app()->bound('filesystem'))
-        {
-            return Storage::disk('public')->url($this->logo_path);
-        }
-
-        return '/storage/'.ltrim($this->logo_path, '/');
+        return $this->logo_path ? Storage::disk(config('filesystems.media_disk'))->url($this->logo_path) : null;
     }
 
     /** @return BelongsTo<Championship, $this> */

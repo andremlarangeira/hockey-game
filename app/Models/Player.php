@@ -45,7 +45,7 @@ class Player extends Model
 
     public function getPhotoUrlAttribute(): ?string
     {
-        return $this->photo_path ? Storage::disk('public')->url($this->photo_path) : null;
+        return $this->photo_path ? Storage::disk(config('filesystems.media_disk'))->url($this->photo_path) : null;
     }
 
     /** @return array{goals: int, assists: int, games: int} */
