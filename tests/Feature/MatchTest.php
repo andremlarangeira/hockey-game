@@ -178,3 +178,24 @@ test('não permite excluir partida de outra conta e visitante é redirecionado',
         ->and(Goal::withoutGlobalScopes()->where('match_id', $match->id)->exists())->toBeTrue();
     $this->actingAsGuest()->delete("/partidas/$match->id")->assertRedirect('/login');
 });
+
+test('exibe a data da partida na listagem no fuso horário de exibição', function () {
+    [$team, $scorer] = $this->teamWithPlayer();
+    $payload = matchPayload($team, $scorer);
+    $payload['started_at'] = '2026-11-19T00:05:00Z';
+    $payload['finished_at'] = '2026-11-19T00:30:00Z';
+
+    $this->actingAs($team)->post('/partidas', $payload)->assertRedirect();
+
+    $match = HockeyMatch::withoutGlobalScopes()->firstOrFail();
+    expect($match->finished_at?->utc()->format('Y-m-d H:i:s'))->toBe('2026-11-19 00:30:00');
+
+    $this->actingAs($team)
+        ->get('/partidas')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('matches/Index')
+            ->has('matches', 1)
+            ->where('matches.0.id', $match->id)
+            ->where('matches.0.finished_at', '18/11/2026 21:30'));
+});

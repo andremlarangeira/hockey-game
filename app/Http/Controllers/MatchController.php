@@ -28,7 +28,7 @@ class MatchController extends Controller
                     'home_score' => $match->home_score,
                     'away_score' => $match->away_score,
                     'goals_count' => $match->goals_count,
-                    'finished_at' => $match->finished_at?->format('d/m/Y H:i'),
+                    'finished_at' => $match->finished_at?->timezone(config('app.display_timezone'))->format('d/m/Y H:i'),
                 ]),
         ]);
     }
