@@ -20,6 +20,48 @@ test('cadastra, edita e valida um jogador com meia estrela', function () {
     $this->post('/jogadores', ['name' => 'Repetido', 'jersey_number' => 12, 'level' => 4.1, 'present' => true])->assertSessionHasErrors(['jersey_number', 'level']);
 });
 
+test('atualiza a foto de um jogador que ainda não tinha foto', function () {
+    Storage::fake('public');
+    $team = User::factory()->create();
+
+    $this->actingAs($team)->post('/jogadores', [
+        'name' => 'Sem Foto', 'jersey_number' => 7, 'level' => 3.5, 'present' => true,
+    ])->assertRedirect();
+
+    $player = Player::firstOrFail();
+    expect($player->photo_path)->toBeNull();
+
+    $this->actingAs($team)->patch("/jogadores/$player->id", [
+        'name' => 'Com Foto Agora',
+        'jersey_number' => 7,
+        'level' => 3.5,
+        'present' => true,
+        'photo' => UploadedFile::fake()->image('sete.jpg'),
+    ])->assertRedirect()->assertSessionHasNoErrors();
+
+    $player->refresh();
+    expect($player->photo_path)->not->toBeNull();
+    Storage::disk('public')->assertExists($player->photo_path);
+});
+
+test('remove um jogador que não possui foto sem erro', function () {
+    Storage::fake('public');
+    $team = User::factory()->create();
+
+    $this->actingAs($team)->post('/jogadores', [
+        'name' => 'Para Remover', 'jersey_number' => 19, 'level' => 3.0, 'present' => true,
+    ])->assertRedirect();
+
+    $player = Player::firstOrFail();
+    expect($player->photo_path)->toBeNull();
+
+    $this->actingAs($team)->delete("/jogadores/$player->id")
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect(Player::find($player->id))->toBeNull();
+});
+
 test('presença em massa e individual funcionam apenas no time conectado', function () {
     [$team, $player] = $this->teamWithPlayer();
     $this->actingAs($team)->post('/presenca', ['present' => false]);

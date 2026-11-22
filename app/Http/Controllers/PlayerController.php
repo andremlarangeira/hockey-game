@@ -41,12 +41,18 @@ class PlayerController extends Controller
         $data = $request->safe()->except(['photo', 'remove_photo']);
         if ($request->hasFile('photo'))
         {
-            Storage::disk('public')->delete($player->photo_path);
+            if ($player->photo_path !== null && $player->photo_path !== '')
+            {
+                Storage::disk('public')->delete($player->photo_path);
+            }
             $data['photo_path'] = $request->file('photo')->store('jogadores/'.$request->user()->id, 'public');
         }
         elseif ($request->boolean('remove_photo'))
         {
-            Storage::disk('public')->delete($player->photo_path);
+            if ($player->photo_path !== null && $player->photo_path !== '')
+            {
+                Storage::disk('public')->delete($player->photo_path);
+            }
             $data['photo_path'] = null;
         }
         $player->update($data);
@@ -105,7 +111,10 @@ class PlayerController extends Controller
 
     public function destroy(Player $player): RedirectResponse
     {
-        Storage::disk('public')->delete($player->photo_path);
+        if ($player->photo_path !== null && $player->photo_path !== '')
+        {
+            Storage::disk('public')->delete($player->photo_path);
+        }
         $player->delete();
 
         return back()->with('success', 'Jogador removido.');

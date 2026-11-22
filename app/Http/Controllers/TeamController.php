@@ -27,7 +27,10 @@ class TeamController extends Controller
         $user = $request->user();
         if ($request->hasFile('logo'))
         {
-            Storage::disk('public')->delete($user->logo_path);
+            if ($user->logo_path !== null && $user->logo_path !== '')
+            {
+                Storage::disk('public')->delete($user->logo_path);
+            }
             $data['logo_path'] = $request->file('logo')->store('logos/'.$user->id, 'public');
         }
         unset($data['logo']);
