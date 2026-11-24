@@ -22,6 +22,27 @@ export function useMatchClock(
     });
     let timer: ReturnType<typeof setInterval> | undefined;
     let countdownSecond: number | null = null;
+
+    const shouldTick = (): boolean =>
+        !clock.paused && ['countdown', 'period', 'rest'].includes(clock.phase);
+
+    const stopTimer = () => {
+        if (timer !== undefined) {
+            clearInterval(timer);
+            timer = undefined;
+        }
+    };
+
+    const ensureTimer = () => {
+        if (shouldTick()) {
+            if (timer === undefined) {
+                timer = setInterval(sync, 200);
+            }
+        } else {
+            stopTimer();
+        }
+    };
+
     const sync = () => {
         const previous = clock.transitions.length;
         clock.tick();
@@ -44,13 +65,15 @@ export function useMatchClock(
             }
             countdownSecond = second;
         }
+        ensureTimer();
     };
+
     onMounted(() => {
-        timer = setInterval(sync, 200);
+        ensureTimer();
         document.addEventListener('visibilitychange', sync);
     });
     onBeforeUnmount(() => {
-        if (timer !== undefined) clearInterval(timer);
+        stopTimer();
         document.removeEventListener('visibilitychange', sync);
     });
     return reactive({

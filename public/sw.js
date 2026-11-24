@@ -1,4 +1,4 @@
-const VERSION = 'v3';
+const VERSION = 'v4';
 const PAGES_CACHE = `na-quadra-pages-${VERSION}`;
 const ASSETS_CACHE = `na-quadra-assets-${VERSION}`;
 const ROUTES = new Set(['/jogadores', '/sorteio', '/partida']);

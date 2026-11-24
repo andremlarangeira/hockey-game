@@ -112,6 +112,27 @@ export function changePresence(
     return next;
 }
 
+export function changePresenceBatch(
+    storage: StorageLike,
+    accountId: number | string,
+    players: Player[],
+    present: boolean,
+    changedAt = new Date().toISOString(),
+): Player[] {
+    const state = parse(storage, presenceKey(accountId));
+    const pending: Record<string, PresenceChange> = { ...state?.pending };
+    const next = players.map((player) => {
+        pending[String(player.id)] = {
+            player_id: player.id,
+            present,
+            changed_at: changedAt,
+        };
+        return { ...player, present };
+    });
+    savePlayers(storage, accountId, next, pending);
+    return next;
+}
+
 export function pendingPresence(
     storage: StorageLike,
     accountId: number | string,

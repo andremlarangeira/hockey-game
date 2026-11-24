@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import StatusBadge from '@/components/common/StatusBadge.vue';
 import AuditLogTab from '@/components/championships/AuditLogTab.vue';
 import GroupsAndStandingsTab from '@/components/championships/GroupsAndStandingsTab.vue';
 import KnockoutBracketTab from '@/components/championships/KnockoutBracketTab.vue';
 import RulesTab from '@/components/championships/RulesTab.vue';
 import TeamsAndRostersTab from '@/components/championships/TeamsAndRostersTab.vue';
+import { useConfirm } from '@/composables/useConfirm';
+import { useToast } from '@/composables/useToast';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     AlertTriangle,
@@ -29,7 +32,6 @@ import type {
     ChampionshipAuditLogProp,
     ChampionshipGameProp,
     ChampionshipProp,
-    ChampionshipStatus,
     ChampionshipStatusFlagsProp,
     ChampionshipSummaryProp,
     EnrolledTeamProp,
@@ -57,26 +59,22 @@ const props = defineProps<{
 
 type TabKey = 'times' | 'regras' | 'grupos' | 'mata-mata' | 'historico';
 
-const activeTab = ref<TabKey>('times');
+const initialTab: TabKey =
+    props.championship.status === 'group_stage'
+        ? 'grupos'
+        : props.championship.status === 'knockout_stage' ||
+            props.championship.status === 'completed'
+          ? 'mata-mata'
+          : 'times';
+
+const activeTab = ref<TabKey>(initialTab);
+const { confirm } = useConfirm();
+const toast = useToast();
 
 const page = usePage();
 const pageErrors = computed(
     () => (page.props.errors ?? {}) as Record<string, string | undefined>,
 );
-
-const statusLabels: Record<ChampionshipStatus, string> = {
-    draft: 'Rascunho',
-    group_stage: 'Fase de grupos',
-    knockout_stage: 'Mata-mata',
-    completed: 'Encerrado',
-};
-
-const statusClasses: Record<ChampionshipStatus, string> = {
-    draft: 'bg-amber-100 text-amber-800 border-amber-200',
-    group_stage: 'bg-blue-100 text-blue-800 border-blue-200',
-    knockout_stage: 'bg-purple-100 text-purple-800 border-purple-200',
-    completed: 'bg-green-100 text-green-800 border-green-200',
-};
 
 const groupGames = computed<ChampionshipGameProp[]>(
     () =>
@@ -160,12 +158,15 @@ function activatePublicLink() {
     );
 }
 
-function regeneratePublicLink() {
-    if (
-        !window.confirm(
-            'Gerar um novo link? O link público atual vai parar de funcionar.',
-        )
-    ) {
+async function regeneratePublicLink() {
+    const accepted = await confirm({
+        title: 'Gerar um novo link público?',
+        message:
+            'O endereço atual vai parar de funcionar imediatamente para quem já o salvou.',
+        confirmLabel: 'Gerar novo link',
+        variant: 'primary',
+    });
+    if (!accepted) {
         return;
     }
 
@@ -176,12 +177,15 @@ function regeneratePublicLink() {
     );
 }
 
-function disablePublicLink() {
-    if (
-        !window.confirm(
-            'Desativar o link público? Quem tiver o endereço não poderá mais acessar o campeonato.',
-        )
-    ) {
+async function disablePublicLink() {
+    const accepted = await confirm({
+        title: 'Desativar link público?',
+        message:
+            'Quem tiver o endereço não poderá mais visualizar o campeonato até você reativar.',
+        confirmLabel: 'Desativar link',
+        variant: 'danger',
+    });
+    if (!accepted) {
         return;
     }
 
@@ -196,6 +200,7 @@ async function copyPublicLink() {
 
     try {
         await navigator.clipboard.writeText(url);
+        toast.success('Link público copiado!');
         return;
     } catch {
         const input = document.createElement('textarea');
@@ -207,6 +212,7 @@ async function copyPublicLink() {
         input.select();
         document.execCommand('copy');
         input.remove();
+        toast.success('Link público copiado!');
     }
 }
 </script>
@@ -215,9 +221,7 @@ async function copyPublicLink() {
     <Head :title="championship.name" />
 
     <!-- Top Header -->
-    <div
-        class="mb-5 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 dark:border-slate-700 dark:bg-slate-900"
-    >
+    <div class="surface-card mb-5 rounded-2xl p-4 sm:p-5">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div class="min-w-0 flex-1">
                 <Link
@@ -230,16 +234,11 @@ async function copyPublicLink() {
 
                 <div class="mt-1.5 flex flex-wrap items-center gap-2.5">
                     <h1
-                        class="text-2xl font-black text-slate-950 dark:text-slate-100"
+                        class="text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white"
                     >
                         {{ championship.name }}
                     </h1>
-                    <span
-                        class="rounded-full border px-2.5 py-0.5 text-xs font-bold"
-                        :class="statusClasses[championship.status]"
-                    >
-                        {{ statusLabels[championship.status] }}
-                    </span>
+                    <StatusBadge :status="championship.status" />
                 </div>
 
                 <div

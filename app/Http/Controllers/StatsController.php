@@ -19,13 +19,30 @@ class StatsController extends Controller
             ->where('user_id', $request->user()->id)->whereNotNull('assist_id')->groupBy('assist_id');
 
         $games = [];
-        foreach ($request->user()->matches()->get(['id', 'roster']) as $match)
+        $rosters = DB::table('matches')
+            ->where('user_id', $request->user()->id)
+            ->pluck('roster');
+        foreach ($rosters as $rawRoster)
         {
-            foreach ([$match->roster->home, $match->roster->away] as $side)
+            $decoded = is_string($rawRoster) ? json_decode($rawRoster, true) : null;
+            if (! is_array($decoded))
             {
-                foreach ($side->players as $player)
+                continue;
+            }
+            foreach (['home', 'away'] as $sideKey)
+            {
+                $players = $decoded[$sideKey]['players'] ?? null;
+                if (! is_array($players))
                 {
-                    $games[$player['id']] = ($games[$player['id']] ?? 0) + 1;
+                    continue;
+                }
+                foreach ($players as $player)
+                {
+                    if (is_array($player) && isset($player['id']))
+                    {
+                        $playerId = (int) $player['id'];
+                        $games[$playerId] = ($games[$playerId] ?? 0) + 1;
+                    }
                 }
             }
         }

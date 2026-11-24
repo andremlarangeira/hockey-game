@@ -261,20 +261,22 @@ export async function warmOfflinePages(
         type: 'WARM_PAGES',
         urls: pages,
     });
-    for (const url of pages) {
-        const inertia = await warm(url, true);
-        if (url === '/jogadores' && inertia) {
-            const data = (await inertia
-                .clone()
-                .json()
-                .catch(() => null)) as {
-                props?: { players?: Player[] };
-            } | null;
-            if (data?.props?.players) {
-                savePlayers(localStorage, identity.id, data.props.players);
+    await Promise.allSettled(
+        pages.map(async (url) => {
+            const inertia = await warm(url, true);
+            if (url === '/jogadores' && inertia) {
+                const data = (await inertia
+                    .clone()
+                    .json()
+                    .catch(() => null)) as {
+                    props?: { players?: Player[] };
+                } | null;
+                if (data?.props?.players) {
+                    savePlayers(localStorage, identity.id, data.props.players);
+                }
             }
-        }
-    }
+        }),
+    );
 }
 
 export function startOfflineSync(

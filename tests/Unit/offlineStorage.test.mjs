@@ -24,8 +24,13 @@ execFileSync(`${cwd}/node_modules/typescript/bin/tsc`, [
     temp,
 ]);
 writeFileSync(`${temp}/package.json`, '{"type":"commonjs"}');
-const { acknowledgePresence, changePresence, loadPlayers, pendingPresence } =
-    await import(`${temp}/offlineStorage.js`);
+const {
+    acknowledgePresence,
+    changePresence,
+    changePresenceBatch,
+    loadPlayers,
+    pendingPresence,
+} = await import(`${temp}/offlineStorage.js`);
 
 class MemoryStorage {
     data = new Map();
@@ -102,3 +107,30 @@ assert.equal(
     '2026-01-01T00:03:00.000Z',
     'uma alteração durante o envio permanece pendente',
 );
+
+const batchStorage = new MemoryStorage();
+let writeCount = 0;
+const originalSetItem = batchStorage.setItem.bind(batchStorage);
+batchStorage.setItem = (key, value) => {
+    writeCount++;
+    originalSetItem(key, value);
+};
+let batchPlayers = loadPlayers(batchStorage, 9, [
+    player(1, false),
+    player(2, false),
+    player(3, true),
+]);
+writeCount = 0;
+batchPlayers = changePresenceBatch(
+    batchStorage,
+    9,
+    batchPlayers,
+    true,
+    '2026-01-01T00:05:00.000Z',
+);
+assert.equal(writeCount, 1, 'alteração em lote grava uma única vez no storage');
+assert.equal(
+    batchPlayers.every((item) => item.present),
+    true,
+);
+assert.equal(pendingPresence(batchStorage, 9).length, 3);

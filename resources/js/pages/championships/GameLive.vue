@@ -11,6 +11,7 @@ import {
     Expand,
     Flag,
     MapPin,
+    Megaphone,
     Pause,
     Play,
     RotateCcw,
@@ -27,6 +28,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useMatchAudio } from '@/composables/useMatchAudio';
 import { useMatchClock } from '@/composables/useMatchClock';
 import { useWakeLock } from '@/composables/useWakeLock';
+import { readableText } from '@/lib/balancedDraw';
 import { formatClock } from '@/lib/matchClock';
 import { transitionSounds } from '@/lib/matchClockCore';
 import type {
@@ -210,15 +212,12 @@ const statusClasses: Record<GameStatus, string> = {
 };
 
 function readableColor(hex: string | null | undefined): string {
-    if (!hex) return '#ffffff';
-    const lower = hex.toLowerCase();
-    return lower === '#f59e0b' ||
-        lower === '#84cc16' ||
-        lower === '#eab308' ||
-        lower === '#ffffff' ||
-        lower === '#f8fafc'
-        ? '#111827'
-        : '#ffffff';
+    return hex ? readableText(hex) : '#ffffff';
+}
+
+async function blowWhistle() {
+    await sound.unlock(sounds.value);
+    sound.play(sounds.value, 'start');
 }
 
 function saveClockToStorage() {
@@ -1012,17 +1011,31 @@ function formatDateTime(iso: string | null): string {
 
     <!-- Main Scoreboard Section -->
     <section
-        class="overflow-hidden bg-slate-950 text-white shadow-2xl"
+        class="relative overflow-hidden border border-white/10 bg-slate-950 text-white shadow-2xl"
         :class="
             isFullscreen
                 ? 'fixed inset-0 z-[45] flex flex-col justify-between'
-                : 'rounded-2xl'
+                : 'rounded-3xl'
         "
         data-test="placar-campeonato"
     >
+        <div
+            v-if="homeTeam"
+            class="pointer-events-none absolute inset-y-0 left-0 w-1/3 opacity-20"
+            :style="{
+                background: `radial-gradient(circle at 0% 50%, ${homeTeam.primary_color}, transparent 75%)`,
+            }"
+        />
+        <div
+            v-if="awayTeam"
+            class="pointer-events-none absolute inset-y-0 right-0 w-1/3 opacity-20"
+            :style="{
+                background: `radial-gradient(circle at 100% 50%, ${awayTeam.primary_color}, transparent 75%)`,
+            }"
+        />
         <!-- Top Status & Fullscreen / WakeLock Bar -->
         <div
-            class="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-3 py-2"
+            class="relative flex flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-black/25 px-3 py-2"
         >
             <div class="flex items-center gap-2">
                 <span
@@ -1041,7 +1054,17 @@ function formatDateTime(iso: string | null): string {
             <div class="flex items-center gap-1">
                 <button
                     type="button"
-                    class="flex min-h-10 items-center gap-1 px-2 text-xs text-slate-300 hover:text-white"
+                    class="flex min-h-9 items-center gap-1.5 rounded-lg border border-amber-400/35 bg-amber-400/15 px-2.5 text-xs font-extrabold text-amber-200 transition-colors hover:bg-amber-400/25"
+                    title="Tocar apito manual"
+                    data-test="apito-manual"
+                    @click="blowWhistle"
+                >
+                    <Megaphone class="size-3.5" />
+                    <span>Apito</span>
+                </button>
+                <button
+                    type="button"
+                    class="flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs text-slate-300 hover:bg-white/10 hover:text-white"
                     title="Manter tela acesa"
                     :aria-pressed="wake.active.value"
                     @click="wake.active.value ? wake.release() : wake.request()"
@@ -1054,7 +1077,7 @@ function formatDateTime(iso: string | null): string {
                 </button>
                 <button
                     type="button"
-                    class="flex min-h-10 items-center gap-1 px-2 text-xs text-slate-300 hover:text-white"
+                    class="flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs text-slate-300 hover:bg-white/10 hover:text-white"
                     data-test="tela-cheia"
                     @click="toggleFullscreen"
                 >
@@ -1137,11 +1160,11 @@ function formatDateTime(iso: string | null): string {
                     }}
                 </h2>
                 <strong
-                    class="mt-1 block font-black tabular-nums"
+                    class="mt-1 block font-display font-extrabold tabular-nums"
                     :class="
                         isFullscreen
                             ? 'text-[min(36vh,20vw)] leading-none'
-                            : 'text-6xl sm:text-8xl'
+                            : 'text-7xl leading-none sm:text-9xl'
                     "
                     data-test="placar-casa"
                 >
@@ -1172,11 +1195,11 @@ function formatDateTime(iso: string | null): string {
                 </span>
 
                 <p
-                    class="font-black text-amber-300 tabular-nums"
+                    class="font-display font-extrabold text-amber-300 tabular-nums"
                     :class="
                         isFullscreen
                             ? 'text-[min(22vh,13vw)] leading-none'
-                            : 'text-4xl sm:text-6xl'
+                            : 'text-5xl leading-none sm:text-7xl'
                     "
                     data-test="cronometro"
                 >
@@ -1230,11 +1253,11 @@ function formatDateTime(iso: string | null): string {
                     }}
                 </h2>
                 <strong
-                    class="mt-1 block font-black tabular-nums"
+                    class="mt-1 block font-display font-extrabold tabular-nums"
                     :class="
                         isFullscreen
                             ? 'text-[min(36vh,20vw)] leading-none'
-                            : 'text-6xl sm:text-8xl'
+                            : 'text-7xl leading-none sm:text-9xl'
                     "
                     data-test="placar-fora"
                 >

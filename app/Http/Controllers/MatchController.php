@@ -17,7 +17,12 @@ class MatchController extends Controller
     public function index(Request $request): Response
     {
         return Inertia::render('matches/Index', [
-            'matches' => $request->user()->matches()->withCount('goals')->latest('finished_at')->latest()->get()
+            'matches' => $request->user()->matches()
+                ->select(['id', 'user_id', 'home_score', 'away_score', 'roster', 'finished_at'])
+                ->withCount('goals')
+                ->latest('finished_at')
+                ->latest()
+                ->get()
                 ->map(fn (HockeyMatch $match): array => [
                     'id' => $match->id,
                     'title' => $match->roster->home->name.' × '.$match->roster->away->name,

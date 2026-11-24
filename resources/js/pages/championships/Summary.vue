@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import StatusBadge from '@/components/common/StatusBadge.vue';
 import ChampionshipTeamBadge from '@/components/championships/ChampionshipTeamBadge.vue';
 import { Head, Link } from '@inertiajs/vue3';
 import {
@@ -20,7 +21,6 @@ import {
 import { computed } from 'vue';
 import type {
     ChampionshipGameProp,
-    ChampionshipStatus,
     ChampionshipSummaryPageProps,
     GamePhase,
     GroupStandingsProp,
@@ -28,20 +28,6 @@ import type {
 } from '@/types/championship';
 
 const props = defineProps<ChampionshipSummaryPageProps>();
-
-const statusLabels: Record<ChampionshipStatus, string> = {
-    draft: 'Rascunho',
-    group_stage: 'Fase de grupos',
-    knockout_stage: 'Mata-mata',
-    completed: 'Encerrado',
-};
-
-const statusClasses: Record<ChampionshipStatus, string> = {
-    draft: 'bg-amber-100 text-amber-800 border-amber-200',
-    group_stage: 'bg-blue-100 text-blue-800 border-blue-200',
-    knockout_stage: 'bg-purple-100 text-purple-800 border-purple-200',
-    completed: 'bg-green-100 text-green-800 border-green-200',
-};
 
 const resolvedPodium = computed(() => props.podium ?? props.summary.podium);
 
@@ -190,16 +176,11 @@ function printPage() {
 
                     <div class="mt-1.5 flex flex-wrap items-center gap-2.5">
                         <h1
-                            class="text-2xl font-black text-slate-950 dark:text-slate-100"
+                            class="text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white"
                         >
                             {{ championship.name }}
                         </h1>
-                        <span
-                            class="rounded-full border px-2.5 py-0.5 text-xs font-bold"
-                            :class="statusClasses[championship.status]"
-                        >
-                            {{ statusLabels[championship.status] }}
-                        </span>
+                        <StatusBadge :status="championship.status" />
                     </div>
 
                     <div

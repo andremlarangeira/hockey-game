@@ -39,7 +39,7 @@ try {
     await page.evaluate(() => navigator.serviceWorker.ready);
     await page.waitForFunction(() => !!navigator.serviceWorker.controller);
     await page.waitForFunction(async () => {
-        const cache = await caches.open('na-quadra-pages-v3');
+        const cache = await caches.open('na-quadra-pages-v4');
         const keys = (await cache.keys()).map(
             (request) =>
                 new URL(request.url).pathname + new URL(request.url).search,

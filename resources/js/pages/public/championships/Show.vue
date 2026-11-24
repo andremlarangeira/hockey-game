@@ -118,52 +118,67 @@ function leaderValue(
 <template>
     <Head :title="championship.name" />
     <section
-        class="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900"
+        class="arena-hero relative overflow-hidden rounded-3xl border border-white/10 p-5 text-white shadow-2xl sm:p-7"
     >
-        <p
-            class="text-xs font-black tracking-widest text-emerald-700 uppercase dark:text-emerald-400"
-        >
-            Campeonato
-        </p>
-        <div class="mt-1 flex flex-wrap items-center gap-3">
-            <h1 class="text-3xl font-black tracking-tight">
+        <div class="relative">
+            <div class="flex flex-wrap items-center gap-2">
+                <span
+                    class="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-[11px] font-extrabold tracking-widest text-emerald-300 uppercase"
+                >
+                    <Trophy class="size-3.5" />
+                    Campeonato
+                </span>
+                <span
+                    v-if="hasLiveGame"
+                    class="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1 text-[11px] font-extrabold tracking-wider text-white uppercase shadow-sm shadow-red-600/40"
+                >
+                    <CircleDot class="size-3 animate-pulse" />
+                    Jogo ao vivo agora
+                </span>
+                <span
+                    class="rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-slate-200"
+                    >{{ championship.status_label }}</span
+                >
+            </div>
+            <h1 class="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">
                 {{ championship.name }}
             </h1>
-            <span
-                class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                >{{ championship.status_label }}</span
+            <div
+                class="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-sm font-medium text-slate-300"
             >
+                <span
+                    >{{ championship.city
+                    }}<template v-if="championship.venue">
+                        · {{ championship.venue }}</template
+                    ></span
+                >
+                <span
+                    v-if="championship.starts_on"
+                    class="inline-flex items-center gap-1.5"
+                >
+                    <Calendar class="size-4 text-emerald-400" /> Início
+                    {{
+                        new Date(championship.starts_on).toLocaleDateString(
+                            'pt-BR',
+                        )
+                    }}
+                </span>
+            </div>
+            <p class="mt-4 text-xs text-slate-400" aria-live="polite">
+                <span v-if="unavailable" class="text-red-300"
+                    >Este link não está mais disponível.</span
+                >
+                <span v-else-if="failing" class="text-amber-300"
+                    >Sem conexão, tentando novamente…</span
+                >
+                <span v-else
+                    >Atualizado às {{ formatUpdatedAt(lastUpdatedAt) }}</span
+                >
+            </p>
         </div>
-        <div
-            class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm font-medium text-slate-600 dark:text-slate-300"
-        >
-            <span
-                >{{ championship.city
-                }}<template v-if="championship.venue">
-                    · {{ championship.venue }}</template
-                ></span
-            ><span
-                v-if="championship.starts_on"
-                class="inline-flex items-center gap-1"
-                ><Calendar class="size-4" /> Início
-                {{
-                    new Date(championship.starts_on).toLocaleDateString('pt-BR')
-                }}</span
-            >
-        </div>
-        <p
-            class="mt-3 text-xs text-slate-500 dark:text-slate-400"
-            aria-live="polite"
-        >
-            <span v-if="unavailable">Este link não está mais disponível.</span>
-            <span v-else-if="failing">Sem conexão, tentando novamente…</span>
-            <span v-else
-                >Atualizado às {{ formatUpdatedAt(lastUpdatedAt) }}</span
-            >
-        </p>
     </section>
     <nav
-        class="mt-5 flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 dark:border-slate-700 dark:bg-slate-900"
+        class="surface-card mt-5 flex gap-1.5 overflow-x-auto rounded-2xl p-1.5"
         aria-label="Seções públicas do campeonato"
     >
         <button

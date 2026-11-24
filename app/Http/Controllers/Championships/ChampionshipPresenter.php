@@ -43,7 +43,8 @@ final readonly class ChampionshipPresenter
             ->orderBy('id')
             ->get();
 
-        $standingsMap = $this->engine->standings($championship);
+        $engineSummary = $this->engine->summary($championship);
+        $standingsMap = $engineSummary->standingsByGroup;
         $formattedStandings = $this->formatStandingsMap($standingsMap);
         $statusFlags = $this->computeStatusFlags($championship, $teams, $allGames, $standingsMap);
 
@@ -72,7 +73,7 @@ final readonly class ChampionshipPresenter
                 ->get(),
         );
 
-        $summary = $this->formatSummary($this->engine->summary($championship), $teamsById);
+        $summary = $this->formatSummary($engineSummary, $teamsById);
 
         return [
             'championship' => array_merge($this->formatChampionship($championship), $statusFlags),

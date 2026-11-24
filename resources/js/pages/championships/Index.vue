@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import StatusBadge from '@/components/common/StatusBadge.vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import {
     ArrowRight,
@@ -43,18 +44,11 @@ const form = useForm<{
     ends_on: '',
 });
 
-const statusLabels: Record<ChampionshipStatus, string> = {
-    draft: 'Rascunho',
-    group_stage: 'Fase de grupos',
-    knockout_stage: 'Mata-mata',
-    completed: 'Encerrado',
-};
-
-const statusClasses: Record<ChampionshipStatus, string> = {
-    draft: 'bg-amber-100 text-amber-800 border-amber-200',
-    group_stage: 'bg-blue-100 text-blue-800 border-blue-200',
-    knockout_stage: 'bg-purple-100 text-purple-800 border-purple-200',
-    completed: 'bg-green-100 text-green-800 border-green-200',
+const statusAccent: Record<ChampionshipStatus, string> = {
+    draft: 'bg-amber-400',
+    group_stage: 'bg-sky-500',
+    knockout_stage: 'bg-violet-500',
+    completed: 'bg-emerald-500',
 };
 
 function formatDate(dateStr: string | null): string {
@@ -102,14 +96,18 @@ function submitCreate() {
 <template>
     <Head title="Campeonatos" />
 
-    <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
+    <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
             <p
-                class="text-xs font-bold tracking-widest text-slate-500 uppercase dark:text-slate-400"
+                class="text-[11px] font-extrabold tracking-widest text-[var(--team-primary)] uppercase dark:text-emerald-400"
             >
                 Torneios e ligas
             </p>
-            <h1 class="mt-1 text-2xl font-black">Campeonatos</h1>
+            <h1
+                class="mt-0.5 text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl dark:text-white"
+            >
+                Campeonatos
+            </h1>
             <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 Organize campeonatos municipais com inscrição de equipes, grupos
                 e mata-mata.
@@ -117,17 +115,17 @@ function submitCreate() {
         </div>
         <button
             type="button"
-            class="flex min-h-12 items-center gap-2 rounded-xl bg-[var(--team-primary)] px-4 font-bold text-white"
+            class="flex min-h-11 items-center gap-2 rounded-xl bg-[var(--team-primary)] px-4 text-sm font-bold text-[var(--team-primary-text)] shadow-sm transition-all hover:brightness-110 active:scale-[0.98]"
             data-test="novo-campeonato"
             @click="openCreate"
         >
-            <Plus class="size-5" />Novo campeonato
+            <Plus class="size-4.5" />Novo campeonato
         </button>
     </div>
 
     <div
         v-if="pageErrors.championship"
-        class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800"
+        class="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800 dark:border-red-800/60 dark:bg-red-950/50 dark:text-red-200"
         role="alert"
     >
         {{ pageErrors.championship }}
@@ -137,93 +135,94 @@ function submitCreate() {
         <article
             v-for="championship in championships"
             :key="championship.id"
-            class="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-slate-300 hover:shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-500"
+            class="surface-card flex flex-col justify-between overflow-hidden rounded-2xl transition-all hover:shadow-md"
             :data-championship-id="championship.id"
         >
-            <div>
-                <div class="flex items-start justify-between gap-3">
-                    <div class="min-w-0 flex-1">
-                        <Link
-                            :href="`/campeonatos/${championship.id}`"
-                            class="block truncate text-lg font-black text-slate-900 hover:underline dark:text-slate-100"
-                        >
-                            {{ championship.name }}
-                        </Link>
-                        <p
-                            class="mt-1 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400"
-                        >
-                            <MapPin class="size-3.5 shrink-0" />
-                            <span>{{ championship.city }}</span>
-                            <span v-if="championship.venue"
-                                >· {{ championship.venue }}</span
+            <div
+                class="h-1.5 w-full"
+                :class="statusAccent[championship.status]"
+            />
+            <div class="flex flex-1 flex-col justify-between p-5">
+                <div>
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0 flex-1">
+                            <Link
+                                :href="`/campeonatos/${championship.id}`"
+                                class="block truncate text-lg font-extrabold text-slate-950 hover:underline dark:text-white"
                             >
-                        </p>
+                                {{ championship.name }}
+                            </Link>
+                            <p
+                                class="mt-1 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400"
+                            >
+                                <MapPin class="size-3.5 shrink-0" />
+                                <span>{{ championship.city }}</span>
+                                <span v-if="championship.venue"
+                                    >· {{ championship.venue }}</span
+                                >
+                            </p>
+                        </div>
+                        <StatusBadge :status="championship.status" />
                     </div>
-                    <span
-                        class="shrink-0 rounded-full border px-2.5 py-1 text-xs font-bold"
-                        :class="statusClasses[championship.status]"
+
+                    <div
+                        class="mt-4 flex flex-wrap items-center gap-3 text-xs text-slate-600 dark:text-slate-300"
                     >
-                        {{ statusLabels[championship.status] }}
-                    </span>
+                        <span
+                            class="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 font-semibold dark:bg-slate-800"
+                        >
+                            <Calendar
+                                class="size-3.5 text-slate-500 dark:text-slate-400"
+                            />
+                            {{
+                                formatDateRange(
+                                    championship.starts_on,
+                                    championship.ends_on,
+                                )
+                            }}
+                        </span>
+                        <span
+                            class="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 font-semibold dark:bg-slate-800"
+                        >
+                            <Shield
+                                class="size-3.5 text-slate-500 dark:text-slate-400"
+                            />
+                            {{ championship.teams_count ?? 0 }} equipes
+                        </span>
+                        <span
+                            class="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 font-semibold dark:bg-slate-800"
+                        >
+                            <Users
+                                class="size-3.5 text-slate-500 dark:text-slate-400"
+                            />
+                            {{ championship.games_count ?? 0 }} jogos
+                        </span>
+                    </div>
                 </div>
 
                 <div
-                    class="mt-4 flex flex-wrap items-center gap-3 text-xs text-slate-600 dark:text-slate-300"
+                    class="mt-4 flex items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-slate-800"
                 >
-                    <span
-                        class="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 font-semibold dark:bg-slate-800"
-                    >
-                        <Calendar
-                            class="size-3.5 text-slate-500 dark:text-slate-400"
-                        />
-                        {{
-                            formatDateRange(
-                                championship.starts_on,
-                                championship.ends_on,
-                            )
-                        }}
+                    <span class="text-xs text-slate-500 dark:text-slate-400">
+                        {{ championship.rules.groups_count }} grupo(s) ·
+                        {{ championship.rules.qualifiers_per_group }}
+                        classificado(s)/grupo
                     </span>
-                    <span
-                        class="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 font-semibold dark:bg-slate-800"
-                    >
-                        <Shield
-                            class="size-3.5 text-slate-500 dark:text-slate-400"
-                        />
-                        {{ championship.teams_count ?? 0 }} equipes
-                    </span>
-                    <span
-                        class="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 font-semibold dark:bg-slate-800"
-                    >
-                        <Users
-                            class="size-3.5 text-slate-500 dark:text-slate-400"
-                        />
-                        {{ championship.games_count ?? 0 }} jogos
-                    </span>
-                </div>
-            </div>
-
-            <div
-                class="mt-4 flex items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-slate-800"
-            >
-                <span class="text-xs text-slate-500 dark:text-slate-400">
-                    {{ championship.rules.groups_count }} grupo(s) ·
-                    {{ championship.rules.qualifiers_per_group }}
-                    classificado(s)/grupo
-                </span>
-                <div class="flex items-center gap-2">
-                    <Link
-                        :href="`/campeonatos/${championship.id}/resumo`"
-                        class="rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-                    >
-                        Resumo
-                    </Link>
-                    <Link
-                        :href="`/campeonatos/${championship.id}`"
-                        class="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600"
-                    >
-                        Gerenciar
-                        <ArrowRight class="size-3.5" />
-                    </Link>
+                    <div class="flex items-center gap-2">
+                        <Link
+                            :href="`/campeonatos/${championship.id}/resumo`"
+                            class="rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                        >
+                            Resumo
+                        </Link>
+                        <Link
+                            :href="`/campeonatos/${championship.id}`"
+                            class="inline-flex items-center gap-1 rounded-xl bg-[var(--team-primary)] px-3.5 py-1.5 text-xs font-bold text-[var(--team-primary-text)] shadow-2xs transition-all hover:brightness-110"
+                        >
+                            Gerenciar
+                            <ArrowRight class="size-3.5" />
+                        </Link>
+                    </div>
                 </div>
             </div>
         </article>

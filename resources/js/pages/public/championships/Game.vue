@@ -69,30 +69,44 @@ function formatUpdatedAt(value: Date): string {
     >
 
     <section
-        class="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
+        class="relative mt-3 overflow-hidden rounded-3xl border border-white/10 bg-slate-950 text-white shadow-2xl"
     >
         <div
-            class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3 text-xs font-bold dark:border-slate-700"
+            v-if="game.home_team"
+            class="pointer-events-none absolute inset-y-0 left-0 w-1/3 opacity-20"
+            :style="{
+                background: `radial-gradient(circle at 0% 50%, ${game.home_team.primary_color}, transparent 75%)`,
+            }"
+        />
+        <div
+            v-if="game.away_team"
+            class="pointer-events-none absolute inset-y-0 right-0 w-1/3 opacity-20"
+            :style="{
+                background: `radial-gradient(circle at 100% 50%, ${game.away_team.primary_color}, transparent 75%)`,
+            }"
+        />
+        <div
+            class="relative flex flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-black/25 px-4 py-3 text-xs font-bold"
         >
-            <span class="text-slate-500 dark:text-slate-400"
+            <span class="text-slate-300"
                 >{{ game.phase_label
                 }}<template v-if="game.group_code">
                     · Grupo {{ game.group_code }}</template
                 ></span
             ><span
                 v-if="gameIsLive"
-                class="inline-flex items-center gap-1 rounded-full bg-red-600 px-2.5 py-1 text-white"
+                class="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1 text-white shadow-sm shadow-red-600/40"
                 ><CircleDot class="size-3 animate-pulse" /> AO VIVO</span
             ><span
                 v-else
-                class="rounded-full bg-slate-100 px-2.5 py-1 text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                class="rounded-full bg-white/10 px-3 py-1 text-slate-200"
                 >{{
                     game.status === 'finished' ? 'Encerrado' : 'Agendado'
                 }}</span
             >
         </div>
         <div
-            class="grid grid-cols-[1fr_auto_1fr] items-center gap-3 p-4 sm:p-7"
+            class="relative grid grid-cols-[1fr_auto_1fr] items-center gap-3 p-5 sm:p-8"
         >
             <div class="flex min-w-0 flex-col items-center gap-2 text-center">
                 <ChampionshipTeamBadge
@@ -103,12 +117,17 @@ function formatUpdatedAt(value: Date): string {
                     :primary-color="game.home_team.primary_color"
                     :secondary-color="game.home_team.secondary_color"
                     size="lg"
-                /><span class="line-clamp-2 text-sm font-black sm:text-base">{{
-                    game.home_team?.name ?? game.home_source ?? 'A definir'
-                }}</span>
+                /><span
+                    class="line-clamp-2 text-sm font-extrabold sm:text-base"
+                    >{{
+                        game.home_team?.name ?? game.home_source ?? 'A definir'
+                    }}</span
+                >
             </div>
             <div class="text-center">
-                <div class="text-3xl font-black tabular-nums sm:text-5xl">
+                <div
+                    class="font-display text-5xl leading-none font-extrabold tabular-nums sm:text-7xl"
+                >
                     {{
                         game.is_bye
                             ? 'BYE'
@@ -117,13 +136,13 @@ function formatUpdatedAt(value: Date): string {
                 </div>
                 <p
                     v-if="game.went_to_overtime"
-                    class="mt-1 text-xs font-bold text-amber-700 dark:text-amber-400"
+                    class="mt-1.5 text-xs font-bold text-amber-300"
                 >
                     Prorrogação
                 </p>
                 <p
                     v-if="game.went_to_shootout"
-                    class="mt-1 text-xs font-bold text-amber-700 dark:text-amber-400"
+                    class="mt-1 text-xs font-bold text-amber-300"
                 >
                     Pênaltis {{ game.home_shootout_score }}–{{
                         game.away_shootout_score
@@ -139,13 +158,16 @@ function formatUpdatedAt(value: Date): string {
                     :primary-color="game.away_team.primary_color"
                     :secondary-color="game.away_team.secondary_color"
                     size="lg"
-                /><span class="line-clamp-2 text-sm font-black sm:text-base">{{
-                    game.away_team?.name ?? game.away_source ?? 'A definir'
-                }}</span>
+                /><span
+                    class="line-clamp-2 text-sm font-extrabold sm:text-base"
+                    >{{
+                        game.away_team?.name ?? game.away_source ?? 'A definir'
+                    }}</span
+                >
             </div>
         </div>
         <div
-            class="border-t border-slate-200 px-4 py-3 text-center text-xs font-medium text-slate-500 dark:border-slate-700 dark:text-slate-400"
+            class="relative border-t border-white/10 bg-black/25 px-4 py-3 text-center text-xs font-medium text-slate-400"
         >
             <span v-if="lastEvent"
                 >Último evento: {{ eventPeriod(lastEvent) }} ·

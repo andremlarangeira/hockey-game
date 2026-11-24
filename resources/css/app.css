@@ -1,26 +1,63 @@
 @import 'tailwindcss';
 @custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
-    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --font-sans:
+        'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --font-display:
+        'Barlow Condensed', 'Plus Jakarta Sans', ui-sans-serif, system-ui,
+        sans-serif;
 }
+
 :root {
     --team-primary: #166534;
     --team-primary-text: #ffffff;
     --team-secondary: #f59e0b;
+    --team-primary-soft: color-mix(
+        in srgb,
+        var(--team-primary) 12%,
+        transparent
+    );
+    --team-primary-border: color-mix(
+        in srgb,
+        var(--team-primary) 28%,
+        transparent
+    );
+    --team-secondary-soft: color-mix(
+        in srgb,
+        var(--team-secondary) 16%,
+        transparent
+    );
+    color-scheme: light;
 }
+
+.dark {
+    --team-primary-soft: color-mix(
+        in srgb,
+        var(--team-primary) 24%,
+        transparent
+    );
+    --team-primary-border: color-mix(
+        in srgb,
+        var(--team-primary) 42%,
+        transparent
+    );
+    --team-secondary-soft: color-mix(
+        in srgb,
+        var(--team-secondary) 22%,
+        transparent
+    );
+    color-scheme: dark;
+}
+
 * {
     scrollbar-width: thin;
 }
+
 body {
     min-width: 320px;
 }
-/* Controles nativos (select, date, scrollbar) acompanham o tema escolhido. */
-:root {
-    color-scheme: light;
-}
-.dark {
-    color-scheme: dark;
-}
+
 button,
 a,
 input,
@@ -28,22 +65,125 @@ select,
 label {
     -webkit-tap-highlight-color: transparent;
 }
+
 button,
 a {
     touch-action: manipulation;
 }
+
 button {
     cursor: pointer;
 }
+
 button:disabled {
     cursor: not-allowed;
 }
+
+.font-display {
+    font-family: var(--font-display);
+}
+
+.arena-bg {
+    background-color: #f3f6fb;
+    background-image:
+        radial-gradient(
+            900px 420px at 85% -80px,
+            color-mix(in srgb, var(--team-primary) 9%, transparent),
+            transparent 70%
+        ),
+        radial-gradient(
+            700px 360px at 10% -60px,
+            color-mix(in srgb, var(--team-secondary) 8%, transparent),
+            transparent 70%
+        );
+}
+
+.dark .arena-bg {
+    background-color: #070b14;
+    background-image:
+        radial-gradient(
+            900px 460px at 85% -80px,
+            color-mix(in srgb, var(--team-primary) 20%, transparent),
+            transparent 72%
+        ),
+        radial-gradient(
+            700px 380px at 10% -60px,
+            color-mix(in srgb, var(--team-secondary) 12%, transparent),
+            transparent 70%
+        );
+}
+
+.arena-hero {
+    background-color: #080d1a;
+    background-image:
+        radial-gradient(
+            circle at 18% 15%,
+            color-mix(in srgb, var(--team-primary) 34%, transparent),
+            transparent 55%
+        ),
+        radial-gradient(
+            circle at 86% 82%,
+            color-mix(in srgb, var(--team-secondary) 22%, transparent),
+            transparent 52%
+        ),
+        linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(7, 11, 20, 1));
+}
+
+.surface-card {
+    background-color: #ffffff;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow:
+        0 1px 2px rgba(15, 23, 42, 0.04),
+        0 6px 20px -12px rgba(15, 23, 42, 0.14);
+}
+
+.dark .surface-card {
+    background-color: #0f172a;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.35),
+        0 10px 28px -14px rgba(0, 0, 0, 0.65);
+}
+
+@keyframes scorePop {
+    0% {
+        transform: scale(1);
+    }
+    35% {
+        transform: scale(1.14);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.animate-score-pop {
+    animation: scorePop 380ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes toastIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.animate-toast-in {
+    animation: toastIn 200ms ease-out;
+}
+
 @media (orientation: landscape) and (max-height: 550px) {
     main {
         padding-top: 0.75rem;
     }
 }
+
 @custom-variant landscape-short (&:is(.landscape-short *));
+
 @media (orientation: landscape) and (max-height: 550px) {
     .landscape-short {
         display: revert;
