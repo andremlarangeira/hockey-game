@@ -9,7 +9,9 @@ use App\Http\Controllers\Championships\ChampionshipTeamController;
 use App\Http\Controllers\Championships\PublicChampionshipController;
 use App\Http\Controllers\DrawController;
 use App\Http\Controllers\MatchController;
+use App\Http\Controllers\MatchPublicLinkController;
 use App\Http\Controllers\PlayerController;
+use App\Http\Controllers\PublicMatchController;
 use App\Http\Controllers\SessionStateController;
 use App\Http\Controllers\StatsController;
 use App\Http\Controllers\TeamController;
@@ -34,6 +36,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('partidas', [MatchController::class, 'store'])->name('matches.store');
     Route::get('partidas/{match}', [MatchController::class, 'show'])->name('matches.show');
     Route::delete('partidas/{match}', [MatchController::class, 'destroy'])->name('matches.destroy');
+    Route::post('partidas/{match}/link-publico', [MatchPublicLinkController::class, 'store'])->name('matches.public-link.store');
+    Route::post('partidas/{match}/link-publico/regenerar', [MatchPublicLinkController::class, 'regenerate'])->name('matches.public-link.regenerate');
+    Route::delete('partidas/{match}/link-publico', [MatchPublicLinkController::class, 'destroy'])->name('matches.public-link.destroy');
     Route::get('estatisticas', StatsController::class)->name('stats.index');
     Route::get('time', [TeamController::class, 'edit'])->name('team.edit');
     Route::patch('time', [TeamController::class, 'update'])->name('team.update');
@@ -83,6 +88,11 @@ Route::middleware(['auth'])->group(function () {
         Route::post('{championship}/jogos/{game}/reabrir', [ChampionshipGameController::class, 'reopen'])->name('games.reopen');
     });
 });
+
+Route::middleware(['throttle:120,1'])
+    ->get('p/partidas/{token}', [PublicMatchController::class, 'show'])
+    ->where(['token' => '[A-Za-z0-9]{40}'])
+    ->name('public.matches.show');
 
 Route::middleware(['throttle:120,1'])
     ->prefix('p/campeonatos/{token}')

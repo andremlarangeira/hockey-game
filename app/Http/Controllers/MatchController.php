@@ -14,6 +14,10 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class MatchController extends Controller
 {
+    public function __construct(
+        private readonly MatchPresenter $presenter,
+    ) {}
+
     public function index(Request $request): Response
     {
         return Inertia::render('matches/Index', [
@@ -96,10 +100,7 @@ class MatchController extends Controller
 
     public function show(HockeyMatch $match): Response
     {
-        return Inertia::render('matches/Show', [
-            'match' => $match,
-            'goals' => $match->goals()->orderBy('recorded_at')->get(),
-        ]);
+        return Inertia::render('matches/Show', $this->presenter->showProps($match));
     }
 
     public function destroy(HockeyMatch $match): RedirectResponse

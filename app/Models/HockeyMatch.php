@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * @property int $id
  * @property int $user_id
+ * @property string|null $client_uuid
  * @property int $home_score
  * @property int $away_score
  * @property MatchSettings $settings
@@ -22,9 +23,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property array<int, array<string, mixed>> $timeline
  * @property CarbonImmutable|null $finished_at
  * @property CarbonImmutable|null $started_at
+ * @property string|null $public_token
+ * @property CarbonImmutable|null $public_enabled_at
  * @property int $goals_count
  */
-#[Fillable(['client_uuid', 'home_score', 'away_score', 'settings', 'roster', 'timeline', 'started_at', 'finished_at'])]
+#[Fillable(['client_uuid', 'home_score', 'away_score', 'settings', 'roster', 'timeline', 'started_at', 'finished_at', 'public_token', 'public_enabled_at'])]
 class HockeyMatch extends Model
 {
     use BelongsToTeam;
@@ -35,7 +38,7 @@ class HockeyMatch extends Model
     {
         return [
             'settings' => MatchSettingsCast::class, 'roster' => MatchRosterCast::class, 'timeline' => 'array',
-            'started_at' => 'datetime', 'finished_at' => 'datetime',
+            'started_at' => 'datetime', 'finished_at' => 'datetime', 'public_enabled_at' => 'datetime',
         ];
     }
 

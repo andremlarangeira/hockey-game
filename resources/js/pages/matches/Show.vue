@@ -1,50 +1,38 @@
 <script setup lang="ts">
+import MatchPlayerStatsCard from '@/components/hockey/MatchPlayerStatsCard.vue';
+import MatchTimelineCard from '@/components/hockey/MatchTimelineCard.vue';
 import { useConfirm } from '@/composables/useConfirm';
+import { useToast } from '@/composables/useToast';
 import { readableText } from '@/lib/balancedDraw';
 import { formatClock } from '@/lib/matchClock';
 import type {
-    DrawTeam,
-    GoalEvent,
-    MatchSettings,
-    TimelineEvent,
+    MatchGoalProp,
+    MatchPlayerStatsProp,
+    MatchPublicLinkProp,
+    SavedMatchProp,
 } from '@/types/hockey';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ArrowLeft, Calendar, Check, Clock3, Trash2 } from 'lucide-vue-next';
-
-interface SavedMatch {
-    id: number;
-    home_score: number;
-    away_score: number;
-    settings: MatchSettings;
-    roster: { home: DrawTeam; away: DrawTeam };
-    timeline: TimelineEvent[];
-    started_at: string;
-    finished_at: string;
-}
+import {
+    ArrowLeft,
+    Calendar,
+    Check,
+    Copy,
+    ExternalLink,
+    Globe2,
+    Link2,
+    RefreshCw,
+    Trash2,
+} from 'lucide-vue-next';
 
 const props = defineProps<{
-    match: SavedMatch;
-    goals: (Omit<GoalEvent, 'recorded_at'> & {
-        recorded_at: string;
-        created_at: string;
-    })[];
+    match: SavedMatchProp;
+    goals: MatchGoalProp[];
+    player_stats: MatchPlayerStatsProp;
+    public_link: MatchPublicLinkProp;
 }>();
 
 const { confirm } = useConfirm();
-
-const eventNames: Record<string, string> = {
-    pre_start: 'Contagem para começar',
-    start: 'Início',
-    pause: 'Pausa',
-    resume: 'Retomada',
-    period_start: 'Início do tempo',
-    period_end: 'Fim do tempo',
-    rest_start: 'Início do descanso',
-    rest_end: 'Fim do descanso',
-    finish: 'Fim da partida',
-    goal_added: 'Gol marcado',
-    goal_removed: 'Gol desfeito',
-};
+const toast = useToast();
 
 async function destroyMatch() {
     const accepted = await confirm({
@@ -57,6 +45,74 @@ async function destroyMatch() {
     if (!accepted) return;
 
     router.delete(`/partidas/${props.match.id}`);
+}
+
+function activatePublicLink() {
+    router.post(
+        `/partidas/${props.match.id}/link-publico`,
+        {},
+        {
+            preserveScroll: true,
+        },
+    );
+}
+
+async function regeneratePublicLink() {
+    const accepted = await confirm({
+        title: 'Gerar um novo link público?',
+        message:
+            'O endereço atual vai parar de funcionar imediatamente para quem já o salvou.',
+        confirmLabel: 'Gerar novo link',
+        variant: 'primary',
+    });
+    if (!accepted) {
+        return;
+    }
+
+    router.post(
+        `/partidas/${props.match.id}/link-publico/regenerar`,
+        {},
+        { preserveScroll: true },
+    );
+}
+
+async function disablePublicLink() {
+    const accepted = await confirm({
+        title: 'Desativar link público?',
+        message:
+            'Quem tiver o endereço não poderá mais visualizar a partida até você reativar.',
+        confirmLabel: 'Desativar link',
+        variant: 'danger',
+    });
+    if (!accepted) {
+        return;
+    }
+
+    router.delete(`/partidas/${props.match.id}/link-publico`, {
+        preserveScroll: true,
+    });
+}
+
+async function copyPublicLink() {
+    const url = props.public_link.url;
+    if (!url) return;
+
+    try {
+        await navigator.clipboard.writeText(url);
+        toast.success('Link público copiado!');
+        return;
+    } catch {
+        const input = document.createElement('textarea');
+        input.value = url;
+        input.setAttribute('readonly', '');
+        input.style.position = 'fixed';
+        input.style.opacity = '0';
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        input.remove();
+        toast.success('Link público copiado!');
+    }
 }
 </script>
 
@@ -100,10 +156,11 @@ async function destroyMatch() {
         <div class="relative">
             <div class="flex flex-wrap items-center justify-center gap-2">
                 <span
+                    v-if="match.finished_at"
                     class="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-300"
                 >
                     <Calendar class="size-3.5" />
-                    {{ new Date(match.finished_at).toLocaleString('pt-BR') }}
+                    {{ match.finished_at }}
                 </span>
                 <span
                     class="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-300"
@@ -146,6 +203,88 @@ async function destroyMatch() {
             </div>
         </div>
     </section>
+
+    <section
+        class="mt-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
+        aria-labelledby="link-publico-heading"
+        data-test="card-link-publico"
+    >
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <div class="flex items-center gap-2">
+                    <Globe2 class="size-4 text-[var(--team-primary)]" />
+                    <h2
+                        id="link-publico-heading"
+                        class="text-sm font-black text-slate-950 dark:text-white"
+                    >
+                        Link público
+                    </h2>
+                </div>
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    Compartilhe o placar, os gols e as estatísticas desta
+                    partida sem dar acesso à gestão.
+                </p>
+            </div>
+
+            <button
+                v-if="!public_link.enabled"
+                type="button"
+                class="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-[var(--team-primary)] px-3.5 py-2 text-xs font-bold text-white hover:brightness-95"
+                @click="activatePublicLink"
+            >
+                <Link2 class="size-4" />
+                Ativar link público
+            </button>
+        </div>
+
+        <div
+            v-if="public_link.enabled && public_link.url"
+            class="mt-4 flex flex-col gap-2 sm:flex-row"
+        >
+            <input
+                :value="public_link.url"
+                readonly
+                aria-label="URL do link público"
+                class="min-h-10 min-w-0 flex-1 rounded-xl border border-slate-300 bg-slate-50 px-3 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+            />
+            <div class="flex flex-wrap gap-2">
+                <button
+                    type="button"
+                    class="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                    @click="copyPublicLink"
+                >
+                    <Copy class="size-3.5" /> Copiar
+                </button>
+                <a
+                    :href="public_link.url"
+                    target="_blank"
+                    rel="noopener"
+                    class="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                    <ExternalLink class="size-3.5" /> Abrir
+                </a>
+                <button
+                    type="button"
+                    class="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-amber-300 px-3 text-xs font-bold text-amber-800 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-950/30"
+                    @click="regeneratePublicLink"
+                >
+                    <RefreshCw class="size-3.5" /> Gerar novo link
+                </button>
+                <button
+                    type="button"
+                    class="min-h-10 rounded-xl border border-red-200 px-3 text-xs font-bold text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/30"
+                    @click="disablePublicLink"
+                >
+                    Desativar
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <MatchPlayerStatsCard
+        :roster="match.roster"
+        :player-stats="player_stats"
+    />
 
     <section class="surface-card mt-4 rounded-2xl p-4 sm:p-5">
         <div class="flex items-center justify-between">
@@ -202,14 +341,10 @@ async function destroyMatch() {
                         {{ formatClock(goal.remaining_seconds) }}
                     </span>
                     <span
+                        v-if="goal.recorded_at"
                         class="mt-0.5 block text-[11px] text-slate-400 tabular-nums"
                     >
-                        {{
-                            new Date(goal.recorded_at).toLocaleTimeString(
-                                'pt-BR',
-                                { hour: '2-digit', minute: '2-digit' },
-                            )
-                        }}
+                        {{ goal.recorded_at }}
                     </span>
                 </div>
             </div>
@@ -217,52 +352,7 @@ async function destroyMatch() {
     </section>
 
     <div class="mt-4 grid gap-4 lg:grid-cols-2">
-        <section class="surface-card rounded-2xl p-4 sm:p-5">
-            <div class="flex items-center gap-2">
-                <Clock3 class="size-4.5 text-slate-400" />
-                <h2
-                    class="text-base font-extrabold text-slate-950 dark:text-white"
-                >
-                    Cronologia
-                </h2>
-            </div>
-
-            <ol
-                v-if="match.timeline?.length"
-                class="mt-4 space-y-2.5 border-l-2 border-slate-200 pl-4 dark:border-slate-800"
-            >
-                <li
-                    v-for="(event, index) in match.timeline"
-                    :key="index"
-                    class="relative text-xs text-slate-600 dark:text-slate-300"
-                >
-                    <span
-                        class="absolute top-1 -left-[21px] size-2.5 rounded-full ring-2 ring-white dark:ring-slate-900"
-                        :class="
-                            event.type === 'goal_added'
-                                ? 'bg-emerald-500'
-                                : event.type === 'goal_removed'
-                                  ? 'bg-red-500'
-                                  : event.type === 'finish'
-                                    ? 'bg-amber-500'
-                                    : 'bg-slate-400 dark:bg-slate-600'
-                        "
-                    />
-                    <span
-                        class="font-bold text-slate-900 tabular-nums dark:text-slate-100"
-                    >
-                        {{ new Date(event.at).toLocaleTimeString('pt-BR') }}
-                    </span>
-                    · {{ eventNames[event.type] ?? event.type }}
-                    <span v-if="event.period" class="text-slate-400">
-                        · {{ event.period }}º tempo
-                    </span>
-                </li>
-            </ol>
-            <p v-else class="mt-3 text-sm text-slate-500 dark:text-slate-400">
-                Sem eventos de relógio registrados.
-            </p>
-        </section>
+        <MatchTimelineCard :timeline="match.timeline" />
 
         <section class="surface-card rounded-2xl p-4 sm:p-5">
             <h2 class="text-base font-extrabold text-slate-950 dark:text-white">
@@ -287,12 +377,13 @@ async function destroyMatch() {
                     </div>
                     <ul class="mt-2.5 space-y-1.5">
                         <li
-                            v-for="player in match.roster[side].players"
-                            :key="player.id"
+                            v-for="(player, index) in match.roster[side].players"
+                            :key="`${side}-${index}-${player.name}`"
                             class="flex items-center justify-between text-xs font-medium text-slate-700 dark:text-slate-300"
                         >
                             <span class="truncate">{{ player.name }}</span>
                             <strong
+                                v-if="player.jersey_number !== null"
                                 class="ml-2 shrink-0 font-display text-base font-extrabold text-slate-900 tabular-nums dark:text-white"
                             >
                                 #{{ player.jersey_number }}
