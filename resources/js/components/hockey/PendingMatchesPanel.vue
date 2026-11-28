@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { useConfirm } from '@/composables/useConfirm';
 import { useToast } from '@/composables/useToast';
-import { isPermanentFailure, type QueuedMatch } from '@/lib/matchQueue';
+import {
+    isPermanentFailure,
+    type QueuedChampionshipEvent,
+    type QueuedMatch,
+} from '@/lib/matchQueue';
 import {
     closePendingMatchesPanel,
+    discardQueuedChampionshipEvent,
     discardQueuedMatch,
     offlineStatus,
+    retryChampionshipEventNow,
     retryMatchNow,
     syncNow,
 } from '@/lib/offlineSync';
@@ -16,6 +22,7 @@ import {
     Download,
     RefreshCw,
     Trash2,
+    Trophy,
     X,
 } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted } from 'vue';
@@ -152,6 +159,138 @@ const items = computed<ParsedQueuedMatch[]>(() => {
     });
 });
 
+interface ParsedQueuedChampionshipEvent {
+    raw: QueuedChampionshipEvent;
+    clientUuid: string;
+    championshipId: number;
+    gameId: number;
+    championshipName: string;
+    homeName: string;
+    awayName: string;
+    homeColor: string;
+    awayColor: string;
+    actionLabel: string;
+    summary: string;
+    formattedDate: string;
+    formattedLastAttempt: string | null;
+    status: 'sending' | 'failed' | 'pending';
+    statusLabel: 'Enviando' | 'Falhou' | 'Pendente';
+    attempts: number;
+    httpStatus: number | null;
+    error: string | null;
+}
+
+const championshipItems = computed<ParsedQueuedChampionshipEvent[]>(() => {
+    const sendingId = offlineStatus.value.sendingMatchId;
+    return offlineStatus.value.championshipQueue.map((item) => {
+        const meta = item.meta ?? {};
+        const championshipName =
+            typeof meta.championship_name === 'string' &&
+            meta.championship_name.trim() !== ''
+                ? meta.championship_name
+                : `Campeonato #${item.championship_id}`;
+        const homeName =
+            typeof meta.home_name === 'string' && meta.home_name.trim() !== ''
+                ? meta.home_name
+                : 'Casa';
+        const awayName =
+            typeof meta.away_name === 'string' && meta.away_name.trim() !== ''
+                ? meta.away_name
+                : 'Visitante';
+        const homeColor =
+            typeof meta.home_color === 'string' &&
+            /^#[0-9A-Fa-f]{6}$/.test(meta.home_color)
+                ? meta.home_color
+                : '#2563eb';
+        const awayColor =
+            typeof meta.away_color === 'string' &&
+            /^#[0-9A-Fa-f]{6}$/.test(meta.away_color)
+                ? meta.away_color
+                : '#dc2626';
+
+        const actionLabel =
+            item.action === 'goal'
+                ? 'Gol de campeonato'
+                : item.action === 'remove_event'
+                  ? 'Remover lance da súmula'
+                  : 'Finalizar jogo de campeonato';
+
+        let defaultSummary = actionLabel;
+        if (item.action === 'goal') {
+            const teamName = meta.side === 'away' ? awayName : homeName;
+            const scorer = meta.scorer_name ?? 'Atleta';
+            const periodLabel = meta.is_overtime
+                ? 'Prorrogação'
+                : `${meta.period ?? 1}º período`;
+            defaultSummary = `Gol de ${scorer} (${teamName}) · ${periodLabel}`;
+        } else if (item.action === 'remove_event') {
+            const motivo =
+                typeof item.payload.motivo === 'string' &&
+                item.payload.motivo.trim() !== ''
+                    ? item.payload.motivo.trim()
+                    : 'Retificação de súmula';
+            defaultSummary = `Motivo: ${motivo}`;
+        } else if (item.action === 'finish') {
+            defaultSummary = `Encerramento de ${homeName} × ${awayName}`;
+        }
+
+        const summary =
+            typeof meta.summary === 'string' && meta.summary.trim() !== ''
+                ? meta.summary.trim()
+                : defaultSummary;
+
+        const isSending = sendingId === item.client_uuid;
+        const failed = !isSending && isPermanentFailure(item);
+        const status: 'sending' | 'failed' | 'pending' = isSending
+            ? 'sending'
+            : failed
+              ? 'failed'
+              : 'pending';
+        const statusLabel =
+            status === 'sending'
+                ? 'Enviando'
+                : status === 'failed'
+                  ? 'Falhou'
+                  : 'Pendente';
+
+        return {
+            raw: item,
+            clientUuid: item.client_uuid,
+            championshipId: item.championship_id,
+            gameId: item.game_id,
+            championshipName,
+            homeName,
+            awayName,
+            homeColor,
+            awayColor,
+            actionLabel,
+            summary,
+            formattedDate: formatLocalDateTime(item.queued_at),
+            formattedLastAttempt: item.last_attempt_at
+                ? formatLocalDateTime(item.last_attempt_at)
+                : null,
+            status,
+            statusLabel,
+            attempts:
+                typeof item.attempts === 'number' && item.attempts >= 0
+                    ? item.attempts
+                    : 0,
+            httpStatus:
+                typeof item.http_status === 'number' && item.http_status > 0
+                    ? item.http_status
+                    : null,
+            error:
+                typeof item.error === 'string' && item.error.trim() !== ''
+                    ? item.error.trim()
+                    : null,
+        };
+    });
+});
+
+const totalCount = computed(
+    () => items.value.length + championshipItems.value.length,
+);
+
 function downloadJsonFile(filename: string, data: unknown): void {
     const json = JSON.stringify(data, null, 2);
     const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
@@ -181,9 +320,48 @@ function exportItemJson(item: ParsedQueuedMatch): void {
 }
 
 function exportAllJson(): void {
-    if (!items.value.length) return;
-    const exported = items.value.map((item) => ({
+    if (!totalCount.value) return;
+    const exported = [
+        ...items.value.map((item) => ({
+            kind: 'match',
+            client_uuid: item.raw.client_uuid,
+            queued_at: item.raw.queued_at,
+            status: item.statusLabel,
+            attempts: item.attempts,
+            http_status: item.httpStatus,
+            error: item.error,
+            last_attempt_at: item.raw.last_attempt_at ?? null,
+            payload: item.raw.payload,
+        })),
+        ...championshipItems.value.map((item) => ({
+            kind: 'championship_event',
+            client_uuid: item.raw.client_uuid,
+            championship_id: item.championshipId,
+            game_id: item.gameId,
+            action: item.raw.action,
+            queued_at: item.raw.queued_at,
+            status: item.statusLabel,
+            attempts: item.attempts,
+            http_status: item.httpStatus,
+            error: item.error,
+            last_attempt_at: item.raw.last_attempt_at ?? null,
+            payload: item.raw.payload,
+        })),
+    ];
+    const stamp = new Date().toISOString().slice(0, 10);
+    downloadJsonFile(`partidas-pendentes-${stamp}.json`, exported);
+    toast.success('JSON de todos os itens pendentes exportado.');
+}
+
+function exportChampionshipEventJson(
+    item: ParsedQueuedChampionshipEvent,
+): void {
+    const shortId = item.clientUuid.slice(0, 8);
+    downloadJsonFile(`evento-campeonato-pendente-${shortId}.json`, {
         client_uuid: item.raw.client_uuid,
+        championship_id: item.championshipId,
+        game_id: item.gameId,
+        action: item.raw.action,
         queued_at: item.raw.queued_at,
         status: item.statusLabel,
         attempts: item.attempts,
@@ -191,10 +369,41 @@ function exportAllJson(): void {
         error: item.error,
         last_attempt_at: item.raw.last_attempt_at ?? null,
         payload: item.raw.payload,
-    }));
-    const stamp = new Date().toISOString().slice(0, 10);
-    downloadJsonFile(`partidas-pendentes-${stamp}.json`, exported);
-    toast.success('JSON de todas as partidas pendentes exportado.');
+        meta: item.raw.meta ?? null,
+    });
+    toast.success('JSON do evento de campeonato exportado.');
+}
+
+async function handleRetryChampionshipEvent(
+    item: ParsedQueuedChampionshipEvent,
+): Promise<void> {
+    if (offlineStatus.value.offline) {
+        await retryChampionshipEventNow(item.clientUuid);
+        toast.info(
+            'Evento marcado como pendente. Será enviado assim que houver conexão.',
+        );
+        return;
+    }
+    const uploaded = await retryChampionshipEventNow(item.clientUuid);
+    if (uploaded.some((u) => u.client_uuid === item.clientUuid)) {
+        toast.success('Evento de campeonato sincronizado com sucesso!');
+    }
+}
+
+async function handleDiscardChampionshipEvent(
+    item: ParsedQueuedChampionshipEvent,
+): Promise<void> {
+    const accepted = await confirm({
+        title: 'Descartar evento de campeonato?',
+        message: `Esta ação é irreversível. O evento "${item.actionLabel}" (${item.summary}) será removido definitivamente da fila local deste aparelho.`,
+        confirmLabel: 'Descartar definitivamente',
+        cancelLabel: 'Manter na fila',
+        variant: 'danger',
+    });
+    if (!accepted) return;
+
+    discardQueuedChampionshipEvent(item.clientUuid);
+    toast.info('Evento de campeonato descartado da fila local.');
 }
 
 async function handleRetry(item: ParsedQueuedMatch): Promise<void> {
@@ -275,7 +484,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
                             id="pending-matches-title"
                             class="mt-0.5 text-xl font-extrabold tracking-tight text-slate-950 sm:text-2xl dark:text-white"
                         >
-                            Partidas pendentes ({{ items.length }})
+                            Partidas pendentes ({{ totalCount }})
                         </h2>
                         <p
                             class="mt-1 text-xs text-slate-500 dark:text-slate-400"
@@ -286,7 +495,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
 
                     <div class="flex flex-wrap items-center gap-2">
                         <button
-                            v-if="items.length"
+                            v-if="totalCount"
                             type="button"
                             class="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                             data-test="exportar-todas-json"
@@ -297,7 +506,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
                         </button>
                         <button
                             v-if="
-                                items.length &&
+                                totalCount &&
                                 !offlineStatus.offline &&
                                 !offlineStatus.relogin &&
                                 offlineStatus.retryableMatches > 0
@@ -336,7 +545,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
                     "
                 >
                     <div
-                        v-if="!items.length"
+                        v-if="!totalCount"
                         class="rounded-2xl border border-dashed border-slate-300 p-8 text-center dark:border-slate-700"
                     >
                         <Clock3
@@ -350,8 +559,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
                         <p
                             class="mt-1 text-xs text-slate-500 dark:text-slate-400"
                         >
-                            Todas as partidas deste aparelho já foram
-                            sincronizadas ou descartadas.
+                            Todas as partidas e eventos deste aparelho já foram
+                            sincronizados ou descartados.
                         </p>
                     </div>
 
@@ -505,6 +714,167 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
                                 :disabled="item.status === 'sending'"
                                 data-test="descartar-partida"
                                 @click="handleDiscard(item)"
+                            >
+                                <Trash2 class="size-3.5" />
+                                Descartar
+                            </button>
+                        </div>
+                    </article>
+
+                    <article
+                        v-for="item in championshipItems"
+                        :key="item.clientUuid"
+                        class="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs dark:border-slate-800 dark:bg-slate-900/90"
+                        :data-queued-uuid="item.clientUuid"
+                        data-test="item-evento-campeonato-fila"
+                    >
+                        <div
+                            class="flex flex-wrap items-center justify-between gap-2"
+                        >
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span
+                                    class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-extrabold text-amber-900 dark:bg-amber-950/70 dark:text-amber-300"
+                                >
+                                    <Trophy class="size-3" />
+                                    {{ item.championshipName }}
+                                </span>
+                                <span
+                                    class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400"
+                                >
+                                    <Calendar class="size-3.5" />
+                                    {{ item.formattedDate }}
+                                </span>
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-1.5">
+                                <span
+                                    class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-extrabold"
+                                    :class="
+                                        item.status === 'sending'
+                                            ? 'bg-sky-100 text-sky-800 dark:bg-sky-950/70 dark:text-sky-300'
+                                            : item.status === 'failed'
+                                              ? 'bg-red-100 text-red-700 dark:bg-red-950/70 dark:text-red-300'
+                                              : 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300'
+                                    "
+                                    data-test="status-evento-campeonato-fila"
+                                >
+                                    <RefreshCw
+                                        v-if="item.status === 'sending'"
+                                        class="size-3 animate-spin"
+                                    />
+                                    <AlertTriangle
+                                        v-else-if="item.status === 'failed'"
+                                        class="size-3"
+                                    />
+                                    <Clock3 v-else class="size-3" />
+                                    {{ item.statusLabel }}
+                                    <template v-if="item.httpStatus">
+                                        · HTTP {{ item.httpStatus }}
+                                    </template>
+                                </span>
+
+                                <span
+                                    class="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                                >
+                                    {{ item.attempts }}
+                                    {{
+                                        item.attempts === 1
+                                            ? 'tentativa'
+                                            : 'tentativas'
+                                    }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div
+                            class="mt-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60"
+                        >
+                            <div
+                                class="flex flex-wrap items-center justify-between gap-2"
+                            >
+                                <span
+                                    class="text-xs font-extrabold tracking-wide text-slate-500 uppercase dark:text-slate-400"
+                                >
+                                    {{ item.actionLabel }}
+                                </span>
+                                <span
+                                    class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200"
+                                >
+                                    <span
+                                        class="size-2 rounded-full"
+                                        :style="{ background: item.homeColor }"
+                                    />
+                                    {{ item.homeName }} ×
+                                    <span
+                                        class="size-2 rounded-full"
+                                        :style="{ background: item.awayColor }"
+                                    />
+                                    {{ item.awayName }}
+                                </span>
+                            </div>
+                            <p
+                                class="mt-1 text-sm font-extrabold text-slate-950 dark:text-white"
+                            >
+                                {{ item.summary }}
+                            </p>
+                        </div>
+
+                        <div
+                            v-if="item.error"
+                            class="mt-3 rounded-xl border px-3 py-2.5 text-xs font-medium"
+                            :class="
+                                item.status === 'failed'
+                                    ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-900/60 dark:bg-red-950/50 dark:text-red-200'
+                                    : 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200'
+                            "
+                            data-test="erro-evento-campeonato-fila"
+                        >
+                            <p class="font-bold">{{ item.error }}</p>
+                            <p
+                                v-if="item.formattedLastAttempt"
+                                class="mt-0.5 text-[11px] opacity-80"
+                            >
+                                Última tentativa:
+                                {{ item.formattedLastAttempt }}
+                            </p>
+                        </div>
+
+                        <div
+                            class="mt-3 flex flex-wrap items-center gap-2 pt-1"
+                        >
+                            <button
+                                type="button"
+                                class="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[var(--team-primary)] px-3 text-xs font-bold text-[var(--team-primary-text)] shadow-2xs transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-50 sm:flex-none"
+                                :disabled="item.status === 'sending'"
+                                data-test="tentar-de-novo-evento-campeonato"
+                                @click="handleRetryChampionshipEvent(item)"
+                            >
+                                <RefreshCw
+                                    class="size-3.5"
+                                    :class="
+                                        item.status === 'sending'
+                                            ? 'animate-spin'
+                                            : ''
+                                    "
+                                />
+                                Tentar de novo
+                            </button>
+
+                            <button
+                                type="button"
+                                class="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50 active:scale-[0.98] sm:flex-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                                @click="exportChampionshipEventJson(item)"
+                            >
+                                <Download class="size-3.5" />
+                                Exportar JSON
+                            </button>
+
+                            <button
+                                type="button"
+                                class="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 text-xs font-bold text-red-600 transition-colors hover:bg-red-50 active:scale-[0.98] disabled:opacity-50 sm:ml-auto sm:flex-none dark:border-red-900/60 dark:bg-slate-900 dark:text-red-400 dark:hover:bg-red-950/40"
+                                :disabled="item.status === 'sending'"
+                                data-test="descartar-evento-campeonato"
+                                @click="handleDiscardChampionshipEvent(item)"
                             >
                                 <Trash2 class="size-3.5" />
                                 Descartar

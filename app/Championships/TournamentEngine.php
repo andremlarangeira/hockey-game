@@ -26,6 +26,7 @@ use App\Models\ChampionshipTeam;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -874,186 +875,238 @@ final readonly class TournamentEngine
         ChampionshipGame $game,
         GoalCommand $command,
     ): ChampionshipGameEvent {
-        return DB::transaction(function () use ($game, $command): ChampionshipGameEvent {
-            $locked = $this->lockChampionship((int) $game->championship_id);
-            $lockedGame = $this->lockGame($locked, $game);
-
-            if ($lockedGame->is_bye)
+        if ($command->clientUuid !== null)
+        {
+            $existing = $this->findExistingGameEvent($game, $command->clientUuid);
+            if ($existing !== null)
             {
-                throw new ChampionshipException('Não é possível registrar gols em um slot de bye.');
+                return $existing;
             }
+        }
 
-            if ($lockedGame->status !== GameStatus::Live)
-            {
-                throw new ChampionshipException('A partida precisa estar em andamento (ao vivo) para registrar gols.');
-            }
+        try
+        {
+            return DB::transaction(function () use ($game, $command): ChampionshipGameEvent {
+                $locked = $this->lockChampionship((int) $game->championship_id);
+                $lockedGame = $this->lockGame($locked, $game);
 
-            if ($lockedGame->home_team_id === null || $lockedGame->away_team_id === null)
-            {
-                throw new ChampionshipException('A partida não possui as duas equipes definidas.');
-            }
-
-            $rules = $locked->rules;
-
-            if ($command->overtime)
-            {
-                if ($lockedGame->phase === GamePhase::Group && ! $rules->allowGroupOvertimeOrShootout)
+                if ($lockedGame->is_bye)
                 {
-                    throw new ChampionshipException('As regras deste campeonato não permitem prorrogação na fase de grupos.');
+                    throw new ChampionshipException('Não é possível registrar gols em um slot de bye.');
                 }
 
-                if ($lockedGame->phase->isKnockout() && $rules->knockoutTieResolution === KnockoutTieResolution::ShootoutOnly)
+                if ($lockedGame->status !== GameStatus::Live)
                 {
-                    throw new ChampionshipException('As regras deste campeonato definem desempate direto nos pênaltis/shootout, sem prorrogação.');
+                    throw new ChampionshipException('A partida precisa estar em andamento (ao vivo) para registrar gols.');
+                }
+
+                if ($lockedGame->home_team_id === null || $lockedGame->away_team_id === null)
+                {
+                    throw new ChampionshipException('A partida não possui as duas equipes definidas.');
+                }
+
+                $rules = $locked->rules;
+
+                if ($command->overtime)
+                {
+                    if ($lockedGame->phase === GamePhase::Group && ! $rules->allowGroupOvertimeOrShootout)
+                    {
+                        throw new ChampionshipException('As regras deste campeonato não permitem prorrogação na fase de grupos.');
+                    }
+
+                    if ($lockedGame->phase->isKnockout() && $rules->knockoutTieResolution === KnockoutTieResolution::ShootoutOnly)
+                    {
+                        throw new ChampionshipException('As regras deste campeonato definem desempate direto nos pênaltis/shootout, sem prorrogação.');
+                    }
+                }
+
+                if ($command->period < 1)
+                {
+                    throw new ChampionshipException('O período do gol deve ser maior ou igual a 1.');
+                }
+
+                $teamId = $command->side === TeamSide::Home
+                    ? (int) $lockedGame->home_team_id
+                    : (int) $lockedGame->away_team_id;
+
+                $maxAssists = $rules->maxAssistsPerGoal;
+                $assistIds = $command->assistIds;
+
+                if (count($assistIds) > $maxAssists)
+                {
+                    if ($maxAssists === 0)
+                    {
+                        throw new ChampionshipException('As regras deste campeonato não permitem assistências.');
+                    }
+
+                    throw new ChampionshipException("As regras deste campeonato permitem no máximo {$maxAssists} assistência(s) por gol.");
+                }
+
+                if (in_array($command->scorerId, $assistIds, true))
+                {
+                    throw new ChampionshipException('O autor do gol não pode dar assistência para o próprio gol.');
+                }
+
+                if (count($assistIds) !== count(array_unique($assistIds)))
+                {
+                    throw new ChampionshipException('As assistências de um gol devem ser de jogadores distintos.');
+                }
+
+                $playerIdsToValidate = [$command->scorerId, ...$assistIds];
+
+                $validPlayersCount = ChampionshipPlayer::withoutGlobalScope('team')
+                    ->where('championship_id', $locked->id)
+                    ->where('championship_team_id', $teamId)
+                    ->whereIn('id', $playerIdsToValidate)
+                    ->count();
+
+                if ($validPlayersCount !== count($playerIdsToValidate))
+                {
+                    throw new ChampionshipException('O autor do gol e os assistentes devem pertencer ao elenco da equipe na partida.');
+                }
+
+                $event = ChampionshipGameEvent::withoutGlobalScope('team')->create([
+                    'user_id' => $locked->user_id,
+                    'championship_id' => $locked->id,
+                    'championship_game_id' => $lockedGame->id,
+                    'client_uuid' => $command->clientUuid,
+                    'type' => GameEventType::Goal,
+                    'side' => $command->side,
+                    'team_id' => $teamId,
+                    'primary_player_id' => $command->scorerId,
+                    'first_assist_player_id' => $assistIds[0] ?? null,
+                    'second_assist_player_id' => $assistIds[1] ?? null,
+                    'period' => $command->period,
+                    'is_overtime' => $command->overtime,
+                    'elapsed_seconds' => max(0, $command->elapsedSeconds),
+                    'remaining_seconds' => max(0, $command->remainingSeconds),
+                    'recorded_at' => CarbonImmutable::now(),
+                ]);
+
+                $this->recomputeGameScores($lockedGame);
+                $this->syncModel($game, $lockedGame);
+
+                return $event;
+            });
+        }
+        catch (UniqueConstraintViolationException $exception)
+        {
+            if ($command->clientUuid !== null)
+            {
+                $existing = $this->findExistingGameEvent($game, $command->clientUuid, recomputeScores: true);
+                if ($existing !== null)
+                {
+                    return $existing;
                 }
             }
 
-            if ($command->period < 1)
-            {
-                throw new ChampionshipException('O período do gol deve ser maior ou igual a 1.');
-            }
-
-            $teamId = $command->side === TeamSide::Home
-                ? (int) $lockedGame->home_team_id
-                : (int) $lockedGame->away_team_id;
-
-            $maxAssists = $rules->maxAssistsPerGoal;
-            $assistIds = $command->assistIds;
-
-            if (count($assistIds) > $maxAssists)
-            {
-                if ($maxAssists === 0)
-                {
-                    throw new ChampionshipException('As regras deste campeonato não permitem assistências.');
-                }
-
-                throw new ChampionshipException("As regras deste campeonato permitem no máximo {$maxAssists} assistência(s) por gol.");
-            }
-
-            if (in_array($command->scorerId, $assistIds, true))
-            {
-                throw new ChampionshipException('O autor do gol não pode dar assistência para o próprio gol.');
-            }
-
-            if (count($assistIds) !== count(array_unique($assistIds)))
-            {
-                throw new ChampionshipException('As assistências de um gol devem ser de jogadores distintos.');
-            }
-
-            $playerIdsToValidate = [$command->scorerId, ...$assistIds];
-
-            $validPlayersCount = ChampionshipPlayer::withoutGlobalScope('team')
-                ->where('championship_id', $locked->id)
-                ->where('championship_team_id', $teamId)
-                ->whereIn('id', $playerIdsToValidate)
-                ->count();
-
-            if ($validPlayersCount !== count($playerIdsToValidate))
-            {
-                throw new ChampionshipException('O autor do gol e os assistentes devem pertencer ao elenco da equipe na partida.');
-            }
-
-            $event = ChampionshipGameEvent::withoutGlobalScope('team')->create([
-                'user_id' => $locked->user_id,
-                'championship_id' => $locked->id,
-                'championship_game_id' => $lockedGame->id,
-                'type' => GameEventType::Goal,
-                'side' => $command->side,
-                'team_id' => $teamId,
-                'primary_player_id' => $command->scorerId,
-                'first_assist_player_id' => $assistIds[0] ?? null,
-                'second_assist_player_id' => $assistIds[1] ?? null,
-                'period' => $command->period,
-                'is_overtime' => $command->overtime,
-                'elapsed_seconds' => max(0, $command->elapsedSeconds),
-                'remaining_seconds' => max(0, $command->remainingSeconds),
-                'recorded_at' => CarbonImmutable::now(),
-            ]);
-
-            $this->recomputeGameScores($lockedGame);
-            $this->syncModel($game, $lockedGame);
-
-            return $event;
-        });
+            throw $exception;
+        }
     }
 
     public function recordShootoutAttempt(
         ChampionshipGame $game,
         ShootoutAttemptCommand $command,
     ): ChampionshipGameEvent {
-        return DB::transaction(function () use ($game, $command): ChampionshipGameEvent {
-            $locked = $this->lockChampionship((int) $game->championship_id);
-            $lockedGame = $this->lockGame($locked, $game);
-
-            if ($lockedGame->is_bye)
+        if ($command->clientUuid !== null)
+        {
+            $existing = $this->findExistingGameEvent($game, $command->clientUuid);
+            if ($existing !== null)
             {
-                throw new ChampionshipException('Não é possível registrar cobranças em um slot de bye.');
+                return $existing;
+            }
+        }
+
+        try
+        {
+            return DB::transaction(function () use ($game, $command): ChampionshipGameEvent {
+                $locked = $this->lockChampionship((int) $game->championship_id);
+                $lockedGame = $this->lockGame($locked, $game);
+
+                if ($lockedGame->is_bye)
+                {
+                    throw new ChampionshipException('Não é possível registrar cobranças em um slot de bye.');
+                }
+
+                if ($lockedGame->status !== GameStatus::Live)
+                {
+                    throw new ChampionshipException('A partida precisa estar em andamento (ao vivo) para registrar cobranças de shootout.');
+                }
+
+                if ($lockedGame->home_team_id === null || $lockedGame->away_team_id === null)
+                {
+                    throw new ChampionshipException('A partida não possui as duas equipes definidas.');
+                }
+
+                if ($lockedGame->phase === GamePhase::Group && ! $locked->rules->allowGroupOvertimeOrShootout)
+                {
+                    throw new ChampionshipException('As regras deste campeonato permitem empate na fase de grupos e não utilizam disputa de shootout.');
+                }
+
+                if ($lockedGame->home_regular_score !== $lockedGame->away_regular_score)
+                {
+                    throw new ChampionshipException('A disputa de shootout só é permitida quando o placar regulamentar/prorrogação está empatado.');
+                }
+
+                if ($command->round < 1)
+                {
+                    throw new ChampionshipException('A rodada do shootout deve ser maior ou igual a 1.');
+                }
+
+                $teamId = $command->side === TeamSide::Home
+                    ? (int) $lockedGame->home_team_id
+                    : (int) $lockedGame->away_team_id;
+
+                $shooterBelongsToTeam = ChampionshipPlayer::withoutGlobalScope('team')
+                    ->where('championship_id', $locked->id)
+                    ->where('championship_team_id', $teamId)
+                    ->whereKey($command->shooterId)
+                    ->exists();
+
+                if (! $shooterBelongsToTeam)
+                {
+                    throw new ChampionshipException('O cobrador deve pertencer ao elenco da equipe na partida.');
+                }
+
+                $event = ChampionshipGameEvent::withoutGlobalScope('team')->create([
+                    'user_id' => $locked->user_id,
+                    'championship_id' => $locked->id,
+                    'championship_game_id' => $lockedGame->id,
+                    'client_uuid' => $command->clientUuid,
+                    'type' => GameEventType::ShootoutAttempt,
+                    'side' => $command->side,
+                    'team_id' => $teamId,
+                    'primary_player_id' => $command->shooterId,
+                    'first_assist_player_id' => null,
+                    'second_assist_player_id' => null,
+                    'period' => null,
+                    'is_overtime' => false,
+                    'elapsed_seconds' => 0,
+                    'remaining_seconds' => 0,
+                    'shootout_round' => $command->round,
+                    'shootout_scored' => $command->scored,
+                    'recorded_at' => CarbonImmutable::now(),
+                ]);
+
+                $this->recomputeGameScores($lockedGame);
+                $this->syncModel($game, $lockedGame);
+
+                return $event;
+            });
+        }
+        catch (UniqueConstraintViolationException $exception)
+        {
+            if ($command->clientUuid !== null)
+            {
+                $existing = $this->findExistingGameEvent($game, $command->clientUuid, recomputeScores: true);
+                if ($existing !== null)
+                {
+                    return $existing;
+                }
             }
 
-            if ($lockedGame->status !== GameStatus::Live)
-            {
-                throw new ChampionshipException('A partida precisa estar em andamento (ao vivo) para registrar cobranças de shootout.');
-            }
-
-            if ($lockedGame->home_team_id === null || $lockedGame->away_team_id === null)
-            {
-                throw new ChampionshipException('A partida não possui as duas equipes definidas.');
-            }
-
-            if ($lockedGame->phase === GamePhase::Group && ! $locked->rules->allowGroupOvertimeOrShootout)
-            {
-                throw new ChampionshipException('As regras deste campeonato permitem empate na fase de grupos e não utilizam disputa de shootout.');
-            }
-
-            if ($lockedGame->home_regular_score !== $lockedGame->away_regular_score)
-            {
-                throw new ChampionshipException('A disputa de shootout só é permitida quando o placar regulamentar/prorrogação está empatado.');
-            }
-
-            if ($command->round < 1)
-            {
-                throw new ChampionshipException('A rodada do shootout deve ser maior ou igual a 1.');
-            }
-
-            $teamId = $command->side === TeamSide::Home
-                ? (int) $lockedGame->home_team_id
-                : (int) $lockedGame->away_team_id;
-
-            $shooterBelongsToTeam = ChampionshipPlayer::withoutGlobalScope('team')
-                ->where('championship_id', $locked->id)
-                ->where('championship_team_id', $teamId)
-                ->whereKey($command->shooterId)
-                ->exists();
-
-            if (! $shooterBelongsToTeam)
-            {
-                throw new ChampionshipException('O cobrador deve pertencer ao elenco da equipe na partida.');
-            }
-
-            $event = ChampionshipGameEvent::withoutGlobalScope('team')->create([
-                'user_id' => $locked->user_id,
-                'championship_id' => $locked->id,
-                'championship_game_id' => $lockedGame->id,
-                'type' => GameEventType::ShootoutAttempt,
-                'side' => $command->side,
-                'team_id' => $teamId,
-                'primary_player_id' => $command->shooterId,
-                'first_assist_player_id' => null,
-                'second_assist_player_id' => null,
-                'period' => null,
-                'is_overtime' => false,
-                'elapsed_seconds' => 0,
-                'remaining_seconds' => 0,
-                'shootout_round' => $command->round,
-                'shootout_scored' => $command->scored,
-                'recorded_at' => CarbonImmutable::now(),
-            ]);
-
-            $this->recomputeGameScores($lockedGame);
-            $this->syncModel($game, $lockedGame);
-
-            return $event;
-        });
+            throw $exception;
+        }
     }
 
     public function removeEvent(
@@ -1076,11 +1129,6 @@ final readonly class TournamentEngine
                 throw new ChampionshipException('O evento informado não pertence a esta partida.');
             }
 
-            if ($lockedGame->status !== GameStatus::Live)
-            {
-                throw new ChampionshipException('A partida precisa estar em andamento ou reaberta para remover eventos da súmula.');
-            }
-
             /** @var ChampionshipGameEvent|null $lockedEvent */
             $lockedEvent = ChampionshipGameEvent::withoutGlobalScope('team')
                 ->withTrashed()
@@ -1096,7 +1144,14 @@ final readonly class TournamentEngine
 
             if ($lockedEvent->trashed())
             {
+                $this->syncModel($event, $lockedEvent);
+
                 return;
+            }
+
+            if ($lockedGame->status !== GameStatus::Live)
+            {
+                throw new ChampionshipException('A partida precisa estar em andamento ou reaberta para remover eventos da súmula.');
             }
 
             $beforeSnapshot = [
@@ -2477,6 +2532,53 @@ final readonly class TournamentEngine
         }
 
         return $lockedGame;
+    }
+
+    private function findExistingGameEvent(
+        ChampionshipGame $game,
+        string $clientUuid,
+        bool $recomputeScores = false,
+    ): ?ChampionshipGameEvent {
+        /** @var Championship|null $championship */
+        $championship = Championship::withoutGlobalScope('team')
+            ->whereKey($game->championship_id)
+            ->first();
+
+        if ($championship === null)
+        {
+            return null;
+        }
+
+        $this->assertTenantAccess($championship);
+
+        /** @var ChampionshipGameEvent|null $existing */
+        $existing = ChampionshipGameEvent::withoutGlobalScope('team')
+            ->withTrashed()
+            ->where('championship_game_id', $game->id)
+            ->where('client_uuid', $clientUuid)
+            ->first();
+
+        if ($existing === null)
+        {
+            return null;
+        }
+
+        /** @var ChampionshipGame|null $freshGame */
+        $freshGame = ChampionshipGame::withoutGlobalScope('team')
+            ->where('championship_id', $championship->id)
+            ->whereKey($game->id)
+            ->first();
+
+        if ($freshGame !== null)
+        {
+            if ($recomputeScores)
+            {
+                $this->recomputeGameScores($freshGame);
+            }
+            $this->syncModel($game, $freshGame);
+        }
+
+        return $existing;
     }
 
     private function assertTenantAccess(Championship $championship): void

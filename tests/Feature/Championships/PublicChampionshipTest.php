@@ -49,7 +49,7 @@ function publicChampionshipFixture(TournamentEngine $engine, User $owner): array
 /** @param array<mixed> $value */
 function assertHasNoPrivatePublicData(array $value): void
 {
-    $forbidden = ['user_id', 'email', 'manual_tie_resolutions', 'audit', 'logo_path', 'rules', 'public_token'];
+    $forbidden = ['user_id', 'email', 'client_uuid', 'manual_tie_resolutions', 'audit', 'logo_path', 'rules', 'public_token'];
 
     foreach ($value as $key => $item)
     {
@@ -69,7 +69,13 @@ test('convidado vê o campeonato e a partida pública com cabeçalhos de privaci
     [$championship, $game, $players] = publicChampionshipFixture($engine, $owner);
     $engine->enablePublicLink($championship, $owner);
     $engine->startGame($game, $owner);
-    $event = $engine->recordGoal($game, new GoalCommand(TeamSide::Home, $players[0]->id, period: 1, elapsedSeconds: 42));
+    $event = $engine->recordGoal($game, new GoalCommand(
+        side: TeamSide::Home,
+        scorerId: $players[0]->id,
+        period: 1,
+        elapsedSeconds: 42,
+        clientUuid: '11111111-2222-4333-8444-555555555555',
+    ));
     $token = $championship->public_token;
 
     $this->actingAsGuest();
@@ -112,6 +118,9 @@ test('convidado vê o campeonato e a partida pública com cabeçalhos de privaci
             ->where('events.0.id', $event->id)
             ->where('events.0.primary_player_name', $players[0]->name)
             ->where('poll_interval_ms', 5000));
+
+    $liveProps = $live->viewData('page')['props'];
+    assertHasNoPrivatePublicData($liveProps);
 
     $engine->finishGame($game, $owner);
 

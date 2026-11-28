@@ -25,14 +25,22 @@ execFileSync(`${cwd}/node_modules/typescript/bin/tsc`, [
 ]);
 writeFileSync(`${temp}/package.json`, '{"type":"commonjs"}');
 const {
+    championshipQueueKey,
+    enqueueChampionshipEvent,
     enqueueMatch,
     extractMatchError,
+    flushChampionshipQueue,
     flushQueue,
+    generateClientUuid,
     isPermanentFailure,
     isPermanentFailureStatus,
+    loadChampionshipQueue,
     loadQueue,
+    projectChampionshipGameWithQueue,
     queueKey,
+    removeQueuedChampionshipEvent,
     removeQueuedMatch,
+    retryQueuedChampionshipEvent,
     retryQueuedMatch,
 } = await import(`${temp}/matchQueue.js`);
 
@@ -223,3 +231,232 @@ const queuedAfterRace = loadQueue(storage, 9);
 assert.equal(queuedAfterRace.length, 1, 'um envio não sobrescreve novos itens');
 assert.equal(queuedAfterRace[0].client_uuid, second.client_uuid);
 assert.notEqual(first.client_uuid, second.client_uuid);
+
+// 7. Fila de eventos de campeonato: idempotência por client_uuid, projeção otimista e envio em ordem (gol -> desfazer -> finalizar)
+const champStorage = new MemoryStorage();
+const fixedGoal1Uuid = generateClientUuid();
+const fixedGoal2Uuid = generateClientUuid();
+const fixedRemoveUuid = generateClientUuid();
+const fixedFinishUuid = generateClientUuid();
+
+const g1 = enqueueChampionshipEvent(champStorage, 7, {
+    client_uuid: fixedGoal1Uuid,
+    championship_id: 3,
+    game_id: 15,
+    action: 'goal',
+    payload: { side: 'home', scorer_id: 101, period: 1 },
+    meta: { side: 'home', scorer_id: 101, scorer_name: 'Atleta Casa 1', period: 1 },
+});
+// Mesmo client_uuid enfileirado duas vezes não duplica
+const g1Dup = enqueueChampionshipEvent(champStorage, 7, {
+    client_uuid: fixedGoal1Uuid,
+    championship_id: 3,
+    game_id: 15,
+    action: 'goal',
+    payload: { side: 'home', scorer_id: 101, period: 1 },
+});
+assert.equal(g1.client_uuid, g1Dup.client_uuid);
+assert.equal(loadChampionshipQueue(champStorage, 7).length, 1);
+
+// 2º gol (visitante)
+enqueueChampionshipEvent(champStorage, 7, {
+    client_uuid: fixedGoal2Uuid,
+    championship_id: 3,
+    game_id: 15,
+    action: 'goal',
+    payload: { side: 'away', scorer_id: 202, period: 2, is_overtime: true },
+    meta: {
+        side: 'away',
+        scorer_id: 202,
+        scorer_name: 'Atleta Fora 2',
+        period: 2,
+        is_overtime: true,
+    },
+});
+
+// Projeção otimista após 2 gols offline
+let projected = projectChampionshipGameWithQueue(
+    {
+        id: 15,
+        status: 'live',
+        home_regular_score: 0,
+        away_regular_score: 0,
+        went_to_overtime: false,
+    },
+    [],
+    loadChampionshipQueue(champStorage, 7),
+);
+assert.equal(projected.home_regular_score, 1);
+assert.equal(projected.away_regular_score, 1);
+assert.equal(projected.went_to_overtime, true);
+assert.equal(projected.status, 'live');
+assert.equal(projected.events.length, 2);
+assert.equal(projected.events[0].pending, true);
+
+// Desfazer o 2º gol ainda offline (referenciando target_client_uuid)
+enqueueChampionshipEvent(champStorage, 7, {
+    client_uuid: fixedRemoveUuid,
+    championship_id: 3,
+    game_id: 15,
+    action: 'remove_event',
+    payload: {
+        motivo: 'Gol anulado pela arbitragem',
+        target_client_uuid: fixedGoal2Uuid,
+    },
+    meta: { target_client_uuid: fixedGoal2Uuid },
+});
+
+// Finalizar jogo offline (duplicado não cria segundo finish pendente)
+const f1 = enqueueChampionshipEvent(champStorage, 7, {
+    client_uuid: fixedFinishUuid,
+    championship_id: 3,
+    game_id: 15,
+    action: 'finish',
+    payload: { finished_at: '2026-11-28T15:00:00.000Z' },
+});
+const f1Dup = enqueueChampionshipEvent(champStorage, 7, {
+    championship_id: 3,
+    game_id: 15,
+    action: 'finish',
+    payload: { finished_at: '2026-11-28T15:00:05.000Z' },
+});
+assert.equal(f1.client_uuid, f1Dup.client_uuid);
+assert.equal(loadChampionshipQueue(champStorage, 7).length, 4);
+
+// Projeção otimista após desfazer o 2º gol e finalizar: placar 1x0 e status finished
+projected = projectChampionshipGameWithQueue(
+    {
+        id: 15,
+        status: 'live',
+        home_regular_score: 0,
+        away_regular_score: 0,
+        went_to_overtime: false,
+    },
+    [],
+    loadChampionshipQueue(champStorage, 7),
+);
+assert.equal(projected.home_regular_score, 1);
+assert.equal(projected.away_regular_score, 0);
+assert.equal(projected.status, 'finished');
+assert.equal(projected.has_queued_finish, true);
+assert.equal(projected.events.length, 1);
+
+// Envio em ordem: goal1 -> goal2 (retorna event_id=888) -> remove_event (recebe event_id=888 resolvido!) -> finish
+const sentOrder = [];
+const flushChampResult = await flushChampionshipQueue(
+    champStorage,
+    7,
+    async (item) => {
+        sentOrder.push({
+            action: item.action,
+            client_uuid: item.client_uuid,
+            resolved_event_id: item.payload.event_id ?? item.meta?.target_event_id ?? null,
+        });
+        if (item.client_uuid === fixedGoal1Uuid) {
+            return { status: 201, ok: true, event_id: 777 };
+        }
+        if (item.client_uuid === fixedGoal2Uuid) {
+            return { status: 201, ok: true, event_id: 888 };
+        }
+        return { status: 200, ok: true };
+    },
+);
+
+assert.equal(flushChampResult.remaining, 0);
+assert.equal(flushChampResult.uploaded.length, 4);
+assert.deepEqual(
+    sentOrder.map((s) => s.action),
+    ['goal', 'goal', 'remove_event', 'finish'],
+    'eventos de campeonato devem ser enviados exatamente na ordem',
+);
+assert.equal(
+    sentOrder[2].resolved_event_id,
+    888,
+    'remove_event recebe o event_id retornado pelo gol criado anteriormente na fila',
+);
+
+// 8. Falha permanente em evento de campeonato bloqueia eventos seguintes do MESMO jogo mas permite envio de OUTRO jogo
+const failGoal = enqueueChampionshipEvent(champStorage, 7, {
+    championship_id: 3,
+    game_id: 20,
+    action: 'goal',
+    payload: { side: 'home', scorer_id: 999 },
+});
+const blockedFinishSameGame = enqueueChampionshipEvent(champStorage, 7, {
+    championship_id: 3,
+    game_id: 20,
+    action: 'finish',
+    payload: {},
+});
+const otherGameGoal = enqueueChampionshipEvent(champStorage, 7, {
+    championship_id: 3,
+    game_id: 21,
+    action: 'goal',
+    payload: { side: 'away', scorer_id: 301 },
+});
+
+const sentInMixedFlush = [];
+const mixedResult = await flushChampionshipQueue(
+    champStorage,
+    7,
+    async (item) => {
+        sentInMixedFlush.push(item.client_uuid);
+        if (item.client_uuid === failGoal.client_uuid) {
+            return {
+                status: 422,
+                ok: false,
+                error: 'O autor do gol deve pertencer ao elenco da equipe.',
+            };
+        }
+        return { status: 201, ok: true, event_id: 901 };
+    },
+);
+
+assert.deepEqual(
+    sentInMixedFlush,
+    [failGoal.client_uuid, otherGameGoal.client_uuid],
+    'finalização do jogo 20 não pode ser enviada antes do gol com falha do mesmo jogo 20, mas o jogo 21 é enviado',
+);
+assert.equal(mixedResult.remaining, 2);
+assert.equal(mixedResult.failed, 1);
+assert.equal(mixedResult.pending, 1);
+
+// Novo flush automático não reenvia o item com falha permanente nem o item bloqueado atrás dele
+let autoRetryCalls = 0;
+await flushChampionshipQueue(champStorage, 7, async () => {
+    autoRetryCalls++;
+    return { status: 200, ok: true };
+});
+assert.equal(autoRetryCalls, 0);
+
+// Retry manual desbloqueia o gol falho e em seguida envia o finish do jogo 20 na ordem
+retryQueuedChampionshipEvent(champStorage, 7, failGoal.client_uuid);
+const retryOrder = [];
+const afterRetry = await flushChampionshipQueue(
+    champStorage,
+    7,
+    async (item) => {
+        retryOrder.push(item.client_uuid);
+        return { status: 200, ok: true, event_id: 902 };
+    },
+);
+assert.equal(afterRetry.remaining, 0);
+assert.deepEqual(retryOrder, [
+    failGoal.client_uuid,
+    blockedFinishSameGame.client_uuid,
+]);
+
+// Descartar evento da fila de campeonato
+const toDiscardChamp = enqueueChampionshipEvent(champStorage, 7, {
+    championship_id: 3,
+    game_id: 22,
+    action: 'goal',
+    payload: { side: 'home', scorer_id: 1 },
+});
+assert.equal(loadChampionshipQueue(champStorage, 7).length, 1);
+removeQueuedChampionshipEvent(champStorage, 7, toDiscardChamp.client_uuid);
+assert.equal(loadChampionshipQueue(champStorage, 7).length, 0);
+assert.equal(
+    champStorage.getItem(championshipQueueKey(7)),
+    '[]',
+);

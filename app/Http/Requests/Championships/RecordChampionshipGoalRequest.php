@@ -25,7 +25,15 @@ class RecordChampionshipGoalRequest extends FormRequest
             'overtime' => ['sometimes', 'boolean'],
             'elapsed_seconds' => ['sometimes', 'integer', 'min:0'],
             'remaining_seconds' => ['sometimes', 'integer', 'min:0'],
+            'client_uuid' => ['nullable', 'uuid'],
         ];
+    }
+
+    public function clientUuid(): ?string
+    {
+        $uuid = $this->validated('client_uuid');
+
+        return is_string($uuid) && trim($uuid) !== '' ? trim($uuid) : null;
     }
 
     public function toCommand(): GoalCommand
@@ -67,6 +75,7 @@ class RecordChampionshipGoalRequest extends FormRequest
             overtime: $this->boolean('is_overtime') || $this->boolean('overtime'),
             elapsedSeconds: (int) ($this->validated('elapsed_seconds') ?? 0),
             remainingSeconds: (int) ($this->validated('remaining_seconds') ?? 0),
+            clientUuid: $this->clientUuid(),
         );
     }
 }

@@ -2,6 +2,9 @@ const VERSION = 'v4';
 const PAGES_CACHE = `na-quadra-pages-${VERSION}`;
 const ASSETS_CACHE = `na-quadra-assets-${VERSION}`;
 const ROUTES = new Set(['/jogadores', '/sorteio', '/partida']);
+const CHAMPIONSHIP_GAME_ROUTE = /^\/campeonatos\/\d+\/jogos\/\d+$/;
+const isCacheablePage = (pathname) =>
+    ROUTES.has(pathname) || CHAMPIONSHIP_GAME_ROUTE.test(pathname);
 const STATIC = [
     '/offline.html',
     '/manifest.webmanifest',
@@ -166,7 +169,7 @@ async function warmPages(urls) {
     for (const url of Array.isArray(urls) ? urls : []) {
         if (typeof url !== 'string') continue;
         const path = new URL(url, self.location.origin).pathname;
-        if (!ROUTES.has(path)) continue;
+        if (!isCacheablePage(path)) continue;
         const request = new Request(new URL(path, self.location.origin), {
             credentials: 'same-origin',
             headers: { Accept: 'text/html' },
@@ -231,7 +234,10 @@ self.addEventListener('fetch', (event) => {
     const url = new URL(request.url);
     if (url.origin !== self.location.origin) return;
     const inertia = request.headers.get('X-Inertia') === 'true';
-    if (ROUTES.has(url.pathname) && (request.mode === 'navigate' || inertia)) {
+    if (
+        isCacheablePage(url.pathname) &&
+        (request.mode === 'navigate' || inertia)
+    ) {
         event.respondWith(pageNetworkFirst(request, inertia));
         return;
     }
@@ -247,6 +253,7 @@ self.addEventListener('fetch', (event) => {
     }
     if (
         url.pathname.startsWith('/storage/jogadores/') ||
+        url.pathname.startsWith('/storage/championships/') ||
         url.pathname.startsWith('/build/') ||
         url.pathname.startsWith('/sons/') ||
         url.pathname.startsWith('/icons/')

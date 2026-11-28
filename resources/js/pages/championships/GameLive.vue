@@ -8,12 +8,14 @@ import {
     Calendar,
     CheckCircle2,
     Clock3,
+    CloudOff,
     Expand,
     Flag,
     MapPin,
     Megaphone,
     Pause,
     Play,
+    RefreshCw,
     RotateCcw,
     Settings2,
     Shrink,
@@ -31,6 +33,23 @@ import { useWakeLock } from '@/composables/useWakeLock';
 import { readableText } from '@/lib/balancedDraw';
 import { formatClock } from '@/lib/matchClock';
 import { transitionSounds } from '@/lib/matchClockCore';
+import {
+    generateClientUuid,
+    isPermanentFailure,
+    projectChampionshipGameWithQueue,
+    type ProjectableGameEvent,
+    type QueuedChampionshipEvent,
+} from '@/lib/matchQueue';
+import {
+    discardQueuedChampionshipEvent,
+    enqueueOfflineChampionshipEvent,
+    lastChampionshipSyncRevision,
+    offlineStatus,
+    openPendingMatchesPanel,
+    retryChampionshipEventNow,
+    syncNow,
+    warmChampionshipGamePage,
+} from '@/lib/offlineSync';
 import type {
     ChampionshipGameEventProp,
     ChampionshipLiveGamePageProps,
@@ -126,8 +145,65 @@ const canUseShootout = computed(() => {
     return Boolean(props.championship.rules.allow_group_overtime_or_shootout);
 });
 
+const queuedGameEvents = computed<QueuedChampionshipEvent[]>(() =>
+    offlineStatus.value.championshipQueue.filter(
+        (item) =>
+            item.championship_id === props.championship.id &&
+            item.game_id === props.game.id,
+    ),
+);
+
+const failedQueuedGameEvents = computed<QueuedChampionshipEvent[]>(() =>
+    queuedGameEvents.value.filter(isPermanentFailure),
+);
+
+const projectedGame = computed(() =>
+    projectChampionshipGameWithQueue(
+        {
+            id: props.game.id,
+            status: props.game.status,
+            home_regular_score: props.game.home_regular_score,
+            away_regular_score: props.game.away_regular_score,
+            went_to_overtime: Boolean(props.game.went_to_overtime),
+        },
+        props.events as ProjectableGameEvent[],
+        queuedGameEvents.value,
+    ),
+);
+
+const effectiveStatus = computed<GameStatus>(() => projectedGame.value.status);
+const effectiveHomeRegularScore = computed(
+    () => projectedGame.value.home_regular_score,
+);
+const effectiveAwayRegularScore = computed(
+    () => projectedGame.value.away_regular_score,
+);
+const effectiveWentToOvertime = computed(
+    () => projectedGame.value.went_to_overtime,
+);
+const effectiveEvents = computed<ProjectableGameEvent[]>(
+    () => projectedGame.value.events,
+);
+const effectiveWinnerTeamName = computed<string | null>(() => {
+    if (props.game.winner_team_name) return props.game.winner_team_name;
+    if (effectiveStatus.value !== 'finished') return null;
+    if (effectiveHomeRegularScore.value > effectiveAwayRegularScore.value) {
+        return homeTeam.value?.name ?? props.game.home_team_name ?? null;
+    }
+    if (effectiveAwayRegularScore.value > effectiveHomeRegularScore.value) {
+        return awayTeam.value?.name ?? props.game.away_team_name ?? null;
+    }
+    if (props.game.home_shootout_score > props.game.away_shootout_score) {
+        return homeTeam.value?.name ?? props.game.home_team_name ?? null;
+    }
+    if (props.game.away_shootout_score > props.game.home_shootout_score) {
+        return awayTeam.value?.name ?? props.game.away_team_name ?? null;
+    }
+    return null;
+});
+
 const isRegularScoreTied = computed(
-    () => props.game.home_regular_score === props.game.away_regular_score,
+    () => effectiveHomeRegularScore.value === effectiveAwayRegularScore.value,
 );
 
 const requiresWinnerToFinish = computed(
@@ -136,16 +212,16 @@ const requiresWinnerToFinish = computed(
         Boolean(props.championship.rules.allow_group_overtime_or_shootout),
 );
 
-const goalEvents = computed<ChampionshipGameEventProp[]>(() =>
-    props.events.filter((e) => e.type === 'goal'),
+const goalEvents = computed<ProjectableGameEvent[]>(() =>
+    effectiveEvents.value.filter((e) => e.type === 'goal'),
 );
 
-const shootoutEvents = computed<ChampionshipGameEventProp[]>(() =>
-    props.events.filter((e) => e.type === 'shootout_attempt'),
+const shootoutEvents = computed<ProjectableGameEvent[]>(() =>
+    effectiveEvents.value.filter((e) => e.type === 'shootout_attempt'),
 );
 
-const activeEventsDesc = computed<ChampionshipGameEventProp[]>(() =>
-    [...props.events]
+const activeEventsDesc = computed<ProjectableGameEvent[]>(() =>
+    [...effectiveEvents.value]
         .filter((e) => e.type === 'goal' || e.type === 'shootout_attempt')
         .reverse(),
 );
@@ -153,10 +229,10 @@ const activeEventsDesc = computed<ChampionshipGameEventProp[]>(() =>
 const formattedTime = computed(() => formatClock(clock.state.remaining));
 
 const phaseLabel = computed(() => {
-    if (props.game.status === 'finished') {
+    if (effectiveStatus.value === 'finished') {
         return 'Partida encerrada';
     }
-    if (props.game.status === 'scheduled') {
+    if (effectiveStatus.value === 'scheduled') {
         return 'Aguardando início';
     }
     if (isOvertimeMode.value) {
@@ -300,6 +376,13 @@ onMounted(() => {
         clearClockStorage();
     }
     restoring.value = false;
+    void warmChampionshipGamePage(props.championship.id, props.game.id);
+});
+
+watch(lastChampionshipSyncRevision, () => {
+    if (navigator.onLine) {
+        router.reload();
+    }
 });
 
 watch(
@@ -491,6 +574,7 @@ function confirmStartGame() {
 
 // 2. Goal Modal (pick scorer -> pick up to maxAssists assists or 'Sem assistência')
 interface GoalDialogState {
+    clientUuid: string;
     side: TeamSide;
     scorer: EnrolledPlayerProp | null;
     firstAssist: EnrolledPlayerProp | null;
@@ -528,10 +612,11 @@ const availableSecondAssistPlayers = computed<EnrolledPlayerProp[]>(() => {
 });
 
 async function openGoalDialog(side: TeamSide) {
-    if (props.game.status !== 'live') return;
+    if (effectiveStatus.value !== 'live' || submitting.value) return;
     await sound.unlock(sounds.value);
     localError.value = '';
     goalDialog.value = {
+        clientUuid: generateClientUuid(),
         side,
         scorer: null,
         firstAssist: null,
@@ -542,7 +627,7 @@ async function openGoalDialog(side: TeamSide) {
 }
 
 function selectGoalScorer(player: EnrolledPlayerProp) {
-    if (!goalDialog.value) return;
+    if (!goalDialog.value || submitting.value) return;
     goalDialog.value.scorer = player;
     goalDialog.value.firstAssist = null;
     goalDialog.value.secondAssist = null;
@@ -552,7 +637,8 @@ function selectGoalScorer(player: EnrolledPlayerProp) {
 }
 
 function selectFirstAssist(player: EnrolledPlayerProp | null) {
-    if (!goalDialog.value || !goalDialog.value.scorer) return;
+    if (!goalDialog.value || !goalDialog.value.scorer || submitting.value)
+        return;
     if (player === null) {
         submitGoalRecord([]);
         return;
@@ -570,7 +656,8 @@ function selectSecondAssist(player: EnrolledPlayerProp | null) {
     if (
         !goalDialog.value ||
         !goalDialog.value.scorer ||
-        !goalDialog.value.firstAssist
+        !goalDialog.value.firstAssist ||
+        submitting.value
     ) {
         return;
     }
@@ -582,6 +669,14 @@ function selectSecondAssist(player: EnrolledPlayerProp | null) {
     submitGoalRecord([goalDialog.value.firstAssist.id, player.id]);
 }
 
+function applyGoalLocalSideEffects() {
+    if (clock.state.phase === 'period' && !clock.state.paused) {
+        clock.restartCountdown('goal');
+        saveClockToStorage();
+    }
+    goalDialog.value = null;
+}
+
 function submitGoalRecord(assistIds: number[]) {
     const current = goalDialog.value;
     if (!current || !current.scorer || submitting.value) return;
@@ -590,33 +685,90 @@ function submitGoalRecord(assistIds: number[]) {
     submitting.value = true;
     localError.value = '';
 
+    const clientUuid = current.clientUuid || generateClientUuid();
     const elapsedSeconds = Math.max(0, clock.state.elapsed || 0);
     const remainingSeconds = Math.max(0, clock.state.remaining || 0);
     const period = Math.max(1, Number(current.period) || 1);
     const isOvertime = Boolean(current.isOvertime);
 
+    const firstAssistPlayer = assistIds[0]
+        ? (activeDialogRoster.value.find((p) => p.id === assistIds[0]) ?? null)
+        : null;
+    const secondAssistPlayer = assistIds[1]
+        ? (activeDialogRoster.value.find((p) => p.id === assistIds[1]) ?? null)
+        : null;
+
+    const payload = {
+        client_uuid: clientUuid,
+        side: current.side,
+        scorer_id: current.scorer.id,
+        assist_ids: assistIds,
+        first_assist_id: assistIds[0] ?? null,
+        second_assist_id: assistIds[1] ?? null,
+        period,
+        is_overtime: isOvertime,
+        overtime: isOvertime,
+        elapsed_seconds: elapsedSeconds,
+        remaining_seconds: remainingSeconds,
+    };
+
+    const meta = {
+        championship_name: props.championship.name,
+        home_name: homeTeam.value?.name ?? props.game.home_team_name ?? 'Casa',
+        away_name:
+            awayTeam.value?.name ?? props.game.away_team_name ?? 'Visitante',
+        home_color: homeTeam.value?.primary_color ?? '#2563eb',
+        away_color: awayTeam.value?.primary_color ?? '#dc2626',
+        side: current.side,
+        team_id: activeDialogTeam.value?.id ?? null,
+        scorer_id: current.scorer.id,
+        scorer_name: current.scorer.name,
+        first_assist_id: firstAssistPlayer?.id ?? null,
+        first_assist_name: firstAssistPlayer?.name ?? null,
+        second_assist_id: secondAssistPlayer?.id ?? null,
+        second_assist_name: secondAssistPlayer?.name ?? null,
+        period,
+        is_overtime: isOvertime,
+        elapsed_seconds: elapsedSeconds,
+        remaining_seconds: remainingSeconds,
+    };
+
+    if (!navigator.onLine || queuedGameEvents.value.length > 0) {
+        enqueueOfflineChampionshipEvent({
+            client_uuid: clientUuid,
+            championship_id: props.championship.id,
+            game_id: props.game.id,
+            action: 'goal',
+            payload,
+            meta,
+        });
+        applyGoalLocalSideEffects();
+        submitting.value = false;
+        if (navigator.onLine) {
+            void syncNow();
+        }
+        return;
+    }
+
     router.post(
         `/campeonatos/${props.championship.id}/jogos/${props.game.id}/gols`,
-        {
-            side: current.side,
-            scorer_id: current.scorer.id,
-            assist_ids: assistIds,
-            first_assist_id: assistIds[0] ?? null,
-            second_assist_id: assistIds[1] ?? null,
-            period,
-            is_overtime: isOvertime,
-            overtime: isOvertime,
-            elapsed_seconds: elapsedSeconds,
-            remaining_seconds: remainingSeconds,
-        },
+        payload,
         {
             preserveScroll: true,
             onSuccess: () => {
-                if (clock.state.phase === 'period' && !clock.state.paused) {
-                    clock.restartCountdown('goal');
-                    saveClockToStorage();
-                }
-                goalDialog.value = null;
+                applyGoalLocalSideEffects();
+            },
+            onNetworkError: () => {
+                enqueueOfflineChampionshipEvent({
+                    client_uuid: clientUuid,
+                    championship_id: props.championship.id,
+                    game_id: props.game.id,
+                    action: 'goal',
+                    payload,
+                    meta,
+                });
+                applyGoalLocalSideEffects();
+                return false;
             },
             onFinish: () => {
                 submitting.value = false;
@@ -661,7 +813,7 @@ function submitShootoutAttempt() {
     if (
         submitting.value ||
         shootoutShooterId.value === '' ||
-        props.game.status !== 'live'
+        effectiveStatus.value !== 'live'
     ) {
         return;
     }
@@ -671,6 +823,7 @@ function submitShootoutAttempt() {
     router.post(
         `/campeonatos/${props.championship.id}/jogos/${props.game.id}/penaltis`,
         {
+            client_uuid: generateClientUuid(),
             side: shootoutSide.value,
             shooter_id: Number(shootoutShooterId.value),
             scored: Boolean(shootoutScored.value),
@@ -689,18 +842,22 @@ function submitShootoutAttempt() {
 }
 
 // 4. Remove Event (confirm + motivo)
-const eventToRemove = ref<ChampionshipGameEventProp | null>(null);
+const eventToRemove = ref<ProjectableGameEvent | null>(null);
 const removeEventReason = ref('');
+const removeEventUuid = ref('');
 
-function openRemoveEventModal(event: ChampionshipGameEventProp) {
+function openRemoveEventModal(event: ProjectableGameEvent) {
+    if (submitting.value) return;
     eventToRemove.value = event;
     removeEventReason.value = '';
+    removeEventUuid.value = generateClientUuid();
     localError.value = '';
 }
 
 function closeRemoveEventModal() {
     eventToRemove.value = null;
     removeEventReason.value = '';
+    removeEventUuid.value = '';
 }
 
 function confirmRemoveEvent() {
@@ -716,15 +873,70 @@ function confirmRemoveEvent() {
     submitting.value = true;
     localError.value = '';
 
+    const clientUuid = removeEventUuid.value || generateClientUuid();
+    const targetEventId = target.id > 0 ? target.id : null;
+    const targetClientUuid = target.client_uuid ?? null;
+    const payload = {
+        motivo: trimmedReason,
+        client_uuid: clientUuid,
+        event_id: targetEventId,
+        target_client_uuid: targetClientUuid,
+    };
+    const meta = {
+        championship_name: props.championship.name,
+        home_name: homeTeam.value?.name ?? props.game.home_team_name ?? 'Casa',
+        away_name:
+            awayTeam.value?.name ?? props.game.away_team_name ?? 'Visitante',
+        home_color: homeTeam.value?.primary_color ?? '#2563eb',
+        away_color: awayTeam.value?.primary_color ?? '#dc2626',
+        target_event_id: targetEventId,
+        target_client_uuid: targetClientUuid,
+        summary: `Remover lance de ${target.primary_player_name ?? 'Atleta'} · Motivo: ${trimmedReason}`,
+    };
+
+    if (
+        !navigator.onLine ||
+        queuedGameEvents.value.length > 0 ||
+        target.id <= 0
+    ) {
+        enqueueOfflineChampionshipEvent({
+            client_uuid: clientUuid,
+            championship_id: props.championship.id,
+            game_id: props.game.id,
+            action: 'remove_event',
+            payload,
+            meta,
+        });
+        closeRemoveEventModal();
+        submitting.value = false;
+        if (navigator.onLine) {
+            void syncNow();
+        }
+        return;
+    }
+
     router.delete(
         `/campeonatos/${props.championship.id}/jogos/${props.game.id}/eventos/${target.id}`,
         {
             data: {
                 motivo: trimmedReason,
+                client_uuid: clientUuid,
             },
             preserveScroll: true,
             onSuccess: () => {
                 closeRemoveEventModal();
+            },
+            onNetworkError: () => {
+                enqueueOfflineChampionshipEvent({
+                    client_uuid: clientUuid,
+                    championship_id: props.championship.id,
+                    game_id: props.game.id,
+                    action: 'remove_event',
+                    payload,
+                    meta,
+                });
+                closeRemoveEventModal();
+                return false;
             },
             onFinish: () => {
                 submitting.value = false;
@@ -735,22 +947,91 @@ function confirmRemoveEvent() {
 
 // 5. Finish Game (confirm + validation display)
 const showFinishConfirm = ref(false);
+const finishGameUuid = ref('');
+
+function openFinishConfirmModal() {
+    if (submitting.value) return;
+    finishGameUuid.value = generateClientUuid();
+    localError.value = '';
+    showFinishConfirm.value = true;
+}
+
+function applyFinishLocalSideEffects() {
+    clock.finish();
+    clearClockStorage();
+    void wake.release();
+    showFinishConfirm.value = false;
+    finishGameUuid.value = '';
+}
 
 function confirmFinishGame() {
     if (submitting.value) return;
     submitting.value = true;
     localError.value = '';
 
+    const clientUuid = finishGameUuid.value || generateClientUuid();
+    const payload = {
+        client_uuid: clientUuid,
+        finished_at: new Date().toISOString(),
+    };
+    const meta = {
+        championship_name: props.championship.name,
+        home_name: homeTeam.value?.name ?? props.game.home_team_name ?? 'Casa',
+        away_name:
+            awayTeam.value?.name ?? props.game.away_team_name ?? 'Visitante',
+        home_color: homeTeam.value?.primary_color ?? '#2563eb',
+        away_color: awayTeam.value?.primary_color ?? '#dc2626',
+        summary: `Finalizar partida (${effectiveHomeRegularScore.value} × ${effectiveAwayRegularScore.value})`,
+    };
+
+    if (!navigator.onLine || queuedGameEvents.value.length > 0) {
+        if (
+            requiresWinnerToFinish.value &&
+            isRegularScoreTied.value &&
+            props.game.home_shootout_score === props.game.away_shootout_score
+        ) {
+            localError.value =
+                'Este confronto exige um vencedor (no tempo normal, prorrogação ou shootout) antes de ser encerrado.';
+            submitting.value = false;
+            return;
+        }
+        enqueueOfflineChampionshipEvent({
+            client_uuid: clientUuid,
+            championship_id: props.championship.id,
+            game_id: props.game.id,
+            action: 'finish',
+            payload,
+            meta,
+        });
+        applyFinishLocalSideEffects();
+        submitting.value = false;
+        if (navigator.onLine) {
+            void syncNow();
+        }
+        return;
+    }
+
     router.post(
         `/campeonatos/${props.championship.id}/jogos/${props.game.id}/finalizar`,
-        {},
+        {
+            client_uuid: clientUuid,
+        },
         {
             preserveScroll: true,
             onSuccess: () => {
-                clock.finish();
-                clearClockStorage();
-                void wake.release();
-                showFinishConfirm.value = false;
+                applyFinishLocalSideEffects();
+            },
+            onNetworkError: () => {
+                enqueueOfflineChampionshipEvent({
+                    client_uuid: clientUuid,
+                    championship_id: props.championship.id,
+                    game_id: props.game.id,
+                    action: 'finish',
+                    payload,
+                    meta,
+                });
+                applyFinishLocalSideEffects();
+                return false;
             },
             onFinish: () => {
                 submitting.value = false;
@@ -887,9 +1168,9 @@ function formatDateTime(iso: string | null): string {
                     </h1>
                     <span
                         class="rounded-full px-2.5 py-0.5 text-xs font-bold"
-                        :class="statusClasses[game.status]"
+                        :class="statusClasses[effectiveStatus]"
                     >
-                        {{ statusLabels[game.status] }}
+                        {{ statusLabels[effectiveStatus] }}
                     </span>
                 </div>
 
@@ -937,6 +1218,130 @@ function formatDateTime(iso: string | null): string {
             <p v-if="pageErrors.championship">{{ pageErrors.championship }}</p>
             <p v-if="pageErrors.motivo">{{ pageErrors.motivo }}</p>
             <p v-if="localError">{{ localError }}</p>
+        </div>
+    </div>
+
+    <!-- Offline Queue Indicator for this Game -->
+    <div
+        v-if="queuedGameEvents.length && !isFullscreen"
+        class="mb-4 rounded-2xl border p-3.5 text-xs"
+        :class="
+            failedQueuedGameEvents.length
+                ? 'border-red-300 bg-red-50/90 text-red-950 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-100'
+                : 'border-amber-300 bg-amber-50/90 text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-100'
+        "
+        data-test="fila-offline-jogo-campeonato"
+    >
+        <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2 font-bold">
+                <AlertTriangle
+                    v-if="failedQueuedGameEvents.length"
+                    class="size-4 shrink-0 text-red-600 dark:text-red-400"
+                />
+                <CloudOff
+                    v-else
+                    class="size-4 shrink-0 text-amber-600 dark:text-amber-400"
+                />
+                <span>
+                    {{ queuedGameEvents.length }} evento(s) desta partida na
+                    fila local
+                    <template v-if="failedQueuedGameEvents.length">
+                        ({{ failedQueuedGameEvents.length }} com falha)
+                    </template>
+                </span>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+                <button
+                    type="button"
+                    class="inline-flex min-h-8 items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1 font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                    data-test="abrir-fila-campeonato"
+                    @click="openPendingMatchesPanel"
+                >
+                    Ver fila
+                </button>
+                <button
+                    v-if="!offlineStatus.offline"
+                    type="button"
+                    class="inline-flex min-h-8 items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1 font-bold text-white hover:bg-slate-800 disabled:opacity-50 dark:bg-slate-700"
+                    :disabled="offlineStatus.syncing"
+                    data-test="sincronizar-jogo-campeonato"
+                    @click="syncNow()"
+                >
+                    <RefreshCw
+                        class="size-3.5"
+                        :class="offlineStatus.syncing ? 'animate-spin' : ''"
+                    />
+                    Sincronizar
+                </button>
+            </div>
+        </div>
+
+        <div class="mt-2.5 space-y-1.5">
+            <div
+                v-for="qItem in queuedGameEvents"
+                :key="qItem.client_uuid"
+                class="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/80 px-3 py-2 dark:bg-slate-900/75"
+                :data-queued-event-uuid="qItem.client_uuid"
+            >
+                <div class="min-w-0 flex-1">
+                    <div class="flex flex-wrap items-center gap-1.5">
+                        <span
+                            class="rounded px-1.5 py-0.5 text-[10px] font-extrabold uppercase"
+                            :class="
+                                isPermanentFailure(qItem)
+                                    ? 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300'
+                                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                            "
+                        >
+                            {{
+                                isPermanentFailure(qItem)
+                                    ? 'Falhou'
+                                    : 'Pendente'
+                            }}
+                        </span>
+                        <span
+                            class="font-bold text-slate-900 dark:text-slate-100"
+                        >
+                            {{
+                                qItem.meta?.summary ??
+                                (qItem.action === 'goal'
+                                    ? `Gol de ${qItem.meta?.scorer_name ?? 'Atleta'}`
+                                    : qItem.action === 'remove_event'
+                                      ? 'Remover evento da súmula'
+                                      : 'Finalizar partida')
+                            }}
+                        </span>
+                    </div>
+                    <p
+                        v-if="qItem.error"
+                        class="mt-0.5 text-[11px] font-semibold text-red-700 dark:text-red-300"
+                    >
+                        {{ qItem.error }}
+                    </p>
+                </div>
+
+                <div class="flex shrink-0 items-center gap-1.5">
+                    <button
+                        type="button"
+                        class="inline-flex min-h-8 items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-slate-800 dark:bg-slate-700"
+                        data-test="tentar-novamente-evento-jogo"
+                        @click="retryChampionshipEventNow(qItem.client_uuid)"
+                    >
+                        <RefreshCw class="size-3" />
+                        Tentar de novo
+                    </button>
+                    <button
+                        type="button"
+                        class="inline-flex min-h-8 items-center gap-1 rounded-lg border border-red-200 bg-white px-2.5 py-1 text-[11px] font-bold text-red-600 hover:bg-red-50 dark:border-red-900/60 dark:bg-slate-900 dark:text-red-400"
+                        data-test="descartar-evento-jogo"
+                        @click="discardQueuedChampionshipEvent(qItem.client_uuid)"
+                    >
+                        <Trash2 class="size-3" />
+                        Descartar
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1040,9 +1445,9 @@ function formatDateTime(iso: string | null): string {
             <div class="flex items-center gap-2">
                 <span
                     class="rounded-full px-2 py-0.5 text-[10px] font-black uppercase"
-                    :class="statusClasses[game.status]"
+                    :class="statusClasses[effectiveStatus]"
                 >
-                    {{ statusLabels[game.status] }}
+                    {{ statusLabels[effectiveStatus] }}
                 </span>
                 <span
                     class="text-xs font-bold tracking-widest text-slate-300 uppercase"
@@ -1168,7 +1573,7 @@ function formatDateTime(iso: string | null): string {
                     "
                     data-test="placar-casa"
                 >
-                    {{ game.home_regular_score }}
+                    {{ effectiveHomeRegularScore }}
                 </strong>
                 <span
                     v-if="game.went_to_shootout || shootoutEvents.length"
@@ -1182,7 +1587,7 @@ function formatDateTime(iso: string | null): string {
             <!-- Center Clock & Period Info -->
             <div class="text-center">
                 <span
-                    v-if="isOvertimeMode || game.went_to_overtime"
+                    v-if="isOvertimeMode || effectiveWentToOvertime"
                     class="mb-1 inline-block rounded-md bg-amber-400/20 px-2 py-0.5 text-[11px] font-black tracking-wider text-amber-300 uppercase"
                 >
                     Prorrogação
@@ -1219,11 +1624,11 @@ function formatDateTime(iso: string | null): string {
                 </span>
 
                 <div
-                    v-if="game.winner_team_name"
+                    v-if="effectiveWinnerTeamName"
                     class="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-300"
                 >
                     <Trophy class="size-3.5 text-amber-400" />
-                    Vencedor: {{ game.winner_team_name }}
+                    Vencedor: {{ effectiveWinnerTeamName }}
                 </div>
             </div>
 
@@ -1261,7 +1666,7 @@ function formatDateTime(iso: string | null): string {
                     "
                     data-test="placar-fora"
                 >
-                    {{ game.away_regular_score }}
+                    {{ effectiveAwayRegularScore }}
                 </strong>
                 <span
                     v-if="game.went_to_shootout || shootoutEvents.length"
@@ -1276,7 +1681,7 @@ function formatDateTime(iso: string | null): string {
         <!-- Action Controls inside Scoreboard -->
         <!-- Case A: Scheduled -->
         <div
-            v-if="game.status === 'scheduled'"
+            v-if="effectiveStatus === 'scheduled'"
             class="border-t border-white/10 bg-slate-900/90 p-4"
         >
             <div
@@ -1311,7 +1716,7 @@ function formatDateTime(iso: string | null): string {
 
         <!-- Case B: Live -->
         <div
-            v-else-if="game.status === 'live'"
+            v-else-if="effectiveStatus === 'live'"
             class="space-y-3 border-t border-white/10 bg-slate-900/80 p-3 sm:p-4"
         >
             <!-- Big Goal Buttons per Team -->
@@ -1418,7 +1823,7 @@ function formatDateTime(iso: string | null): string {
                     class="flex min-h-12 items-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-black text-white hover:bg-emerald-500 disabled:opacity-50"
                     data-test="finalizar-jogo"
                     :disabled="submitting"
-                    @click="showFinishConfirm = true"
+                    @click="openFinishConfirmModal"
                 >
                     <Flag class="size-4" />
                     Finalizar
@@ -1428,26 +1833,27 @@ function formatDateTime(iso: string | null): string {
 
         <!-- Case C: Finished -->
         <div
-            v-else-if="game.status === 'finished'"
+            v-else-if="effectiveStatus === 'finished'"
             class="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 bg-slate-900/90 p-4"
         >
             <div class="flex items-center gap-2 text-xs text-emerald-300">
                 <CheckCircle2 class="size-4 shrink-0" />
                 <span>
                     Partida finalizada
-                    <template v-if="game.winner_team_name">
+                    <template v-if="effectiveWinnerTeamName">
                         · Vitória de
-                        <strong>{{ game.winner_team_name }}</strong>
+                        <strong>{{ effectiveWinnerTeamName }}</strong>
                     </template>
                     <template v-else> · Empate registrado </template>
                 </span>
             </div>
 
             <button
-                v-if="!game.is_bye"
+                v-if="!game.is_bye && game.status === 'finished'"
                 type="button"
-                class="inline-flex min-h-11 items-center gap-2 rounded-xl border border-amber-400/50 bg-amber-400/10 px-4 text-xs font-bold text-amber-300 hover:bg-amber-400/20"
+                class="inline-flex min-h-11 items-center gap-2 rounded-xl border border-amber-400/50 bg-amber-400/10 px-4 text-xs font-bold text-amber-300 hover:bg-amber-400/20 disabled:opacity-50"
                 data-test="abrir-reabrir-jogo"
+                :disabled="submitting"
                 @click="openReopenModal"
             >
                 <RotateCcw class="size-4" />
@@ -1462,7 +1868,7 @@ function formatDateTime(iso: string | null): string {
         <section
             v-if="
                 canUseShootout &&
-                (game.status === 'live' ||
+                (effectiveStatus === 'live' ||
                     game.went_to_shootout ||
                     shootoutEvents.length > 0)
             "
@@ -1494,16 +1900,17 @@ function formatDateTime(iso: string | null): string {
             </div>
 
             <div
-                v-if="game.status === 'live' && !isRegularScoreTied"
+                v-if="effectiveStatus === 'live' && !isRegularScoreTied"
                 class="mt-3 rounded-xl bg-slate-50 p-3 text-xs text-slate-600 dark:bg-slate-800/50 dark:text-slate-300"
             >
                 O registro de cobranças de shootout fica disponível quando o
                 placar do tempo normal/prorrogação está empatado (atual:
-                {{ game.home_regular_score }} × {{ game.away_regular_score }}).
+                {{ effectiveHomeRegularScore }} ×
+                {{ effectiveAwayRegularScore }}).
             </div>
 
             <form
-                v-if="game.status === 'live' && isRegularScoreTied"
+                v-if="effectiveStatus === 'live' && isRegularScoreTied"
                 class="mt-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 dark:border-slate-700 dark:bg-slate-800/50"
                 @submit.prevent="submitShootoutAttempt"
             >
@@ -1655,10 +2062,11 @@ function formatDateTime(iso: string | null): string {
                             {{ ev.shootout_scored ? 'Convertido' : 'Perdido' }}
                         </span>
                         <button
-                            v-if="game.status === 'live'"
+                            v-if="effectiveStatus === 'live'"
                             type="button"
-                            class="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                            class="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
                             :aria-label="`Remover cobrança #${ev.id}`"
+                            :disabled="submitting"
                             @click="openRemoveEventModal(ev)"
                         >
                             <Trash2 class="size-3.5" />
@@ -1674,7 +2082,7 @@ function formatDateTime(iso: string | null): string {
             :class="{
                 'lg:col-span-2': !(
                     canUseShootout &&
-                    (game.status === 'live' ||
+                    (effectiveStatus === 'live' ||
                         game.went_to_shootout ||
                         shootoutEvents.length > 0)
                 ),
@@ -1746,6 +2154,20 @@ function formatDateTime(iso: string | null): string {
                                     Prorrogação
                                 </span>
                                 <span
+                                    v-if="event.failed"
+                                    class="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-800 dark:bg-red-950 dark:text-red-300"
+                                    data-test="badge-evento-falhou"
+                                >
+                                    Falha no envio
+                                </span>
+                                <span
+                                    v-else-if="event.pending"
+                                    class="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-900 dark:bg-amber-950 dark:text-amber-300"
+                                    data-test="badge-evento-pendente"
+                                >
+                                    Aguardando envio
+                                </span>
+                                <span
                                     v-if="event.type === 'shootout_attempt'"
                                     class="rounded px-1.5 py-0.5 text-[10px] font-bold"
                                     :class="
@@ -1797,10 +2219,11 @@ function formatDateTime(iso: string | null): string {
                         </span>
 
                         <button
-                            v-if="game.status === 'live'"
+                            v-if="effectiveStatus === 'live'"
                             type="button"
-                            class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 dark:border-slate-700 dark:bg-slate-900"
+                            class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900"
                             :data-test="`remover-evento-${event.id}`"
+                            :disabled="submitting"
                             @click="openRemoveEventModal(event)"
                         >
                             <Trash2 class="size-3.5" />
@@ -1952,8 +2375,9 @@ function formatDateTime(iso: string | null): string {
                         v-for="player in activeDialogRoster"
                         :key="player.id"
                         type="button"
-                        class="flex min-h-20 cursor-pointer items-center gap-3 rounded-2xl border-2 border-slate-200 p-3 text-left font-bold transition hover:border-slate-900 dark:border-slate-700 dark:hover:border-slate-300"
+                        class="flex min-h-20 cursor-pointer items-center gap-3 rounded-2xl border-2 border-slate-200 p-3 text-left font-bold transition hover:border-slate-900 disabled:opacity-50 dark:border-slate-700 dark:hover:border-slate-300"
                         :data-scorer-id="player.id"
+                        :disabled="submitting"
                         @click="selectGoalScorer(player)"
                     >
                         <span
@@ -2155,8 +2579,8 @@ function formatDateTime(iso: string | null): string {
                         class="mt-1 text-lg font-black text-slate-900 dark:text-slate-100"
                     >
                         {{ homeTeam?.name ?? game.home_team_name }}
-                        {{ game.home_regular_score }} ×
-                        {{ game.away_regular_score }}
+                        {{ effectiveHomeRegularScore }} ×
+                        {{ effectiveAwayRegularScore }}
                         {{ awayTeam?.name ?? game.away_team_name }}
                     </p>
                     <p

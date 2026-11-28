@@ -133,4 +133,31 @@ class ChampionshipGame extends Model
     {
         return $this->hasMany(ChampionshipGameEvent::class, 'championship_game_id');
     }
+
+    /**
+     * @param  string  $childType
+     * @param  mixed  $value
+     * @param  string|null  $field
+     */
+    public function resolveChildRouteBinding($childType, $value, $field): ?Model
+    {
+        if ($childType === 'event')
+        {
+            $query = $this->events()->withTrashed();
+
+            if ($field !== null)
+            {
+                return $query->where($field, $value)->first();
+            }
+
+            if (is_numeric($value))
+            {
+                return $query->where('id', (int) $value)->first();
+            }
+
+            return $query->where('client_uuid', (string) $value)->first();
+        }
+
+        return parent::resolveChildRouteBinding($childType, $value, $field);
+    }
 }

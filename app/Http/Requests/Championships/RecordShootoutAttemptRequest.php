@@ -42,7 +42,15 @@ class RecordShootoutAttemptRequest extends FormRequest
             'shooter_id' => ['required', 'integer'],
             'scored' => ['required', 'boolean'],
             'round' => ['sometimes', 'integer', 'min:1', 'max:50'],
+            'client_uuid' => ['nullable', 'uuid'],
         ];
+    }
+
+    public function clientUuid(): ?string
+    {
+        $uuid = $this->validated('client_uuid');
+
+        return is_string($uuid) && trim($uuid) !== '' ? trim($uuid) : null;
     }
 
     public function toCommand(): ShootoutAttemptCommand
@@ -52,6 +60,7 @@ class RecordShootoutAttemptRequest extends FormRequest
             shooterId: (int) $this->validated('shooter_id'),
             scored: $this->boolean('scored'),
             round: (int) ($this->validated('round') ?? 1),
+            clientUuid: $this->clientUuid(),
         );
     }
 }

@@ -17,5 +17,6 @@ final readonly class GoalCommand
         public bool $overtime = false,
         public int $elapsedSeconds = 0,
         public int $remainingSeconds = 0,
+        public ?string $clientUuid = null,
     ) {}
 }

@@ -12,7 +12,15 @@ class FinishChampionshipGameRequest extends FormRequest
     {
         return [
             'finished_at' => ['nullable', 'date'],
+            'client_uuid' => ['nullable', 'uuid'],
         ];
+    }
+
+    public function clientUuid(): ?string
+    {
+        $uuid = $this->validated('client_uuid');
+
+        return is_string($uuid) && trim($uuid) !== '' ? trim($uuid) : null;
     }
 
     public function finishedAt(): ?CarbonImmutable

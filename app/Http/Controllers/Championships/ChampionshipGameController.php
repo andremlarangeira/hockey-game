@@ -14,6 +14,7 @@ use App\Http\Requests\Championships\StartChampionshipGameRequest;
 use App\Models\Championship;
 use App\Models\ChampionshipGame;
 use App\Models\ChampionshipGameEvent;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -63,8 +64,21 @@ class ChampionshipGameController extends Controller
         RecordChampionshipGoalRequest $request,
         Championship $championship,
         ChampionshipGame $game,
-    ): RedirectResponse {
-        $this->engine->recordGoal($game, $request->toCommand());
+    ): RedirectResponse|JsonResponse {
+        $event = $this->engine->recordGoal($game, $request->toCommand());
+        $duplicate = ! $event->wasRecentlyCreated;
+
+        if ($request->wantsJson() && ! $request->header('X-Inertia'))
+        {
+            return response()->json([
+                'id' => $event->id,
+                'event_id' => $event->id,
+                'game_id' => $game->id,
+                'home_regular_score' => $game->home_regular_score,
+                'away_regular_score' => $game->away_regular_score,
+                'duplicate' => $duplicate,
+            ], $duplicate ? 200 : 201);
+        }
 
         return back()->with('success', 'Gol registrado na súmula.');
     }
@@ -73,8 +87,21 @@ class ChampionshipGameController extends Controller
         RecordShootoutAttemptRequest $request,
         Championship $championship,
         ChampionshipGame $game,
-    ): RedirectResponse {
-        $this->engine->recordShootoutAttempt($game, $request->toCommand());
+    ): RedirectResponse|JsonResponse {
+        $event = $this->engine->recordShootoutAttempt($game, $request->toCommand());
+        $duplicate = ! $event->wasRecentlyCreated;
+
+        if ($request->wantsJson() && ! $request->header('X-Inertia'))
+        {
+            return response()->json([
+                'id' => $event->id,
+                'event_id' => $event->id,
+                'game_id' => $game->id,
+                'home_shootout_score' => $game->home_shootout_score,
+                'away_shootout_score' => $game->away_shootout_score,
+                'duplicate' => $duplicate,
+            ], $duplicate ? 200 : 201);
+        }
 
         return back()->with('success', 'Cobrança de shootout registrada.');
     }
@@ -84,12 +111,30 @@ class ChampionshipGameController extends Controller
         Championship $championship,
         ChampionshipGame $game,
         ChampionshipGameEvent $event,
-    ): RedirectResponse {
+    ): RedirectResponse|JsonResponse {
+        $wasAlreadyTrashed = $event->trashed();
+
         $this->engine->removeEvent(
             event: $event,
             actor: $request->user(),
             reason: $request->reason(),
         );
+
+        $duplicate = $wasAlreadyTrashed;
+
+        if ($request->wantsJson() && ! $request->header('X-Inertia'))
+        {
+            $freshGame = $game->fresh() ?? $game;
+
+            return response()->json([
+                'id' => $event->id,
+                'event_id' => $event->id,
+                'game_id' => $freshGame->id,
+                'home_regular_score' => $freshGame->home_regular_score,
+                'away_regular_score' => $freshGame->away_regular_score,
+                'duplicate' => $duplicate,
+            ]);
+        }
 
         return back()->with('success', 'Evento removido da súmula.');
     }
@@ -98,12 +143,26 @@ class ChampionshipGameController extends Controller
         FinishChampionshipGameRequest $request,
         Championship $championship,
         ChampionshipGame $game,
-    ): RedirectResponse {
-        $this->engine->finishGame(
+    ): RedirectResponse|JsonResponse {
+        $finishedGame = $this->engine->finishGame(
             game: $game,
             actor: $request->user(),
             finishedAt: $request->finishedAt(),
         );
+        $duplicate = ! $finishedGame->wasChanged('status');
+
+        if ($request->wantsJson() && ! $request->header('X-Inertia'))
+        {
+            return response()->json([
+                'id' => $finishedGame->id,
+                'game_id' => $finishedGame->id,
+                'status' => $finishedGame->status->value,
+                'winner_team_id' => $finishedGame->winner_team_id,
+                'home_regular_score' => $finishedGame->home_regular_score,
+                'away_regular_score' => $finishedGame->away_regular_score,
+                'duplicate' => $duplicate,
+            ]);
+        }
 
         return back()->with('success', 'Partida encerrada e classificação atualizada.');
     }

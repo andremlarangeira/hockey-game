@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $user_id
  * @property int $championship_id
  * @property int $championship_game_id
+ * @property string|null $client_uuid
  * @property GameEventType $type
  * @property TeamSide|null $side
  * @property int|null $team_id
@@ -37,6 +38,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'user_id',
     'championship_id',
     'championship_game_id',
+    'client_uuid',
     'type',
     'side',
     'team_id',

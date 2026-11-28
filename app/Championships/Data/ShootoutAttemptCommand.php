@@ -11,5 +11,6 @@ final readonly class ShootoutAttemptCommand
         public int $shooterId,
         public bool $scored,
         public int $round,
+        public ?string $clientUuid = null,
     ) {}
 }

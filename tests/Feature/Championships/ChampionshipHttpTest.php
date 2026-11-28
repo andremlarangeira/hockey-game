@@ -5,6 +5,7 @@ use App\Championships\Enums\ChampionshipStatus;
 use App\Championships\Enums\GameEventType;
 use App\Championships\Enums\GamePhase;
 use App\Championships\Enums\GameStatus;
+use App\Championships\Enums\TeamSide;
 use App\Models\Championship;
 use App\Models\ChampionshipAuditLog;
 use App\Models\ChampionshipGame;
@@ -13,9 +14,12 @@ use App\Models\ChampionshipPlayer;
 use App\Models\ChampionshipTeam;
 use App\Models\Player;
 use App\Models\User;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 
 require_once __DIR__.'/../../matchHelpers.php';
@@ -771,4 +775,316 @@ test('mapeia apenas ChampionshipException para erro de validação sem intercept
 
     $this->post('/_test/generic-domain-exception')
         ->assertStatus(500);
+});
+
+test('gol de campeonato é idempotente por client_uuid (mesmo uuid = 1 evento, uuids distintos = 2 eventos, null = múltiplos)', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $this->post('/campeonatos', [
+        'name' => 'Copa Idempotência',
+        'city' => 'Campinas',
+        'groups_count' => 1,
+        'qualifiers_per_group' => 2,
+    ])->assertRedirect();
+
+    $championship = Championship::firstOrFail();
+
+    foreach (['Tigres', 'Lobos', 'Falcões', 'Ursos'] as $name)
+    {
+        $this->post("/campeonatos/{$championship->id}/equipes", ['name' => $name])->assertRedirect();
+        $team = ChampionshipTeam::where('championship_id', $championship->id)->where('name', $name)->firstOrFail();
+        $this->post("/campeonatos/{$championship->id}/equipes/{$team->id}/jogadores", [
+            'name' => "Atacante {$name}",
+            'jersey_number' => 10,
+        ])->assertRedirect();
+    }
+
+    $this->post("/campeonatos/{$championship->id}/sorteio")->assertRedirect();
+
+    $game = ChampionshipGame::where('championship_id', $championship->id)->orderBy('id')->firstOrFail();
+    $homePlayer = ChampionshipPlayer::where('championship_team_id', $game->home_team_id)->firstOrFail();
+
+    $this->post("/campeonatos/{$championship->id}/jogos/{$game->id}/iniciar")->assertRedirect();
+
+    $uuid1 = (string) Str::uuid();
+    $uuid2 = (string) Str::uuid();
+
+    // 1. Mesmo client_uuid enviado duas vezes (JSON e Redirect) -> apenas 1 evento e placar 1x0
+    $firstResponse = $this->postJson("/campeonatos/{$championship->id}/jogos/{$game->id}/gols", [
+        'side' => 'home',
+        'scorer_id' => $homePlayer->id,
+        'period' => 1,
+        'elapsed_seconds' => 30,
+        'remaining_seconds' => 570,
+        'client_uuid' => $uuid1,
+    ]);
+    $firstResponse->assertCreated()
+        ->assertJsonPath('duplicate', false)
+        ->assertJsonPath('home_regular_score', 1);
+
+    $secondResponse = $this->postJson("/campeonatos/{$championship->id}/jogos/{$game->id}/gols", [
+        'side' => 'home',
+        'scorer_id' => $homePlayer->id,
+        'period' => 1,
+        'elapsed_seconds' => 30,
+        'remaining_seconds' => 570,
+        'client_uuid' => $uuid1,
+    ]);
+    $secondResponse->assertOk()
+        ->assertJsonPath('duplicate', true)
+        ->assertJsonPath('id', $firstResponse->json('id'))
+        ->assertJsonPath('home_regular_score', 1);
+
+    $this->post("/campeonatos/{$championship->id}/jogos/{$game->id}/gols", [
+        'side' => 'home',
+        'scorer_id' => $homePlayer->id,
+        'period' => 1,
+        'client_uuid' => $uuid1,
+    ])->assertRedirect();
+
+    expect(ChampionshipGameEvent::where('championship_game_id', $game->id)->count())->toBe(1)
+        ->and($game->fresh()->home_regular_score)->toBe(1)
+        ->and($game->fresh()->away_regular_score)->toBe(0);
+
+    // 2. client_uuid diferente -> registra 2º gol e atualiza placar para 2x0
+    $this->postJson("/campeonatos/{$championship->id}/jogos/{$game->id}/gols", [
+        'side' => 'home',
+        'scorer_id' => $homePlayer->id,
+        'period' => 1,
+        'elapsed_seconds' => 90,
+        'remaining_seconds' => 510,
+        'client_uuid' => $uuid2,
+    ])->assertCreated()
+        ->assertJsonPath('duplicate', false)
+        ->assertJsonPath('home_regular_score', 2);
+
+    expect(ChampionshipGameEvent::where('championship_game_id', $game->id)->count())->toBe(2)
+        ->and($game->fresh()->home_regular_score)->toBe(2);
+
+    // 3. Sem client_uuid (eventos legados / NULL) -> múltiplos eventos não colidem no índice único
+    $this->post("/campeonatos/{$championship->id}/jogos/{$game->id}/gols", [
+        'side' => 'home',
+        'scorer_id' => $homePlayer->id,
+        'period' => 2,
+    ])->assertRedirect();
+
+    $this->post("/campeonatos/{$championship->id}/jogos/{$game->id}/gols", [
+        'side' => 'home',
+        'scorer_id' => $homePlayer->id,
+        'period' => 2,
+    ])->assertRedirect();
+
+    expect(ChampionshipGameEvent::where('championship_game_id', $game->id)->count())->toBe(4)
+        ->and($game->fresh()->home_regular_score)->toBe(4);
+});
+
+test('trata condição de corrida no client_uuid do gol capturando UniqueConstraintViolationException', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $this->post('/campeonatos', [
+        'name' => 'Copa Corrida UUID',
+        'city' => 'São Paulo',
+        'groups_count' => 1,
+        'qualifiers_per_group' => 2,
+    ])->assertRedirect();
+
+    $championship = Championship::firstOrFail();
+
+    foreach (['Tigres', 'Lobos', 'Falcões', 'Ursos'] as $name)
+    {
+        $this->post("/campeonatos/{$championship->id}/equipes", ['name' => $name])->assertRedirect();
+        $team = ChampionshipTeam::where('championship_id', $championship->id)->where('name', $name)->firstOrFail();
+        $this->post("/campeonatos/{$championship->id}/equipes/{$team->id}/jogadores", [
+            'name' => "Atacante {$name}",
+            'jersey_number' => 9,
+        ])->assertRedirect();
+    }
+
+    $this->post("/campeonatos/{$championship->id}/sorteio")->assertRedirect();
+
+    $game = ChampionshipGame::where('championship_id', $championship->id)->orderBy('id')->firstOrFail();
+    $homePlayer = ChampionshipPlayer::where('championship_team_id', $game->home_team_id)->firstOrFail();
+
+    $this->post("/campeonatos/{$championship->id}/jogos/{$game->id}/iniciar")->assertRedirect();
+
+    $uuid = (string) Str::uuid();
+    $raceTriggered = false;
+    $concurrentEvent = null;
+
+    DB::listen(function (QueryExecuted $query) use (&$raceTriggered, &$concurrentEvent, $user, $championship, $game, $homePlayer, $uuid): void {
+        if (
+            ! $raceTriggered
+            && str_contains($query->sql, '"championship_game_events"')
+            && str_contains($query->sql, '"client_uuid"')
+            && str_starts_with(strtolower(trim($query->sql)), 'select')
+        ) {
+            $raceTriggered = true;
+            $concurrentEvent = ChampionshipGameEvent::withoutGlobalScope('team')->create([
+                'user_id' => $user->id,
+                'championship_id' => $championship->id,
+                'championship_game_id' => $game->id,
+                'client_uuid' => $uuid,
+                'type' => GameEventType::Goal,
+                'side' => TeamSide::Home,
+                'team_id' => $game->home_team_id,
+                'primary_player_id' => $homePlayer->id,
+                'period' => 1,
+                'is_overtime' => false,
+                'elapsed_seconds' => 45,
+                'remaining_seconds' => 555,
+                'recorded_at' => now(),
+            ]);
+        }
+    });
+
+    $response = $this->postJson("/campeonatos/{$championship->id}/jogos/{$game->id}/gols", [
+        'side' => 'home',
+        'scorer_id' => $homePlayer->id,
+        'period' => 1,
+        'elapsed_seconds' => 45,
+        'remaining_seconds' => 555,
+        'client_uuid' => $uuid,
+    ]);
+
+    expect($raceTriggered)->toBeTrue()
+        ->and($concurrentEvent)->not->toBeNull();
+
+    $response->assertOk()
+        ->assertJsonPath('duplicate', true)
+        ->assertJsonPath('id', $concurrentEvent->id)
+        ->assertJsonPath('home_regular_score', 1);
+
+    expect(ChampionshipGameEvent::withoutGlobalScopes()->where('championship_game_id', $game->id)->where('client_uuid', $uuid)->count())->toBe(1)
+        ->and($game->fresh()->home_regular_score)->toBe(1)
+        ->and($game->fresh()->away_regular_score)->toBe(0);
+});
+
+test('desfazer gol e finalizar jogo de campeonato duas vezes são idempotentes e não duplicam efeitos na chave ou pódio', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $this->post('/campeonatos', [
+        'name' => 'Copa Finalização Idempotente',
+        'city' => 'Santos',
+        'groups_count' => 1,
+        'qualifiers_per_group' => 2,
+        'has_third_place_match' => false,
+    ])->assertRedirect();
+
+    $championship = Championship::firstOrFail();
+
+    foreach (['Tigres', 'Lobos'] as $name)
+    {
+        $this->post("/campeonatos/{$championship->id}/equipes", ['name' => $name])->assertRedirect();
+        $team = ChampionshipTeam::where('championship_id', $championship->id)->where('name', $name)->firstOrFail();
+        $this->post("/campeonatos/{$championship->id}/equipes/{$team->id}/jogadores", [
+            'name' => "Atacante {$name}",
+            'jersey_number' => 10,
+        ])->assertRedirect();
+    }
+
+    $this->post("/campeonatos/{$championship->id}/sorteio")->assertRedirect();
+
+    $groupGame = ChampionshipGame::where('championship_id', $championship->id)->firstOrFail();
+    $homePlayer = ChampionshipPlayer::where('championship_team_id', $groupGame->home_team_id)->firstOrFail();
+
+    $this->post("/campeonatos/{$championship->id}/jogos/{$groupGame->id}/iniciar")->assertRedirect();
+
+    $goal1Uuid = (string) Str::uuid();
+    $goal2Uuid = (string) Str::uuid();
+
+    $goal1Res = $this->postJson("/campeonatos/{$championship->id}/jogos/{$groupGame->id}/gols", [
+        'side' => 'home',
+        'scorer_id' => $homePlayer->id,
+        'period' => 1,
+        'client_uuid' => $goal1Uuid,
+    ])->assertCreated();
+
+    $this->postJson("/campeonatos/{$championship->id}/jogos/{$groupGame->id}/gols", [
+        'side' => 'home',
+        'scorer_id' => $homePlayer->id,
+        'period' => 1,
+        'client_uuid' => $goal2Uuid,
+    ])->assertCreated();
+
+    expect($groupGame->fresh()->home_regular_score)->toBe(2);
+
+    // 1. Remover o mesmo evento duas vezes (inclusive resolvendo por client_uuid ou id) é idempotente
+    $removeUuid = (string) Str::uuid();
+    $goal1Id = $goal1Res->json('id');
+
+    $this->deleteJson("/campeonatos/{$championship->id}/jogos/{$groupGame->id}/eventos/{$goal1Id}", [
+        'motivo' => 'Impedimento confirmado',
+        'client_uuid' => $removeUuid,
+    ])->assertOk()
+        ->assertJsonPath('duplicate', false)
+        ->assertJsonPath('home_regular_score', 1);
+
+    // Segunda chamada de remoção para o mesmo evento (já soft-deleted) não retorna 404 nem duplica auditoria
+    $this->deleteJson("/campeonatos/{$championship->id}/jogos/{$groupGame->id}/eventos/{$goal1Id}", [
+        'motivo' => 'Impedimento confirmado',
+        'client_uuid' => $removeUuid,
+    ])->assertOk()
+        ->assertJsonPath('duplicate', true)
+        ->assertJsonPath('home_regular_score', 1);
+
+    // Também funciona se o identificador na URL for o client_uuid do gol
+    $this->deleteJson("/campeonatos/{$championship->id}/jogos/{$groupGame->id}/eventos/{$goal1Uuid}", [
+        'motivo' => 'Reenvio por client_uuid',
+        'client_uuid' => $removeUuid,
+    ])->assertOk()
+        ->assertJsonPath('duplicate', true)
+        ->assertJsonPath('home_regular_score', 1);
+
+    expect(ChampionshipAuditLog::where('championship_game_id', $groupGame->id)->where('action', 'event_removed')->count())->toBe(1)
+        ->and($groupGame->fresh()->home_regular_score)->toBe(1);
+
+    // 2. Finalizar jogo de grupo duas vezes é idempotente
+    $finishUuid = (string) Str::uuid();
+    $this->postJson("/campeonatos/{$championship->id}/jogos/{$groupGame->id}/finalizar", [
+        'client_uuid' => $finishUuid,
+    ])->assertOk()
+        ->assertJsonPath('duplicate', false)
+        ->assertJsonPath('status', 'finished');
+
+    $this->postJson("/campeonatos/{$championship->id}/jogos/{$groupGame->id}/finalizar", [
+        'client_uuid' => $finishUuid,
+    ])->assertOk()
+        ->assertJsonPath('duplicate', true)
+        ->assertJsonPath('status', 'finished');
+
+    expect(ChampionshipAuditLog::where('championship_game_id', $groupGame->id)->where('action', 'game_finished')->count())->toBe(1);
+
+    // 3. Gera mata-mata (FINAL) e finaliza duas vezes sem duplicar avanço/pódio/auditoria
+    $this->post("/campeonatos/{$championship->id}/gerar-mata-mata")->assertRedirect();
+    $finalGame = ChampionshipGame::where('championship_id', $championship->id)->where('slot_key', 'FINAL')->firstOrFail();
+    $finalHomePlayer = ChampionshipPlayer::where('championship_team_id', $finalGame->home_team_id)->firstOrFail();
+
+    $this->post("/campeonatos/{$championship->id}/jogos/{$finalGame->id}/iniciar")->assertRedirect();
+    $this->post("/campeonatos/{$championship->id}/jogos/{$finalGame->id}/gols", [
+        'side' => 'home',
+        'scorer_id' => $finalHomePlayer->id,
+        'period' => 1,
+        'client_uuid' => (string) Str::uuid(),
+    ])->assertRedirect();
+
+    $finalFinishUuid = (string) Str::uuid();
+    $this->postJson("/campeonatos/{$championship->id}/jogos/{$finalGame->id}/finalizar", [
+        'client_uuid' => $finalFinishUuid,
+    ])->assertOk()
+        ->assertJsonPath('duplicate', false);
+
+    $this->postJson("/campeonatos/{$championship->id}/jogos/{$finalGame->id}/finalizar", [
+        'client_uuid' => $finalFinishUuid,
+    ])->assertOk()
+        ->assertJsonPath('duplicate', true);
+
+    $this->post("/campeonatos/{$championship->id}/jogos/{$finalGame->id}/finalizar", [
+        'client_uuid' => $finalFinishUuid,
+    ])->assertRedirect();
+
+    expect($championship->fresh()->status)->toBe(ChampionshipStatus::Completed)
+        ->and(ChampionshipAuditLog::where('championship_game_id', $finalGame->id)->where('action', 'game_finished')->count())->toBe(1);
 });

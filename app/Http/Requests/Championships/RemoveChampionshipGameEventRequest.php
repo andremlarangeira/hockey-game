@@ -19,7 +19,15 @@ class RemoveChampionshipGameEventRequest extends FormRequest
     {
         return [
             'motivo' => ['nullable', 'string', 'max:500'],
+            'client_uuid' => ['nullable', 'uuid'],
         ];
+    }
+
+    public function clientUuid(): ?string
+    {
+        $uuid = $this->validated('client_uuid');
+
+        return is_string($uuid) && trim($uuid) !== '' ? trim($uuid) : null;
     }
 
     public function reason(): ?string
