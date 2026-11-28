@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import PlayerPhoto from '@/components/hockey/PlayerPhoto.vue';
 import { useConfirm } from '@/composables/useConfirm';
+import { useFullscreen } from '@/composables/useFullscreen';
 import { useMatchAudio } from '@/composables/useMatchAudio';
 import { useMatchClock } from '@/composables/useMatchClock';
 import { useToast } from '@/composables/useToast';
@@ -119,6 +120,7 @@ const clock = useMatchClock(
     () => recordTransitions(),
     () => sound.countdown(),
 );
+const { isFullscreen, toggleFullscreen } = useFullscreen();
 
 const homeScore = computed(
     () => goals.value.filter((goal) => goal.team === 'home').length,
@@ -612,12 +614,10 @@ function onKeydown(event: KeyboardEvent) {
 
 window.addEventListener('pagehide', pageHide);
 onMounted(() => {
-    document.addEventListener('fullscreenchange', syncFullscreen);
     window.addEventListener('keydown', onKeydown);
 });
 onBeforeUnmount(() => {
     window.removeEventListener('pagehide', pageHide);
-    document.removeEventListener('fullscreenchange', syncFullscreen);
     window.removeEventListener('keydown', onKeydown);
     if (scoreAnimTimer) clearTimeout(scoreAnimTimer);
     void wake.release();
@@ -687,31 +687,6 @@ function undo() {
             details: { scorer: goal.scorer_name },
         });
         toast.info(`Gol de ${goal.scorer_name} desfeito.`, 2000);
-    }
-}
-
-const isFullscreen = ref(false);
-function syncFullscreen() {
-    isFullscreen.value = Boolean(document.fullscreenElement);
-}
-
-async function toggleFullscreen() {
-    try {
-        if (document.fullscreenElement) await document.exitFullscreen();
-        else {
-            await document.documentElement.requestFullscreen();
-            if ('orientation' in screen)
-                await (
-                    screen.orientation as ScreenOrientation & {
-                        lock?: (orientation: string) => Promise<void>;
-                    }
-                )
-                    .lock?.('landscape')
-                    .catch(() => undefined);
-        }
-        return;
-    } catch {
-        /* O navegador pode não permitir tela cheia/orientação. */
     }
 }
 

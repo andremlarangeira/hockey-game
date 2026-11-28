@@ -4,6 +4,7 @@ use App\Data\MatchRoster;
 use App\Data\MatchSettings;
 use App\Models\Goal;
 use App\Models\HockeyMatch;
+use App\Models\MatchPlayer;
 use App\Models\Player;
 use App\Support\TeamColors;
 use Illuminate\Database\Events\QueryExecuted;
@@ -41,6 +42,35 @@ test('salva placar, elenco, gols e tempos no time correto', function () {
         ->and($goal->assist_id)->toBeNull()->and($goal->remaining_seconds)->toBe(568);
     expect($match->roster->home->name)->toBe('Verdes')->and(count($match->roster->home->players))->toBe(2);
     $this->get("/partidas/$match->id")->assertOk()->assertInertia(fn (Assert $page) => $page->component('matches/Show')->has('goals', 1));
+});
+
+test('criação da partida registra os jogadores do elenco em match_players', function () {
+    [$team, $homePlayer] = $this->teamWithPlayer();
+    $secondHomePlayer = Player::factory()->for($team)->create([
+        'name' => 'Segundo jogador da casa',
+        'jersey_number' => 11,
+    ]);
+    $payload = matchPayload($team, $homePlayer, $secondHomePlayer);
+    $awayPlayerId = $payload['roster']['away']['players'][0]['id'];
+
+    $this->actingAs($team)
+        ->post('/partidas', $payload)
+        ->assertRedirect();
+
+    $match = HockeyMatch::withoutGlobalScopes()->firstOrFail();
+    $players = MatchPlayer::withoutGlobalScopes()
+        ->where('match_id', $match->id)
+        ->orderBy('team')
+        ->orderBy('player_id')
+        ->get();
+
+    expect($players)->toHaveCount(3)
+        ->and($players->pluck('player_id')->all())->toBe([$awayPlayerId, $homePlayer->id, $secondHomePlayer->id])
+        ->and($players->pluck('user_id')->unique()->all())->toBe([$team->id])
+        ->and($players->firstWhere('player_id', $homePlayer->id)?->team)->toBe('home')
+        ->and($players->firstWhere('player_id', $secondHomePlayer->id)?->team)->toBe('home')
+        ->and($players->firstWhere('player_id', $awayPlayerId)?->team)->toBe('away')
+        ->and($players->every(fn (MatchPlayer $player): bool => $player->present))->toBeTrue();
 });
 
 test('salva partida sem gol com assistência válida', function () {

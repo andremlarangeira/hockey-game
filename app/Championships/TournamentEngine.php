@@ -8,7 +8,6 @@ use App\Championships\Data\GameScheduleCommand;
 use App\Championships\Data\GoalCommand;
 use App\Championships\Data\GroupStandings;
 use App\Championships\Data\PlayerLeaderRow;
-use App\Championships\Data\Podium;
 use App\Championships\Data\ShootoutAttemptCommand;
 use App\Championships\Enums\ChampionshipStatus;
 use App\Championships\Enums\GameEventType;
@@ -37,6 +36,8 @@ final readonly class TournamentEngine
     public function __construct(
         private StandingsCalculator $standingsCalculator = new StandingsCalculator,
         private BracketPlanner $bracketPlanner = new BracketPlanner,
+        private GroupDrawPlanner $groupDrawPlanner = new GroupDrawPlanner,
+        private PodiumResolver $podiumResolver = new PodiumResolver,
     ) {}
 
     public function createChampionship(
@@ -657,7 +658,7 @@ final readonly class TournamentEngine
             {
                 if (! $redraw)
                 {
-                    if ($explicitGroups === null || $this->matchesCurrentGroupAssignment($teams, $explicitGroups))
+                    if ($explicitGroups === null || $this->groupDrawPlanner->matchesCurrentAssignment($teams, $explicitGroups))
                     {
                         $this->syncModel($championship, $locked);
 
@@ -690,11 +691,11 @@ final readonly class TournamentEngine
                 }
             }
 
-            $beforeGroups = $this->currentGroupMap($teams);
+            $beforeGroups = $this->groupDrawPlanner->currentGroupMap($teams);
 
             $assignedGroups = $explicitGroups !== null
-                ? $this->validateAndNormalizeExplicitGroups($teams, $explicitGroups, $rules)
-                : $this->performRandomSeededGroupDraw($teams, $rules->groupsCount);
+                ? $this->groupDrawPlanner->validateExplicitGroups($teams, $explicitGroups, $rules)
+                : $this->groupDrawPlanner->randomSeededDraw($teams, $rules->groupsCount);
 
             $minGroupSize = PHP_INT_MAX;
             foreach ($assignedGroups as $groupTeams)
@@ -746,7 +747,7 @@ final readonly class TournamentEngine
                     $afterGroups[$groupCode][] = (int) $teamModel->id;
                 }
 
-                $fixtures = $this->buildRoundRobinFixtures($groupCode, $groupTeams, $rules->doubleRoundRobin);
+                $fixtures = $this->groupDrawPlanner->buildRoundRobinFixtures($groupCode, $groupTeams, $rules->doubleRoundRobin);
 
                 foreach ($fixtures as $fixture)
                 {
@@ -1950,7 +1951,7 @@ final readonly class TournamentEngine
             ] ?: strcmp($a->playerName, $b->playerName),
         );
 
-        $podium = $this->resolvePodium(array_values($allGames->all()));
+        $podium = $this->podiumResolver->resolve(array_values($allGames->all()));
 
         return new ChampionshipSummary(
             standingsByGroup: $standingsByGroup,
@@ -1961,58 +1962,6 @@ final readonly class TournamentEngine
             topScorers: $topScorers,
             topAssists: $topAssists,
             topPointLeaders: $topPointLeaders,
-        );
-    }
-
-    /**
-     * @param  list<ChampionshipGame>  $allGames
-     */
-    private function resolvePodium(array $allGames): Podium
-    {
-        $finalGame = null;
-        $thirdPlaceGame = null;
-
-        foreach ($allGames as $game)
-        {
-            if ($game->phase === GamePhase::Final || $game->slot_key === 'FINAL')
-            {
-                $finalGame = $game;
-            }
-            elseif ($game->phase === GamePhase::ThirdPlace || $game->slot_key === '3RD')
-            {
-                $thirdPlaceGame = $game;
-            }
-        }
-
-        $championTeamId = null;
-        $runnerUpTeamId = null;
-        $thirdPlaceTeamId = null;
-
-        if (
-            $finalGame !== null
-            && $finalGame->status === GameStatus::Finished
-            && $finalGame->winner_team_id !== null
-            && $finalGame->home_team_id !== null
-            && $finalGame->away_team_id !== null
-        ) {
-            $championTeamId = (int) $finalGame->winner_team_id;
-            $runnerUpTeamId = $championTeamId === (int) $finalGame->home_team_id
-                ? (int) $finalGame->away_team_id
-                : (int) $finalGame->home_team_id;
-        }
-
-        if (
-            $thirdPlaceGame !== null
-            && $thirdPlaceGame->status === GameStatus::Finished
-            && $thirdPlaceGame->winner_team_id !== null
-        ) {
-            $thirdPlaceTeamId = (int) $thirdPlaceGame->winner_team_id;
-        }
-
-        return new Podium(
-            championTeamId: $championTeamId,
-            runnerUpTeamId: $runnerUpTeamId,
-            thirdPlaceTeamId: $thirdPlaceTeamId,
         );
     }
 
@@ -2183,294 +2132,6 @@ final readonly class TournamentEngine
             $championship->completed_at = $now;
             $championship->save();
         }
-    }
-
-    /**
-     * @param  list<ChampionshipTeam>  $teams
-     * @param  array<string, list<int>>  $explicitGroups
-     * @return array<string, list<ChampionshipTeam>>
-     */
-    private function validateAndNormalizeExplicitGroups(
-        array $teams,
-        array $explicitGroups,
-        ChampionshipRules $rules,
-    ): array {
-        if (count($explicitGroups) !== $rules->groupsCount)
-        {
-            throw new ChampionshipException("O sorteio exige exatamente {$rules->groupsCount} grupo(s).");
-        }
-
-        $teamById = [];
-        foreach ($teams as $team)
-        {
-            $teamById[(int) $team->id] = $team;
-        }
-
-        $seenIds = [];
-        $result = [];
-
-        ksort($explicitGroups);
-
-        foreach ($explicitGroups as $groupCode => $teamIds)
-        {
-            $normalizedCode = trim((string) $groupCode);
-            if ($normalizedCode === '')
-            {
-                throw new ChampionshipException('Estrutura de grupos inválida.');
-            }
-
-            $groupTeamModels = [];
-            foreach ($teamIds as $rawId)
-            {
-                $teamId = (int) $rawId;
-                if (! isset($teamById[$teamId]))
-                {
-                    throw new ChampionshipException("A equipe #{$teamId} não pertence a este campeonato.");
-                }
-                if (isset($seenIds[$teamId]))
-                {
-                    throw new ChampionshipException("A equipe #{$teamId} foi atribuída a mais de um grupo.");
-                }
-
-                $seenIds[$teamId] = true;
-                $groupTeamModels[] = $teamById[$teamId];
-            }
-
-            $result[$normalizedCode] = $groupTeamModels;
-        }
-
-        if (count($seenIds) !== count($teams))
-        {
-            throw new ChampionshipException('Todas as equipes inscritas devem participar do sorteio dos grupos.');
-        }
-
-        return $result;
-    }
-
-    /**
-     * @param  list<ChampionshipTeam>  $teams
-     * @return array<string, list<ChampionshipTeam>>
-     */
-    private function performRandomSeededGroupDraw(array $teams, int $groupsCount): array
-    {
-        /** @var array<int, list<ChampionshipTeam>> $pots */
-        $pots = [];
-        foreach ($teams as $team)
-        {
-            $potKey = $team->seed_pot !== null && $team->seed_pot > 0 ? (int) $team->seed_pot : PHP_INT_MAX;
-            $pots[$potKey][] = $team;
-        }
-
-        ksort($pots, SORT_NUMERIC);
-
-        /** @var list<ChampionshipTeam> $orderedPool */
-        $orderedPool = [];
-        foreach ($pots as $potTeams)
-        {
-            $shuffled = $this->cryptoShuffle($potTeams);
-            foreach ($shuffled as $team)
-            {
-                $orderedPool[] = $team;
-            }
-        }
-
-        $groupCodes = [];
-        for ($i = 0; $i < $groupsCount; $i++)
-        {
-            $groupCodes[] = chr(65 + ($i % 26));
-        }
-
-        /** @var array<string, list<ChampionshipTeam>> $groups */
-        $groups = [];
-        foreach ($groupCodes as $code)
-        {
-            $groups[$code] = [];
-        }
-
-        foreach ($orderedPool as $index => $team)
-        {
-            $pass = intdiv($index, $groupsCount);
-            $offset = $index % $groupsCount;
-            $groupIndex = ($pass % 2 === 0) ? $offset : ($groupsCount - 1 - $offset);
-            $groups[$groupCodes[$groupIndex]][] = $team;
-        }
-
-        return $groups;
-    }
-
-    /**
-     * @template T
-     *
-     * @param  list<T>  $items
-     * @return list<T>
-     */
-    private function cryptoShuffle(array $items): array
-    {
-        $copy = $items;
-        $count = count($copy);
-
-        for ($i = $count - 1; $i > 0; $i--)
-        {
-            $j = random_int(0, $i);
-            $tmp = $copy[$i];
-            $copy[$i] = $copy[$j];
-            $copy[$j] = $tmp;
-        }
-
-        return array_values($copy);
-    }
-
-    /**
-     * Circle method (Berger tables) round-robin generator.
-     *
-     * @param  list<ChampionshipTeam>  $groupTeams
-     * @return list<array{
-     *     round_number: int,
-     *     leg_number: int,
-     *     slot_key: string,
-     *     home_source: string,
-     *     away_source: string,
-     *     home_team_id: int,
-     *     away_team_id: int
-     * }>
-     */
-    private function buildRoundRobinFixtures(string $groupCode, array $groupTeams, bool $doubleRoundRobin): array
-    {
-        /** @var list<ChampionshipTeam|null> $rotation */
-        $rotation = $groupTeams;
-        if (count($rotation) % 2 === 1)
-        {
-            $rotation[] = null;
-        }
-
-        $n = count($rotation);
-        $roundsPerLeg = $n - 1;
-        $half = intdiv($n, 2);
-
-        $leg1Fixtures = [];
-
-        for ($round = 1; $round <= $roundsPerLeg; $round++)
-        {
-            for ($i = 0; $i < $half; $i++)
-            {
-                $first = $rotation[$i];
-                $second = $rotation[$n - 1 - $i];
-
-                if ($first === null || $second === null)
-                {
-                    continue;
-                }
-
-                $swapHomeAway = ($i === 0 && $round % 2 === 0) || ($i > 0 && ($round + $i) % 2 === 1);
-                $home = $swapHomeAway ? $second : $first;
-                $away = $swapHomeAway ? $first : $second;
-
-                $homeId = (int) $home->id;
-                $awayId = (int) $away->id;
-                $minId = min($homeId, $awayId);
-                $maxId = max($homeId, $awayId);
-
-                $leg1Fixtures[] = [
-                    'round_number' => $round,
-                    'leg_number' => 1,
-                    'slot_key' => "G-{$groupCode}-L1-{$minId}-{$maxId}",
-                    'home_source' => "team:{$homeId}",
-                    'away_source' => "team:{$awayId}",
-                    'home_team_id' => $homeId,
-                    'away_team_id' => $awayId,
-                ];
-            }
-
-            $last = array_pop($rotation);
-            array_splice($rotation, 1, 0, [$last]);
-        }
-
-        if (! $doubleRoundRobin)
-        {
-            return $leg1Fixtures;
-        }
-
-        $allFixtures = $leg1Fixtures;
-
-        foreach ($leg1Fixtures as $leg1)
-        {
-            $homeId = $leg1['away_team_id'];
-            $awayId = $leg1['home_team_id'];
-            $minId = min($homeId, $awayId);
-            $maxId = max($homeId, $awayId);
-
-            $allFixtures[] = [
-                'round_number' => $roundsPerLeg + $leg1['round_number'],
-                'leg_number' => 2,
-                'slot_key' => "G-{$groupCode}-L2-{$minId}-{$maxId}",
-                'home_source' => "team:{$homeId}",
-                'away_source' => "team:{$awayId}",
-                'home_team_id' => $homeId,
-                'away_team_id' => $awayId,
-            ];
-        }
-
-        return $allFixtures;
-    }
-
-    /**
-     * @param  list<ChampionshipTeam>  $teams
-     * @param  array<string, list<int>>  $explicitGroups
-     */
-    private function matchesCurrentGroupAssignment(array $teams, array $explicitGroups): bool
-    {
-        $current = $this->currentGroupMap($teams);
-
-        ksort($current);
-        $normalizedExplicit = [];
-        foreach ($explicitGroups as $code => $ids)
-        {
-            $normalizedExplicit[trim((string) $code)] = array_map('intval', $ids);
-        }
-        ksort($normalizedExplicit);
-
-        return $current === $normalizedExplicit;
-    }
-
-    /**
-     * @param  list<ChampionshipTeam>  $teams
-     * @return array<string, list<int>>
-     */
-    private function currentGroupMap(array $teams): array
-    {
-        $byGroup = [];
-        foreach ($teams as $team)
-        {
-            if ($team->group_code === null || $team->group_code === '')
-            {
-                continue;
-            }
-            $byGroup[$team->group_code][] = $team;
-        }
-
-        ksort($byGroup);
-
-        $result = [];
-        foreach ($byGroup as $code => $groupTeams)
-        {
-            usort(
-                $groupTeams,
-                static fn (ChampionshipTeam $a, ChampionshipTeam $b): int => [
-                    $a->group_draw_order ?? PHP_INT_MAX,
-                    $a->id,
-                ] <=> [
-                    $b->group_draw_order ?? PHP_INT_MAX,
-                    $b->id,
-                ],
-            );
-
-            $result[$code] = array_map(
-                static fn (ChampionshipTeam $t): int => (int) $t->id,
-                $groupTeams,
-            );
-        }
-
-        return $result;
     }
 
     /**

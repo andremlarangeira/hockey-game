@@ -28,7 +28,9 @@ import {
 } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useMatchAudio } from '@/composables/useMatchAudio';
+import { useChampionshipClockPersistence } from '@/composables/useChampionshipClockPersistence';
 import { useMatchClock } from '@/composables/useMatchClock';
+import { useFullscreen } from '@/composables/useFullscreen';
 import { useWakeLock } from '@/composables/useWakeLock';
 import { readableText } from '@/lib/balancedDraw';
 import { formatClock } from '@/lib/matchClock';
@@ -88,7 +90,6 @@ const localError = ref('');
 const submitting = ref(false);
 
 let recordedTransitions = 0;
-const restoring = ref(true);
 
 const wake = useWakeLock();
 const sound = useMatchAudio();
@@ -97,6 +98,24 @@ const clock = useMatchClock(
     () => recordTransitions(),
     () => sound.countdown(),
 );
+const { clear: clearClockStorage, restoring, save: saveClockToStorage } =
+    useChampionshipClockPersistence({
+        storageKey: clockStorageKey,
+        gameStatus: () => props.game.status,
+        config,
+        isOvertimeMode,
+        clock,
+        beforeRestore: (serializedClock) => {
+            const parsedClock = JSON.parse(serializedClock) as {
+                transitions?: unknown[];
+            } | null;
+            recordedTransitions = Array.isArray(parsedClock?.transitions)
+                ? parsedClock.transitions.length
+                : 0;
+        },
+        afterRestore: () => recordTransitions(),
+    });
+const { isFullscreen, toggleFullscreen } = useFullscreen();
 
 const maxAssists = computed(
     () =>
@@ -296,36 +315,6 @@ async function blowWhistle() {
     sound.play(sounds.value, 'start');
 }
 
-function saveClockToStorage() {
-    if (
-        restoring.value ||
-        props.game.status === 'finished' ||
-        clock.state.phase === 'idle'
-    ) {
-        return;
-    }
-    try {
-        localStorage.setItem(
-            clockStorageKey.value,
-            JSON.stringify({
-                config: config.value,
-                isOvertimeMode: isOvertimeMode.value,
-                serializedClock: clock.export(),
-            }),
-        );
-    } catch {
-        /* Armazenamento local indisponível. */
-    }
-}
-
-function clearClockStorage() {
-    try {
-        localStorage.removeItem(clockStorageKey.value);
-    } catch {
-        /* Ignora erro de localStorage. */
-    }
-}
-
 function recordTransitions() {
     for (const event of clock.transitions.slice(recordedTransitions)) {
         if (!restoring.value)
@@ -339,45 +328,9 @@ function recordTransitions() {
     saveClockToStorage();
 }
 
-onMounted(() => {
-    try {
-        interface StoredChampionshipClock {
-            config?: MatchSettings;
-            isOvertimeMode?: boolean;
-            serializedClock?: string;
-        }
-        const saved = JSON.parse(
-            localStorage.getItem(clockStorageKey.value) ?? 'null',
-        ) as StoredChampionshipClock | null;
-
-        if (
-            saved &&
-            saved.serializedClock &&
-            props.game.status !== 'finished'
-        ) {
-            if (typeof saved.isOvertimeMode === 'boolean') {
-                isOvertimeMode.value = saved.isOvertimeMode;
-            }
-            if (saved.config) {
-                Object.assign(config.value, saved.config);
-                clock.configure(config.value);
-            }
-            const parsedClock = JSON.parse(saved.serializedClock) as {
-                transitions?: unknown[];
-            } | null;
-            recordedTransitions = Array.isArray(parsedClock?.transitions)
-                ? parsedClock.transitions.length
-                : 0;
-            clock.restore(saved.serializedClock);
-            clock.configure(config.value);
-            recordTransitions();
-        }
-    } catch {
-        clearClockStorage();
-    }
-    restoring.value = false;
-    void warmChampionshipGamePage(props.championship.id, props.game.id);
-});
+onMounted(() =>
+    void warmChampionshipGamePage(props.championship.id, props.game.id),
+);
 
 watch(lastChampionshipSyncRevision, () => {
     if (navigator.onLine) {
@@ -408,46 +361,9 @@ watch(
     { deep: true },
 );
 
-const onPageHide = () => {
-    saveClockToStorage();
-};
-
-onMounted(() => window.addEventListener('pagehide', onPageHide));
 onBeforeUnmount(() => {
-    window.removeEventListener('pagehide', onPageHide);
     void wake.release();
 });
-
-// Fullscreen control
-const isFullscreen = ref(false);
-function syncFullscreen() {
-    isFullscreen.value = Boolean(document.fullscreenElement);
-}
-onMounted(() => document.addEventListener('fullscreenchange', syncFullscreen));
-onBeforeUnmount(() =>
-    document.removeEventListener('fullscreenchange', syncFullscreen),
-);
-
-async function toggleFullscreen() {
-    try {
-        if (document.fullscreenElement) {
-            await document.exitFullscreen();
-        } else {
-            await document.documentElement.requestFullscreen();
-            if ('orientation' in screen) {
-                await (
-                    screen.orientation as ScreenOrientation & {
-                        lock?: (orientation: string) => Promise<void>;
-                    }
-                )
-                    .lock?.('landscape')
-                    .catch(() => undefined);
-            }
-        }
-    } catch {
-        /* O navegador pode bloquear tela cheia ou rotação. */
-    }
-}
 
 function uploadSound(event: Event, key: 'start' | 'end' | 'rest_end') {
     const file = (event.target as HTMLInputElement).files?.[0];
