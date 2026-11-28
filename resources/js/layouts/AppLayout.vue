@@ -1,11 +1,16 @@
 <script setup lang="ts">
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue';
 import ToastContainer from '@/components/common/ToastContainer.vue';
+import PendingMatchesPanel from '@/components/hockey/PendingMatchesPanel.vue';
 import TeamLogo from '@/components/hockey/TeamLogo.vue';
 import { useAppearance } from '@/composables/useAppearance';
 import { useToast } from '@/composables/useToast';
 import { clearOfflineSnapshots } from '@/lib/offlineStorage';
-import { offlineStatus, syncNow } from '@/lib/offlineSync';
+import {
+    offlineStatus,
+    openPendingMatchesPanel,
+    syncNow,
+} from '@/lib/offlineSync';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
     CloudOff,
@@ -175,6 +180,21 @@ function signOut() {
                     :logo="team.logo_url"
                 />
                 <div class="flex items-center gap-2">
+                    <button
+                        v-if="offlineStatus.pendingMatches"
+                        type="button"
+                        class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors"
+                        :class="
+                            offlineStatus.failedMatches > 0
+                                ? 'border-red-400/40 bg-red-500/20 text-red-200 hover:bg-red-500/30'
+                                : 'border-amber-400/30 bg-amber-400/15 text-amber-200 hover:bg-amber-400/25'
+                        "
+                        data-test="header-contador-pendentes"
+                        @click="openPendingMatchesPanel"
+                    >
+                        <span>{{ offlineStatus.pendingMatches }}</span>
+                        <span class="hidden sm:inline">pendente(s)</span>
+                    </button>
                     <span
                         v-if="offlineStatus.offline"
                         class="inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/15 px-2.5 py-1 text-[11px] font-bold text-amber-200"
@@ -334,47 +354,81 @@ function signOut() {
                     class="surface-card mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200"
                     role="status"
                 >
-                    <span
-                        v-if="offlineStatus.relogin"
-                        class="flex items-center gap-2"
-                    >
-                        Entre novamente para enviar as partidas.
-                        <a
-                            href="/login"
-                            class="font-bold text-[var(--team-primary)] underline"
-                            >Entrar</a
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <span
+                            v-if="offlineStatus.relogin"
+                            class="flex items-center gap-2"
                         >
-                    </span>
-                    <span
-                        v-else-if="offlineStatus.syncing"
-                        class="inline-flex items-center gap-2"
-                    >
-                        <RefreshCw class="size-3.5 animate-spin" />
-                        Sincronizando…
-                    </span>
-                    <span
-                        v-else-if="offlineStatus.offline"
-                        class="inline-flex items-center gap-2 text-amber-700 dark:text-amber-300"
-                    >
-                        <CloudOff class="size-3.5" />
-                        Sem conexão — modo offline ativo
-                    </span>
-                    <span v-else>
-                        {{ offlineStatus.pendingMatches }} partida(s) aguardando
-                        envio
-                    </span>
-                    <button
-                        v-if="
-                            !offlineStatus.offline &&
-                            !offlineStatus.relogin &&
-                            offlineStatus.pendingMatches
-                        "
-                        type="button"
-                        class="rounded-lg bg-[var(--team-primary-soft)] px-2.5 py-1 font-bold text-[var(--team-primary)] transition-colors hover:brightness-95"
-                        @click="syncNow"
-                    >
-                        Enviar agora
-                    </button>
+                            Entre novamente para enviar as partidas.
+                            <a
+                                href="/login"
+                                class="font-bold text-[var(--team-primary)] underline"
+                                >Entrar</a
+                            >
+                        </span>
+                        <span
+                            v-else-if="offlineStatus.syncing"
+                            class="inline-flex items-center gap-2"
+                        >
+                            <RefreshCw class="size-3.5 animate-spin" />
+                            Sincronizando…
+                        </span>
+                        <span
+                            v-else-if="offlineStatus.offline"
+                            class="inline-flex items-center gap-2 text-amber-700 dark:text-amber-300"
+                        >
+                            <CloudOff class="size-3.5" />
+                            Sem conexão — modo offline ativo
+                        </span>
+
+                        <button
+                            v-if="offlineStatus.pendingMatches"
+                            type="button"
+                            class="inline-flex items-center gap-1.5 rounded-lg px-2 py-0.5 text-left font-bold underline decoration-dotted underline-offset-4 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+                            :class="
+                                offlineStatus.failedMatches > 0
+                                    ? 'text-red-700 dark:text-red-300'
+                                    : 'text-slate-800 dark:text-slate-100'
+                            "
+                            data-test="contador-pendentes"
+                            @click="openPendingMatchesPanel"
+                        >
+                            <span>
+                                {{ offlineStatus.pendingMatches }} partida(s)
+                                aguardando envio
+                            </span>
+                            <span
+                                v-if="offlineStatus.failedMatches > 0"
+                                class="rounded-md bg-red-100 px-1.5 py-0.5 text-[10px] font-extrabold text-red-700 no-underline dark:bg-red-950/70 dark:text-red-300"
+                            >
+                                {{ offlineStatus.failedMatches }} com falha
+                            </span>
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button
+                            v-if="offlineStatus.pendingMatches"
+                            type="button"
+                            class="rounded-lg border border-slate-300 bg-white px-2.5 py-1 font-bold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                            data-test="abrir-partidas-pendentes"
+                            @click="openPendingMatchesPanel"
+                        >
+                            Ver fila
+                        </button>
+                        <button
+                            v-if="
+                                !offlineStatus.offline &&
+                                !offlineStatus.relogin &&
+                                offlineStatus.retryableMatches > 0
+                            "
+                            type="button"
+                            class="rounded-lg bg-[var(--team-primary-soft)] px-2.5 py-1 font-bold text-[var(--team-primary)] transition-colors hover:brightness-95"
+                            @click="syncNow()"
+                        >
+                            Enviar agora
+                        </button>
+                    </div>
                     <span
                         v-if="offlineStatus.error"
                         class="w-full text-red-700 dark:text-red-300"
@@ -448,6 +502,7 @@ function signOut() {
             </button>
         </nav>
 
+        <PendingMatchesPanel />
         <ToastContainer />
         <ConfirmDialog />
     </div>

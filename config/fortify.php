@@ -2,6 +2,11 @@
 
 use Laravel\Fortify\Features;
 
+$registrationEnabled = (bool) env(
+    'REGISTRATION_ENABLED',
+    in_array(env('APP_ENV', 'production'), ['local', 'testing'], true),
+);
+
 return [
 
     /*
@@ -160,13 +165,10 @@ return [
     |
     */
 
-    'registration_enabled' => (bool) env(
-        'REGISTRATION_ENABLED',
-        in_array(env('APP_ENV', 'production'), ['local', 'testing'], true),
-    ),
+    'registration_enabled' => $registrationEnabled,
 
     'features' => array_values(array_filter([
-        (bool) env('REGISTRATION_ENABLED', in_array(env('APP_ENV', 'production'), ['local', 'testing'], true))
+        $registrationEnabled
             ? Features::registration()
             : null,
         Features::resetPasswords(),

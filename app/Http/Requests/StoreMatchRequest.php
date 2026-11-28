@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Data\MatchRoster;
 use App\Data\MatchSettings;
+use App\Models\Player;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -76,15 +77,45 @@ class StoreMatchRequest extends FormRequest
     /** @return list<array<string, mixed>> */
     public function goalAttributes(): array
     {
+        $team = $this->user();
+        $ownPlayerIds = $team->players()->pluck('id')->map(fn ($id): int => (int) $id)->all();
+        $ownPlayerLookup = array_flip($ownPlayerIds);
+        $roster = $this->roster();
+
         $attributes = [];
         foreach ($this->validated('goals') as $goal)
         {
+            $side = $roster->team($goal['team']);
+            $rosterPlayers = collect($side !== null ? $side->players : [])->keyBy('id');
+
+            $rawScorerId = (int) $goal['scorer_id'];
+            $scorerExists = isset($ownPlayerLookup[$rawScorerId]);
+            /** @var array{id: int, name: string, jersey_number: int, level: float|numeric-string}|null $rosterScorer */
+            $rosterScorer = $rosterPlayers->get($rawScorerId);
+            $scorerName = ! $scorerExists && $rosterScorer !== null && trim($rosterScorer['name']) !== ''
+                ? $rosterScorer['name']
+                : $goal['scorer_name'];
+
+            $rawAssistId = isset($goal['assist_id']) ? (int) $goal['assist_id'] : null;
+            $assistExists = $rawAssistId !== null && isset($ownPlayerLookup[$rawAssistId]);
+            /** @var array{id: int, name: string, jersey_number: int, level: float|numeric-string}|null $rosterAssist */
+            $rosterAssist = $rawAssistId !== null ? $rosterPlayers->get($rawAssistId) : null;
+            $assistName = $rawAssistId !== null
+                ? (! $assistExists && $rosterAssist !== null && trim($rosterAssist['name']) !== ''
+                    ? $rosterAssist['name']
+                    : ($goal['assist_name'] ?? $rosterAssist['name'] ?? null))
+                : ($goal['assist_name'] ?? null);
+
             $attributes[] = [
-                'user_id' => $this->user()->id,
-                'scorer_id' => $goal['scorer_id'], 'assist_id' => $goal['assist_id'] ?? null,
-                'scorer_name' => $goal['scorer_name'], 'assist_name' => $goal['assist_name'] ?? null,
-                'team' => $goal['team'], 'period' => $goal['period'],
-                'elapsed_seconds' => $goal['elapsed_seconds'], 'remaining_seconds' => $goal['remaining_seconds'],
+                'user_id' => $team->id,
+                'scorer_id' => $scorerExists ? $rawScorerId : null,
+                'assist_id' => $assistExists ? $rawAssistId : null,
+                'scorer_name' => $scorerName,
+                'assist_name' => $assistName,
+                'team' => $goal['team'],
+                'period' => $goal['period'],
+                'elapsed_seconds' => $goal['elapsed_seconds'],
+                'remaining_seconds' => $goal['remaining_seconds'],
                 'recorded_at' => $goal['recorded_at'],
             ];
         }
@@ -97,7 +128,6 @@ class StoreMatchRequest extends FormRequest
     {
         return [function (Validator $validator): void {
             $team = $this->user();
-            $knownPlayerIds = $team->players()->active()->pluck('id');
             $roster = $this->roster();
             $ids = [];
             foreach ($roster->home->players as $player)
@@ -112,9 +142,13 @@ class StoreMatchRequest extends FormRequest
             {
                 $validator->errors()->add('roster', 'Um jogador não pode estar nas duas equipes.');
             }
+            $foreignPlayerIds = Player::withoutGlobalScopes()
+                ->whereIn('id', $ids)
+                ->where('user_id', '!=', $team->id)
+                ->pluck('id');
             foreach ($ids as $id)
             {
-                if (! $knownPlayerIds->contains($id))
+                if ($foreignPlayerIds->contains($id))
                 {
                     $validator->errors()->add('roster', 'O elenco contém um jogador que não pertence ao seu time.');
                 }

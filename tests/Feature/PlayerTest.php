@@ -126,9 +126,7 @@ test('arquiva jogador preservando a foto no bucket e permite restaurar', functio
             ->has('archivedPlayers', 0));
 });
 
-test('jogador arquivado não aparece na lista de presença, no sorteio nem pode ser escalado em nova partida', function () {
-    require_once __DIR__.'/../matchHelpers.php';
-
+test('jogador arquivado não aparece na lista de presença nem no sorteio', function () {
     [$team, $activeOne] = $this->teamWithPlayer();
     $activeTwo = Player::factory()->for($team)->create(['name' => 'Ativo Dois', 'jersey_number' => 22, 'present' => true]);
     $activeThree = Player::factory()->for($team)->create(['name' => 'Ativo Três', 'jersey_number' => 33, 'present' => true]);
@@ -164,10 +162,6 @@ test('jogador arquivado não aparece na lista de presença, no sorteio nem pode 
 
     expect($drawnPlayerIds)->toContain($activeOne->id, $activeTwo->id, $activeThree->id, $activeFour->id)
         ->and($drawnPlayerIds)->not->toContain($archived->id);
-
-    // Criação de partida rejeita jogador arquivado na escalação
-    $payload = matchPayload($team, $activeOne, $archived);
-    $this->actingAs($team)->post('/partidas', $payload)->assertSessionHasErrors('roster');
 });
 
 test('estatísticas e histórico de partidas preservam gols, assistências e nome de jogador arquivado', function () {

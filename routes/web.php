@@ -35,6 +35,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('sorteio', [DrawController::class, 'store'])->name('draw.store');
     Route::get('partida', [MatchController::class, 'create'])->name('matches.create');
     Route::get('partidas', [MatchController::class, 'index'])->name('matches.index');
+    Route::get('partidas/pendentes', [MatchController::class, 'pending'])->name('matches.pending');
     Route::post('partidas', [MatchController::class, 'store'])->name('matches.store');
     Route::get('partidas/{match}', [MatchController::class, 'show'])->name('matches.show');
     Route::delete('partidas/{match}', [MatchController::class, 'destroy'])->name('matches.destroy');

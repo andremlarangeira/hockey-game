@@ -548,3 +548,103 @@ test('rota pública retorna 404 para token inválido ou partida com link desativ
     $this->post(route('matches.public-link.regenerate', $match))->assertNotFound();
     $this->delete(route('matches.public-link.destroy', $match))->assertNotFound();
 });
+
+test('aceita partida offline com jogador arquivado do próprio usuário mantendo vínculo e estatísticas', function () {
+    [$team, $archivedScorer] = $this->teamWithPlayer();
+    $archivedScorer->update(['name' => 'Artilheiro Arquivado', 'jersey_number' => 77]);
+    $archivedAssist = Player::factory()->for($team)->create(['name' => 'Assistente Arquivado', 'jersey_number' => 88, 'level' => 3]);
+
+    $payload = matchPayload($team, $archivedScorer, $archivedAssist);
+    $payload['goals'][0]['assist_id'] = $archivedAssist->id;
+    $payload['goals'][0]['assist_name'] = $archivedAssist->name;
+
+    // Arquiva ambos depois de a partida ter sido montada offline
+    $archivedScorer->update(['archived_at' => now(), 'present' => false]);
+    $archivedAssist->update(['archived_at' => now(), 'present' => false]);
+
+    $this->actingAs($team)
+        ->postJson('/partidas', $payload)
+        ->assertCreated();
+
+    $goal = Goal::withoutGlobalScopes()->latest('id')->firstOrFail();
+    expect((int) $goal->scorer_id)->toBe($archivedScorer->id)
+        ->and((int) $goal->assist_id)->toBe($archivedAssist->id)
+        ->and($goal->scorer_name)->toBe('Artilheiro Arquivado')
+        ->and($goal->assist_name)->toBe('Assistente Arquivado');
+
+    $stats = collect($this->actingAs($team)->get('/estatisticas')->assertOk()->viewData('page')['props']['players']);
+    expect($stats->firstWhere('id', $archivedScorer->id)['goals'])->toBe(1)
+        ->and($stats->firstWhere('id', $archivedScorer->id)['games'])->toBe(1)
+        ->and($stats->firstWhere('id', $archivedAssist->id)['assists'])->toBe(1)
+        ->and($stats->firstWhere('id', $archivedAssist->id)['games'])->toBe(1);
+});
+
+test('aceita partida com id de jogador inexistente salvando nome do roster e ids nulos', function () {
+    [$team, $activePlayer] = $this->teamWithPlayer();
+    $payload = matchPayload($team, $activePlayer);
+
+    $removedScorerId = 999991;
+    $removedAssistId = 999992;
+
+    $payload['roster']['home']['players'] = [
+        ['id' => $removedScorerId, 'name' => 'Goleador Removido', 'jersey_number' => 91, 'level' => 4, 'photo_url' => null],
+        ['id' => $removedAssistId, 'name' => 'Passador Removido', 'jersey_number' => 92, 'level' => 3, 'photo_url' => null],
+    ];
+    $payload['goals'][0]['scorer_id'] = $removedScorerId;
+    $payload['goals'][0]['scorer_name'] = 'Nome Antigo Gol';
+    $payload['goals'][0]['assist_id'] = $removedAssistId;
+    $payload['goals'][0]['assist_name'] = 'Nome Antigo Passe';
+
+    $this->actingAs($team)
+        ->postJson('/partidas', $payload)
+        ->assertCreated();
+
+    $match = HockeyMatch::withoutGlobalScopes()->latest('id')->firstOrFail();
+    $goal = Goal::withoutGlobalScopes()->where('match_id', $match->id)->firstOrFail();
+
+    expect($goal->scorer_id)->toBeNull()
+        ->and($goal->assist_id)->toBeNull()
+        ->and($goal->scorer_name)->toBe('Goleador Removido')
+        ->and($goal->assist_name)->toBe('Passador Removido');
+
+    $this->actingAs($team)
+        ->get("/partidas/{$match->id}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('matches/Show')
+            ->where('goals.0.scorer_name', 'Goleador Removido')
+            ->where('goals.0.assist_name', 'Passador Removido')
+            ->where('player_stats.home.0.name', 'Goleador Removido')
+            ->where('player_stats.home.0.goals', 1)
+            ->where('player_stats.home.1.name', 'Passador Removido')
+            ->where('player_stats.home.1.assists', 1));
+
+    $stats = collect($this->actingAs($team)->get('/estatisticas')->assertOk()->viewData('page')['props']['players']);
+    expect($stats->firstWhere('name', 'Goleador Removido')['goals'])->toBe(1)
+        ->and($stats->firstWhere('name', 'Passador Removido')['assists'])->toBe(1);
+});
+
+test('rejeita partida com id de jogador pertencente a outro usuário mesmo se arquivado', function () {
+    [$team, $mine] = $this->teamWithPlayer();
+    [$otherTeam, $foreignPlayer] = $this->teamWithPlayer();
+    $foreignPlayer->update(['archived_at' => now(), 'present' => false]);
+
+    $payload = matchPayload($team, $mine);
+    $payload['roster']['away']['players'][0]['id'] = $foreignPlayer->id;
+
+    $this->actingAs($team)
+        ->postJson('/partidas', $payload)
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('roster');
+
+    expect(HockeyMatch::withoutGlobalScopes()->count())->toBe(0);
+});
+
+test('exibe a tela autenticada de partidas pendentes', function () {
+    [$team] = $this->teamWithPlayer();
+
+    $this->actingAs($team)
+        ->get('/partidas/pendentes')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('matches/Pending'));
+});

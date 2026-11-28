@@ -69,11 +69,6 @@ return [
 
     'display_timezone' => env('APP_DISPLAY_TIMEZONE', 'America/Sao_Paulo'),
 
-    'registration_enabled' => (bool) env(
-        'REGISTRATION_ENABLED',
-        in_array(env('APP_ENV', 'production'), ['local', 'testing'], true),
-    ),
-
     /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration

@@ -55,6 +55,11 @@ class MatchController extends Controller
         ]);
     }
 
+    public function pending(): Response
+    {
+        return Inertia::render('matches/Pending');
+    }
+
     public function store(StoreMatchRequest $request): JsonResponse|HttpResponse
     {
         $data = $request->validated();

@@ -17,6 +17,7 @@ import { loadQueue } from '@/lib/matchQueue';
 import { enqueueMatchBeforeClearingDraft } from '@/lib/matchSave';
 import {
     offlineStatus,
+    openPendingMatchesPanel,
     refreshOfflineStatus,
     syncNow,
 } from '@/lib/offlineSync';
@@ -1456,8 +1457,18 @@ async function save() {
             v-if="queued"
             class="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-100"
         >
-            <span>{{ queued }} partida(s) aguardando envio.</span>
-            <button type="button" class="font-bold underline" @click="syncNow">
+            <button
+                type="button"
+                class="text-left font-bold underline decoration-dotted underline-offset-4"
+                @click="openPendingMatchesPanel"
+            >
+                {{ queued }} partida(s) aguardando envio.
+            </button>
+            <button
+                type="button"
+                class="font-bold underline"
+                @click="syncNow()"
+            >
                 Enviar agora
             </button>
         </div>
