@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Support\TeamColors;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
+use Laravel\Fortify\Features;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -26,6 +27,7 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => 'Hockey Game',
+            'canRegister' => Features::enabled(Features::registration()),
             'auth' => ['user' => $team],
             'flash' => ['success' => $request->session()->get('success')],
             'team' => $team ? [

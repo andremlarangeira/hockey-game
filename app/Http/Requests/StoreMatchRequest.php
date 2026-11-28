@@ -97,7 +97,7 @@ class StoreMatchRequest extends FormRequest
     {
         return [function (Validator $validator): void {
             $team = $this->user();
-            $knownPlayerIds = $team->players()->pluck('id');
+            $knownPlayerIds = $team->players()->active()->pluck('id');
             $roster = $this->roster();
             $ids = [];
             foreach ($roster->home->players as $player)

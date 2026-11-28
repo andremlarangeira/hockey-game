@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreMatchRequest;
 use App\Models\HockeyMatch;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -62,30 +63,38 @@ class MatchController extends Controller
             $existing = $request->user()->matches()->where('client_uuid', $data['client_uuid'])->first();
             if ($existing)
             {
-                if ($request->wantsJson())
-                {
-                    return response()->json([
-                        'id' => $existing->id,
-                        'url' => route('matches.show', $existing),
-                        'duplicate' => true,
-                    ]);
-                }
-
-                return Inertia::location(route('matches.show', $existing));
+                return $this->duplicateResponse($request, $existing);
             }
         }
-        $match = DB::transaction(function () use ($request, $data): HockeyMatch {
-            $match = $request->user()->matches()->create([
-                'client_uuid' => $data['client_uuid'] ?? null,
-                'home_score' => $data['home_score'], 'away_score' => $data['away_score'],
-                'settings' => $request->settings(), 'roster' => $request->roster(),
-                'timeline' => $data['timeline'], 'started_at' => $data['started_at'] ?? null,
-                'finished_at' => $data['finished_at'] ?? now(),
-            ]);
-            $match->goals()->createMany($request->goalAttributes());
 
-            return $match;
-        });
+        try
+        {
+            $match = DB::transaction(function () use ($request, $data): HockeyMatch {
+                $match = $request->user()->matches()->create([
+                    'client_uuid' => $data['client_uuid'] ?? null,
+                    'home_score' => $data['home_score'], 'away_score' => $data['away_score'],
+                    'settings' => $request->settings(), 'roster' => $request->roster(),
+                    'timeline' => $data['timeline'], 'started_at' => $data['started_at'] ?? null,
+                    'finished_at' => $data['finished_at'] ?? now(),
+                ]);
+                $match->goals()->createMany($request->goalAttributes());
+
+                return $match;
+            });
+        }
+        catch (UniqueConstraintViolationException $exception)
+        {
+            if (! empty($data['client_uuid']))
+            {
+                $existing = $request->user()->matches()->where('client_uuid', $data['client_uuid'])->first();
+                if ($existing)
+                {
+                    return $this->duplicateResponse($request, $existing);
+                }
+            }
+
+            throw $exception;
+        }
 
         if ($request->wantsJson())
         {
@@ -96,6 +105,20 @@ class MatchController extends Controller
         }
 
         return Inertia::location(route('matches.show', $match));
+    }
+
+    private function duplicateResponse(Request $request, HockeyMatch $existing): JsonResponse|HttpResponse
+    {
+        if ($request->wantsJson())
+        {
+            return response()->json([
+                'id' => $existing->id,
+                'url' => route('matches.show', $existing),
+                'duplicate' => true,
+            ]);
+        }
+
+        return Inertia::location(route('matches.show', $existing));
     }
 
     public function show(HockeyMatch $match): Response

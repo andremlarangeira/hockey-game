@@ -7,37 +7,63 @@ import {
     changePresence,
     changePresenceBatch,
     loadPlayers,
+    pendingPresence,
+    savePlayers,
 } from '@/lib/offlineStorage';
 import { syncNow } from '@/lib/offlineSync';
 import type { Player } from '@/types/hockey';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import {
+    Archive,
     ArrowRight,
     CheckCheck,
     Pencil,
     Plus,
+    RotateCcw,
     Search,
     Shuffle,
-    Trash2,
     UserCheck,
     Users,
     X,
 } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
-const props = defineProps<{ players: Player[]; presentCount: number }>();
+const props = withDefaults(
+    defineProps<{
+        players: Player[];
+        archivedPlayers?: Player[];
+        presentCount: number;
+    }>(),
+    {
+        archivedPlayers: () => [],
+    },
+);
 const page = usePage();
 const { confirm } = useConfirm();
 const toast = useToast();
 const accountId = (page.props.team as { id: number }).id;
-const players = ref<Player[]>(
-    loadPlayers(localStorage, accountId, props.players),
-);
+
+function syncActivePlayers(serverPlayers: Player[]): Player[] {
+    const activeIds = new Set(serverPlayers.map((p) => p.id));
+    const loaded = loadPlayers(localStorage, accountId, serverPlayers).filter(
+        (p) => activeIds.has(p.id) && !p.archived_at,
+    );
+    const pending = Object.fromEntries(
+        pendingPresence(localStorage, accountId)
+            .filter((change) => activeIds.has(change.player_id))
+            .map((change) => [String(change.player_id), change]),
+    );
+    savePlayers(localStorage, accountId, loaded, pending);
+    return loaded;
+}
+
+const players = ref<Player[]>(syncActivePlayers(props.players));
+const archivedPlayers = computed<Player[]>(() => props.archivedPlayers ?? []);
 const online = ref(navigator.onLine);
 const editing = ref<Player | null>(null);
 const showForm = ref(false);
 const search = ref('');
-const statusFilter = ref<'all' | 'present' | 'absent'>('all');
+const statusFilter = ref<'all' | 'present' | 'absent' | 'archived'>('all');
 const sortBy = ref<'name' | 'number' | 'level' | 'present'>('name');
 const photoPreview = ref<string | null>(null);
 let objectUrl: string | null = null;
@@ -72,6 +98,9 @@ const presencePercent = computed(() =>
 );
 
 const filteredPlayers = computed(() => {
+    if (statusFilter.value === 'archived') {
+        return [];
+    }
     const query = search.value.trim().toLowerCase();
     const list = players.value.filter((player) => {
         if (statusFilter.value === 'present' && !player.present) return false;
@@ -93,6 +122,27 @@ const filteredPlayers = computed(() => {
         if (sortBy.value === 'present') {
             if (a.present !== b.present) return a.present ? -1 : 1;
             return a.name.localeCompare(b.name, 'pt-BR');
+        }
+        return a.name.localeCompare(b.name, 'pt-BR');
+    });
+});
+
+const filteredArchivedPlayers = computed(() => {
+    const query = search.value.trim().toLowerCase();
+    const list = archivedPlayers.value.filter((player) => {
+        if (!query) return true;
+        return `${player.name} ${player.jersey_number}`
+            .toLowerCase()
+            .includes(query);
+    });
+
+    return [...list].sort((a, b) => {
+        if (sortBy.value === 'number') {
+            return a.jersey_number - b.jersey_number;
+        }
+        if (sortBy.value === 'level') {
+            const diff = Number(b.level) - Number(a.level);
+            return diff !== 0 ? diff : a.name.localeCompare(b.name, 'pt-BR');
         }
         return a.name.localeCompare(b.name, 'pt-BR');
     });
@@ -144,7 +194,7 @@ onBeforeUnmount(() => {
 watch(
     () => props.players,
     (serverPlayers) => {
-        players.value = loadPlayers(localStorage, accountId, serverPlayers);
+        players.value = syncActivePlayers(serverPlayers);
     },
 );
 
@@ -248,18 +298,27 @@ function toggle(player: Player) {
     void syncNow();
 }
 
-async function remove(player: Player) {
-    if (requiresConnection('remover jogadores')) return;
+async function archive(player: Player) {
+    if (requiresConnection('arquivar jogadores')) return;
     const accepted = await confirm({
-        title: `Remover ${player.name}?`,
+        title: `Arquivar ${player.name}?`,
         message:
-            'O jogador sai do elenco atual, mas todos os gols e assistências no histórico serão preservados.',
-        confirmLabel: 'Remover jogador',
+            'O jogador sairá do elenco ativo, da lista de presença e dos sorteios, mas sua foto, seus gols e suas assistências serão preservados no histórico e nas estatísticas.',
+        confirmLabel: 'Arquivar jogador',
         variant: 'danger',
     });
     if (accepted) {
         router.delete(`/jogadores/${player.id}`, { preserveScroll: true });
     }
+}
+
+function restore(player: Player) {
+    if (requiresConnection('restaurar jogadores')) return;
+    router.patch(
+        `/jogadores/${player.id}/restaurar`,
+        {},
+        { preserveScroll: true },
+    );
 }
 </script>
 
@@ -430,6 +489,19 @@ async function remove(player: Player) {
                     >
                         Ausentes ({{ absentCount }})
                     </button>
+                    <button
+                        type="button"
+                        class="min-h-8 rounded-lg px-2.5 transition-colors"
+                        :class="
+                            statusFilter === 'archived'
+                                ? 'bg-white text-amber-800 shadow-xs dark:bg-slate-700 dark:text-amber-300'
+                                : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+                        "
+                        data-test="filtro-arquivados"
+                        @click="statusFilter = 'archived'"
+                    >
+                        Arquivados ({{ archivedPlayers.length }})
+                    </button>
                 </div>
 
                 <select
@@ -523,12 +595,14 @@ async function remove(player: Player) {
                     </button>
                     <button
                         type="button"
-                        class="flex size-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-red-950/60 dark:hover:text-red-400"
-                        :aria-label="`Remover ${player.name}`"
+                        class="flex size-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-amber-50 hover:text-amber-700 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-amber-950/60 dark:hover:text-amber-400"
+                        :aria-label="`Arquivar ${player.name}`"
+                        title="Arquivar jogador"
+                        data-test="arquivar-jogador"
                         :disabled="!online"
-                        @click="remove(player)"
+                        @click="archive(player)"
                     >
-                        <Trash2 class="size-4" />
+                        <Archive class="size-4" />
                     </button>
                 </div>
             </div>
@@ -536,7 +610,69 @@ async function remove(player: Player) {
     </div>
 
     <div
-        v-else-if="!players.length"
+        v-else-if="statusFilter === 'archived'"
+        class="space-y-3"
+        data-test="secao-arquivados"
+    >
+        <div
+            v-if="filteredArchivedPlayers.length"
+            class="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3"
+        >
+            <article
+                v-for="player in filteredArchivedPlayers"
+                :key="player.id"
+                class="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/75 p-3 dark:border-slate-800 dark:bg-slate-900/60"
+                :data-archived-player-id="player.id"
+            >
+                <div class="flex items-center gap-2.5">
+                    <PlayerPhoto :player="player" size="size-12" />
+                    <div class="min-w-0 flex-1">
+                        <h2
+                            class="truncate text-sm font-extrabold text-slate-950 dark:text-white"
+                        >
+                            {{ player.name }}
+                        </h2>
+                        <div class="mt-1 flex flex-wrap items-center gap-1.5">
+                            <span
+                                class="inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                            >
+                                Arquivado
+                            </span>
+                            <span
+                                class="inline-flex items-center rounded-md bg-amber-100/80 px-1.5 py-0.5 text-[11px] font-extrabold text-amber-900 tabular-nums dark:bg-amber-950/60 dark:text-amber-300"
+                            >
+                                {{ formatLevel(player.level) }} ★
+                            </span>
+                        </div>
+                    </div>
+                    <strong
+                        class="shrink-0 font-display text-2xl leading-none font-extrabold tracking-tight text-slate-500 tabular-nums dark:text-slate-400"
+                        >#{{ player.jersey_number }}</strong
+                    >
+                    <button
+                        type="button"
+                        class="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-xl bg-emerald-100 px-3 text-xs font-bold text-emerald-900 transition-colors hover:bg-emerald-200/80 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-emerald-950/70 dark:text-emerald-200 dark:hover:bg-emerald-900/70"
+                        :aria-label="`Restaurar ${player.name}`"
+                        data-test="restaurar-jogador"
+                        :disabled="!online"
+                        @click="restore(player)"
+                    >
+                        <RotateCcw class="size-3.5" />
+                        Restaurar
+                    </button>
+                </div>
+            </article>
+        </div>
+        <div
+            v-else
+            class="surface-card rounded-2xl p-8 text-center text-sm text-slate-500 dark:text-slate-400"
+        >
+            Nenhum jogador arquivado.
+        </div>
+    </div>
+
+    <div
+        v-else-if="!players.length && !archivedPlayers.length"
         class="surface-card rounded-3xl border-dashed p-10 text-center"
     >
         <span
@@ -570,6 +706,58 @@ async function remove(player: Player) {
     >
         Nenhum jogador encontrado com esse filtro.
     </div>
+
+    <section
+        v-if="statusFilter !== 'archived' && archivedPlayers.length"
+        class="surface-card mt-6 rounded-2xl p-4 sm:p-5"
+        data-test="secao-arquivados"
+    >
+        <div class="mb-3 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+                <Archive class="size-4 text-slate-500 dark:text-slate-400" />
+                <h2
+                    class="text-sm font-extrabold text-slate-900 dark:text-white"
+                >
+                    Arquivados ({{ archivedPlayers.length }})
+                </h2>
+            </div>
+            <p class="text-xs text-slate-500 dark:text-slate-400">
+                Fora da presença e dos sorteios · Estatísticas preservadas
+            </p>
+        </div>
+        <div class="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+            <article
+                v-for="player in archivedPlayers"
+                :key="player.id"
+                class="flex items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-900/50"
+                :data-archived-player-id="player.id"
+            >
+                <PlayerPhoto :player="player" size="size-11" />
+                <div class="min-w-0 flex-1">
+                    <h3
+                        class="truncate text-sm font-extrabold text-slate-900 dark:text-white"
+                    >
+                        {{ player.name }}
+                    </h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                        #{{ player.jersey_number }} ·
+                        {{ formatLevel(player.level) }} ★
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    class="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-xl bg-emerald-100 px-3 text-xs font-bold text-emerald-900 transition-colors hover:bg-emerald-200/80 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-emerald-950/70 dark:text-emerald-200 dark:hover:bg-emerald-900/70"
+                    :aria-label="`Restaurar ${player.name}`"
+                    data-test="restaurar-jogador"
+                    :disabled="!online"
+                    @click="restore(player)"
+                >
+                    <RotateCcw class="size-3.5" />
+                    Restaurar
+                </button>
+            </article>
+        </div>
+    </section>
 
     <Teleport to="body">
         <div

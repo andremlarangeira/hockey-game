@@ -374,7 +374,7 @@ final readonly class ChampionshipPresenter
             'shootout_round' => $event->shootout_round,
             'shootout_scored' => $event->shootout_scored,
             'period_mark_type' => $event->period_mark_type,
-            'recorded_at' => $event->recorded_at?->toIso8601String(),
+            'recorded_at' => $event->recorded_at->toIso8601String(),
         ];
     }
 
@@ -514,7 +514,7 @@ final readonly class ChampionshipPresenter
      */
     private function formatAuditLogs(Collection $logs): array
     {
-        return $logs->map(static fn (ChampionshipAuditLog $log): array => [
+        return array_values($logs->map(static fn (ChampionshipAuditLog $log): array => [
             'id' => $log->id,
             'championship_id' => $log->championship_id,
             'championship_game_id' => $log->championship_game_id,
@@ -524,8 +524,8 @@ final readonly class ChampionshipPresenter
             'reason' => $log->reason,
             'before_snapshot' => $log->before_snapshot,
             'after_snapshot' => $log->after_snapshot,
-            'recorded_at' => $log->recorded_at?->toIso8601String(),
-        ])->values()->all();
+            'recorded_at' => $log->recorded_at->toIso8601String(),
+        ])->all());
     }
 
     /**

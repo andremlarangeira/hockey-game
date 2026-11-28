@@ -160,12 +160,19 @@ return [
     |
     */
 
-    'features' => [
-        Features::registration(),
+    'registration_enabled' => (bool) env(
+        'REGISTRATION_ENABLED',
+        in_array(env('APP_ENV', 'production'), ['local', 'testing'], true),
+    ),
+
+    'features' => array_values(array_filter([
+        (bool) env('REGISTRATION_ENABLED', in_array(env('APP_ENV', 'production'), ['local', 'testing'], true))
+            ? Features::registration()
+            : null,
         Features::resetPasswords(),
         // Login local: não exige configuração de e-mail.
         // Autenticação em dois fatores pode ser habilitada neste recurso.
         // Passkeys podem ser habilitados neste recurso.
-    ],
+    ])),
 
 ];

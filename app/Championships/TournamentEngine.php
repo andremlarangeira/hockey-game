@@ -918,7 +918,7 @@ final readonly class TournamentEngine
                 : (int) $lockedGame->away_team_id;
 
             $maxAssists = $rules->maxAssistsPerGoal;
-            $assistIds = array_values($command->assistIds);
+            $assistIds = $command->assistIds;
 
             if (count($assistIds) > $maxAssists)
             {
@@ -1212,7 +1212,7 @@ final readonly class TournamentEngine
             $lockedGame->finished_at = $now;
             $lockedGame->save();
 
-            if ($lockedGame->phase->isKnockout() && $winnerTeamId !== null && $loserTeamId !== null)
+            if ($lockedGame->phase->isKnockout() && $winnerTeamId !== null)
             {
                 $this->advanceKnockoutSlot($locked, $lockedGame->slot_key, $winnerTeamId, $loserTeamId);
                 $this->checkAndCompleteChampionshipIfDone($locked, $now);
@@ -1449,7 +1449,7 @@ final readonly class TournamentEngine
                 throw new ChampionshipException('O motivo é obrigatório para registrar o desempate manual.');
             }
 
-            $normalizedIds = array_values(array_map('intval', $orderedTeamIds));
+            $normalizedIds = array_map('intval', $orderedTeamIds);
             if (count($normalizedIds) < 2 || count($normalizedIds) !== count(array_unique($normalizedIds)))
             {
                 throw new ChampionshipException('O desempate manual exige ao menos duas equipes distintas do grupo.');
@@ -1895,7 +1895,7 @@ final readonly class TournamentEngine
             ] ?: strcmp($a->playerName, $b->playerName),
         );
 
-        $podium = $this->resolvePodium($allGames->all());
+        $podium = $this->resolvePodium(array_values($allGames->all()));
 
         return new ChampionshipSummary(
             standingsByGroup: $standingsByGroup,
@@ -2159,7 +2159,7 @@ final readonly class TournamentEngine
         foreach ($explicitGroups as $groupCode => $teamIds)
         {
             $normalizedCode = trim((string) $groupCode);
-            if ($normalizedCode === '' || ! is_array($teamIds))
+            if ($normalizedCode === '')
             {
                 throw new ChampionshipException('Estrutura de grupos inválida.');
             }
@@ -2222,7 +2222,7 @@ final readonly class TournamentEngine
         $groupCodes = [];
         for ($i = 0; $i < $groupsCount; $i++)
         {
-            $groupCodes[] = chr(65 + $i);
+            $groupCodes[] = chr(65 + ($i % 26));
         }
 
         /** @var array<string, list<ChampionshipTeam>> $groups */
@@ -2251,7 +2251,7 @@ final readonly class TournamentEngine
      */
     private function cryptoShuffle(array $items): array
     {
-        $copy = array_values($items);
+        $copy = $items;
         $count = count($copy);
 
         for ($i = $count - 1; $i > 0; $i--)
@@ -2262,7 +2262,7 @@ final readonly class TournamentEngine
             $copy[$j] = $tmp;
         }
 
-        return $copy;
+        return array_values($copy);
     }
 
     /**
@@ -2282,7 +2282,7 @@ final readonly class TournamentEngine
     private function buildRoundRobinFixtures(string $groupCode, array $groupTeams, bool $doubleRoundRobin): array
     {
         /** @var list<ChampionshipTeam|null> $rotation */
-        $rotation = array_values($groupTeams);
+        $rotation = $groupTeams;
         if (count($rotation) % 2 === 1)
         {
             $rotation[] = null;
@@ -2370,7 +2370,7 @@ final readonly class TournamentEngine
         $normalizedExplicit = [];
         foreach ($explicitGroups as $code => $ids)
         {
-            $normalizedExplicit[trim((string) $code)] = array_values(array_map('intval', $ids));
+            $normalizedExplicit[trim((string) $code)] = array_map('intval', $ids);
         }
         ksort($normalizedExplicit);
 
@@ -2409,10 +2409,10 @@ final readonly class TournamentEngine
                 ],
             );
 
-            $result[$code] = array_values(array_map(
+            $result[$code] = array_map(
                 static fn (ChampionshipTeam $t): int => (int) $t->id,
                 $groupTeams,
-            ));
+            );
         }
 
         return $result;
@@ -2577,14 +2577,14 @@ final readonly class TournamentEngine
     }
 
     /**
-     * @template TModel of \Illuminate\Database\Eloquent\Model
+     * @template TModel of Model
      *
      * @param  TModel  $target
      * @param  TModel  $source
      */
-    private function syncModel(object $target, object $source): void
+    private function syncModel(Model $target, Model $source): void
     {
-        if ($target !== $source && $target instanceof Model && $source instanceof Model)
+        if ($target !== $source)
         {
             $target->setRawAttributes($source->getAttributes(), true);
         }

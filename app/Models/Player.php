@@ -2,22 +2,28 @@
 
 namespace App\Models;
 
-/**
- * @property int $id
- * @property string $name
- * @property int $jersey_number
- * @property numeric-string $level
- * @property-read string|null $photo_url
- */
-
 use App\Models\Concerns\BelongsToTeam;
 use Database\Factories\PlayerFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 
-#[Fillable(['name', 'jersey_number', 'photo_path', 'level', 'present', 'presence_changed_at'])]
+/**
+ * @property int $id
+ * @property int $user_id
+ * @property string $name
+ * @property int $jersey_number
+ * @property string|null $photo_path
+ * @property numeric-string $level
+ * @property bool $present
+ * @property Carbon|null $presence_changed_at
+ * @property Carbon|null $archived_at
+ * @property-read string|null $photo_url
+ */
+#[Fillable(['name', 'jersey_number', 'photo_path', 'level', 'present', 'presence_changed_at', 'archived_at'])]
 class Player extends Model
 {
     use BelongsToTeam;
@@ -29,7 +35,29 @@ class Player extends Model
 
     protected function casts(): array
     {
-        return ['level' => 'decimal:1', 'present' => 'boolean', 'presence_changed_at' => 'datetime'];
+        return [
+            'level' => 'decimal:1',
+            'present' => 'boolean',
+            'presence_changed_at' => 'datetime',
+            'archived_at' => 'datetime',
+        ];
+    }
+
+    /** @param Builder<self> $query */
+    public function scopeActive(Builder $query): void
+    {
+        $query->whereNull('archived_at');
+    }
+
+    /** @param Builder<self> $query */
+    public function scopeArchived(Builder $query): void
+    {
+        $query->whereNotNull('archived_at');
+    }
+
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
     }
 
     /**

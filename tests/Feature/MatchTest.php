@@ -1,9 +1,13 @@
 <?php
 
+use App\Data\MatchRoster;
+use App\Data\MatchSettings;
 use App\Models\Goal;
 use App\Models\HockeyMatch;
 use App\Models\Player;
 use App\Support\TeamColors;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -145,6 +149,45 @@ test('a API JSON cria uma partida e reconhece o reenvio pelo uuid', function () 
         ->assertJsonPath('duplicate', true);
 
     expect(HockeyMatch::count())->toBe(1);
+});
+
+test('trata condição de corrida de client_uuid capturando UniqueConstraintViolationException', function () {
+    [$team, $scorer] = $this->teamWithPlayer();
+    $uuid = (string) Str::uuid();
+    $payload = [...matchPayload($team, $scorer), 'client_uuid' => $uuid];
+
+    $raceTriggered = false;
+    $concurrentMatch = null;
+
+    DB::listen(function (QueryExecuted $query) use (&$raceTriggered, &$concurrentMatch, $team, $uuid, $payload): void {
+        if (! $raceTriggered && str_contains($query->sql, '"client_uuid"') && str_starts_with(strtolower(trim($query->sql)), 'select'))
+        {
+            $raceTriggered = true;
+            $concurrentMatch = $team->matches()->create([
+                'client_uuid' => $uuid,
+                'home_score' => $payload['home_score'],
+                'away_score' => $payload['away_score'],
+                'settings' => MatchSettings::fromArray($payload['settings']),
+                'roster' => MatchRoster::fromArray($payload['roster']),
+                'timeline' => $payload['timeline'],
+                'started_at' => $payload['started_at'],
+                'finished_at' => $payload['finished_at'],
+            ]);
+        }
+    });
+
+    $response = $this->actingAs($team)
+        ->postJson('/partidas', $payload);
+
+    expect($raceTriggered)->toBeTrue()
+        ->and($concurrentMatch)->not->toBeNull();
+
+    $response->assertOk()
+        ->assertJsonPath('duplicate', true)
+        ->assertJsonPath('id', $concurrentMatch->id)
+        ->assertJsonPath('url', route('matches.show', $concurrentMatch));
+
+    expect(HockeyMatch::withoutGlobalScopes()->where('client_uuid', $uuid)->count())->toBe(1);
 });
 
 test('a API JSON informa erros de validação', function () {

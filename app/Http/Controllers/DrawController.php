@@ -14,7 +14,7 @@ class DrawController extends Controller
 {
     public function index(Request $request): Response
     {
-        $players = $request->user()->players()->where('present', true)->orderBy('name')->get()
+        $players = $request->user()->players()->active()->where('present', true)->orderBy('name')->get()
             ->map(fn (Player $player): array => $player->toDrawPlayer())
             ->values();
         $mode = $request->session()->get('draw_mode', 'players');
@@ -35,7 +35,7 @@ class DrawController extends Controller
             'size' => ['required', 'integer', 'between:1,30'],
         ]);
         $user = $request->user();
-        $players = $user->players()->where('present', true)->get()
+        $players = $user->players()->active()->where('present', true)->get()
             ->map(fn (Player $player): array => $player->toDrawPlayer())
             ->values();
 

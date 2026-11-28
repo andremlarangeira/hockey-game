@@ -15,14 +15,17 @@ test('cada conta só enxerga o próprio elenco', function () {
         ->and(Player::find($theirs->id))->toBeNull();
 });
 
-test('presença, atualização e remoção não podem alterar outro time', function () {
+test('presença, atualização, arquivamento e restauração não podem alterar outro time', function () {
     [$first] = $this->teamWithPlayer();
     [$other, $theirs] = $this->teamWithPlayer();
     $this->actingAs($first);
     $this->patch("/jogadores/$theirs->id/presenca", ['present' => false])->assertNotFound();
     $this->patch("/jogadores/$theirs->id", ['name' => 'Invasão', 'jersey_number' => $theirs->jersey_number, 'level' => 3, 'present' => true])->assertNotFound();
     $this->delete("/jogadores/$theirs->id")->assertNotFound();
-    expect($theirs->fresh()->name)->not->toBe('Invasão');
+    $this->patch("/jogadores/$theirs->id/arquivar")->assertNotFound();
+    $this->patch("/jogadores/$theirs->id/restaurar")->assertNotFound();
+    expect($theirs->fresh()->name)->not->toBe('Invasão')
+        ->and($theirs->fresh()->isArchived())->toBeFalse();
 });
 
 require_once __DIR__.'/../matchHelpers.php';

@@ -5,6 +5,7 @@ declare module '@inertiajs/core' {
     export interface InertiaConfig {
         sharedPageProps: PageProps & {
             name: string;
+            canRegister?: boolean;
             team: {
                 id: number;
                 name: string;

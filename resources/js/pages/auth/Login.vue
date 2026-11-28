@@ -2,7 +2,16 @@
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ArrowRight, Sparkles } from 'lucide-vue-next';
 
-defineProps<{ canResetPassword?: boolean; status?: string }>();
+withDefaults(
+    defineProps<{
+        canResetPassword?: boolean;
+        canRegister?: boolean;
+        status?: string;
+    }>(),
+    {
+        canRegister: true,
+    },
+);
 defineOptions({
     layout: {
         title: 'Entrar no seu time',
@@ -90,7 +99,10 @@ function fillDemo() {
             <ArrowRight v-if="!form.processing" class="size-4" />
         </button>
     </form>
-    <div class="mt-5 flex flex-wrap items-center justify-between gap-2 text-sm">
+    <div
+        v-if="canResetPassword || canRegister"
+        class="mt-5 flex flex-wrap items-center justify-between gap-2 text-sm"
+    >
         <Link
             v-if="canResetPassword"
             href="/forgot-password"
@@ -98,6 +110,7 @@ function fillDemo() {
             >Esqueci a senha</Link
         >
         <Link
+            v-if="canRegister"
             href="/register"
             class="font-bold text-emerald-700 transition-colors hover:text-emerald-600 dark:text-emerald-400"
             >Criar meu time</Link

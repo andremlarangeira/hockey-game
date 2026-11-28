@@ -25,6 +25,8 @@ Route::redirect('/', '/jogadores')->name('home');
 Route::middleware(['auth'])->group(function () {
     Route::redirect('dashboard', '/jogadores')->name('dashboard');
     Route::resource('jogadores', PlayerController::class)->parameters(['jogadores' => 'player'])->except(['show', 'create', 'edit'])->names('players');
+    Route::match(['patch', 'post'], 'jogadores/{player}/arquivar', [PlayerController::class, 'destroy'])->name('players.archive');
+    Route::match(['patch', 'post'], 'jogadores/{player}/restaurar', [PlayerController::class, 'restore'])->name('players.restore');
     Route::patch('jogadores/{player}/presenca', [PlayerController::class, 'presence'])->name('players.presence');
     Route::post('presenca', [PlayerController::class, 'presenceAll'])->name('players.presence-all');
     Route::post('jogadores/presenca/sincronizar', [PlayerController::class, 'syncPresence'])->name('players.presence.sync');
