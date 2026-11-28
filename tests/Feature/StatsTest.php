@@ -338,6 +338,64 @@ test('estatísticas agregam em SQL via goals e match_players sem carregar a tabe
     expect($queriesOnMatches)->toBeEmpty();
 });
 
+test('filtro mensal usa os limites UTC do fuso de exibição e a página do jogador respeita o período', function () {
+    [$team, $player] = $this->teamWithPlayer();
+    $payload = matchPayload($team, $player);
+
+    $this->actingAs($team)->post('/partidas', $payload)->assertRedirect();
+    $janMatch = HockeyMatch::withoutGlobalScopes()->latest('id')->firstOrFail();
+    $janMatch->forceFill(['finished_at' => '2026-02-01 02:59:59'])->save(); // 31/01 23:59:59 em São Paulo
+
+    $this->actingAs($team)->post('/partidas', $payload)->assertRedirect();
+    $febMatch = HockeyMatch::withoutGlobalScopes()->latest('id')->firstOrFail();
+    $febMatch->forceFill(['finished_at' => '2026-02-01 03:00:00'])->save(); // 01/02 00:00:00 em São Paulo
+
+    $response = $this->get('/estatisticas?period=month&month=2026-01')->assertOk();
+    $props = $response->viewData('page')['props'];
+    $row = collect($props['players'])->firstWhere('id', $player->id);
+
+    expect($props['period']['utc_from'])->toBe('2026-01-01 03:00:00')
+        ->and($props['period']['utc_to'])->toBe('2026-02-01 02:59:59')
+        ->and($row['games'])->toBe(1)
+        ->and($row['goals'])->toBe(1);
+
+    $this->get("/estatisticas/jogadores/{$player->id}?period=month&month=2026-01")
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('stats/Player')
+            ->where('player.games', 1)
+            ->where('matches.data.0.id', $janMatch->id));
+});
+
+test('presença calcula frequência e sumidos a partir de match_players no período', function () {
+    [$team, $present] = $this->teamWithPlayer();
+    $absent = Player::factory()->for($team)->create(['name' => 'Ausente', 'jersey_number' => 82]);
+    $payload = matchPayload($team, $present);
+    $payload['roster']['home']['players'] = [[
+        'id' => $present->id, 'name' => $present->name, 'jersey_number' => $present->jersey_number, 'level' => 3, 'photo_url' => null,
+    ]];
+    $this->actingAs($team)->post('/partidas', $payload)->assertRedirect();
+
+    $response = $this->get('/estatisticas?aba=presenca')->assertOk();
+    $attendance = $response->viewData('page')['props']['attendance'];
+    $presentRow = collect($attendance['players'])->firstWhere('id', $present->id);
+    $absentRow = collect($attendance['players'])->firstWhere('id', $absent->id);
+
+    expect($attendance['total_games'])->toBe(1)
+        ->and($presentRow['games'])->toBe(1)
+        ->and($presentRow['percentage'])->toBe(100.0)
+        ->and($absentRow['games'])->toBe(0)
+        ->and($attendance['missing'][0]['id'])->toBe($absent->id);
+});
+
+test('perfil do jogador é isolado por conta', function () {
+    [$owner, $player] = $this->teamWithPlayer();
+    [$other] = $this->teamWithPlayer();
+
+    $this->actingAs($other)->get("/estatisticas/jogadores/{$player->id}")->assertNotFound();
+    $this->actingAs($owner)->get("/estatisticas/jogadores/{$player->id}")->assertOk();
+});
+
 test('backfill de match_players popula partidas legadas com jogador ativo, arquivado e removido e é idempotente ao rodar duas vezes', function () {
     [$team, $active] = $this->teamWithPlayer();
     $active->update(['name' => 'Ativo']);

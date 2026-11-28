@@ -542,6 +542,33 @@ test('convidado acessa a página pública da partida sem login com headers de pr
         ->and($props['match'])->not->toHaveKey('id');
 });
 
+test('página pública inclui Open Graph escapado e imagem PNG apenas para token ativo', function () {
+    [$owner, $scorer] = $this->teamWithPlayer();
+    $payload = matchPayload($owner, $scorer);
+    $payload['roster']['home']['name'] = 'Verdes <script>alert(1)</script>';
+    $this->actingAs($owner)->post('/partidas', $payload)->assertRedirect();
+    $match = HockeyMatch::withoutGlobalScopes()->firstOrFail();
+    $this->post(route('matches.public-link.store', $match))->assertRedirect();
+    $token = (string) $match->fresh()->public_token;
+
+    $this->actingAsGuest();
+    $this->get(route('public.matches.show', $token))
+        ->assertOk()
+        ->assertSee('property="og:title"', false)
+        ->assertSee('property="og:description"', false)
+        ->assertSee('name="twitter:card" content="summary_large_image"', false)
+        ->assertSee('Verdes &lt;script&gt;alert(1)&lt;/script&gt;', false)
+        ->assertDontSee('<script>alert(1)</script>', false)
+        ->assertDontSee($owner->email);
+
+    $this->get(route('public.matches.image', $token))
+        ->assertOk()
+        ->assertHeader('Content-Type', 'image/png');
+
+    $match->fresh()->forceFill(['public_enabled_at' => null])->save();
+    $this->get(route('public.matches.image', $token))->assertNotFound();
+});
+
 test('rota pública retorna 404 para token inválido ou partida com link desativado e não permite mutações', function () {
     [$owner, $scorer] = $this->teamWithPlayer();
     $otherUser = Player::factory()->make();

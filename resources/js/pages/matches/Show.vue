@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import MatchPlayerStatsCard from '@/components/hockey/MatchPlayerStatsCard.vue';
 import MatchTimelineCard from '@/components/hockey/MatchTimelineCard.vue';
+import ScoreShareButton from '@/components/hockey/ScoreShareButton.vue';
 import { useConfirm } from '@/composables/useConfirm';
 import { useToast } from '@/composables/useToast';
 import { readableText } from '@/lib/balancedDraw';
@@ -203,6 +204,10 @@ async function copyPublicLink() {
             </div>
         </div>
     </section>
+
+    <div class="mt-3 flex justify-center">
+        <ScoreShareButton :match="match" :goals="goals" />
+    </div>
 
     <section
         class="mt-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"

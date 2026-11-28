@@ -43,6 +43,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('partidas/{match}/link-publico/regenerar', [MatchPublicLinkController::class, 'regenerate'])->name('matches.public-link.regenerate');
     Route::delete('partidas/{match}/link-publico', [MatchPublicLinkController::class, 'destroy'])->name('matches.public-link.destroy');
     Route::get('estatisticas', StatsController::class)->name('stats.index');
+    Route::get('estatisticas/jogadores/{player}', [StatsController::class, 'showPlayer'])->name('stats.players.show');
     Route::get('time', [TeamController::class, 'edit'])->name('team.edit');
     Route::patch('time', [TeamController::class, 'update'])->name('team.update');
 
@@ -96,6 +97,11 @@ Route::middleware(['throttle:120,1'])
     ->get('p/partidas/{token}', [PublicMatchController::class, 'show'])
     ->where(['token' => '[A-Za-z0-9]{40}'])
     ->name('public.matches.show');
+
+Route::middleware(['throttle:120,1'])
+    ->get('p/partidas/{token}/imagem.png', [PublicMatchController::class, 'image'])
+    ->where(['token' => '[A-Za-z0-9]{40}'])
+    ->name('public.matches.image');
 
 Route::middleware(['throttle:120,1'])
     ->prefix('p/campeonatos/{token}')

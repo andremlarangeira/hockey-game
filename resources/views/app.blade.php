@@ -24,6 +24,17 @@
         </script>
         <link rel="icon" href="/favicon.ico" sizes="any">
         <link rel="icon" href="/favicon.png" type="image/png">
+        @if (isset($openGraph))
+            <meta property="og:title" content="{{ $openGraph['title'] }}">
+            <meta property="og:description" content="{{ $openGraph['description'] }}">
+            <meta property="og:url" content="{{ $openGraph['url'] }}">
+            <meta property="og:type" content="website">
+            <meta property="og:image" content="{{ $openGraph['image'] }}">
+            <meta name="twitter:card" content="summary_large_image">
+            <meta name="twitter:title" content="{{ $openGraph['title'] }}">
+            <meta name="twitter:description" content="{{ $openGraph['description'] }}">
+            <meta name="twitter:image" content="{{ $openGraph['image'] }}">
+        @endif
         <style>:root { --team-primary: {{ $page['props']['team']['primary_color'] ?? '#166534' }}; --team-primary-text: {{ $page['props']['team']['primary_text'] ?? '#ffffff' }}; --team-secondary: {{ $page['props']['team']['secondary_color'] ?? '#f59e0b' }}; }</style>
         {{ \Illuminate\Support\Facades\Vite::fonts() }}
         @vite(['resources/css/app.css', 'resources/js/app.ts', "resources/js/pages/{$page['component']}.vue"])

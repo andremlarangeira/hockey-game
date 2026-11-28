@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import PlayerPhoto from '@/components/hockey/PlayerPhoto.vue';
 import type { Player } from '@/types/hockey';
-import { Head } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import {
     ArrowUpDown,
     Award,
+    CalendarDays,
     Search,
     Sparkles,
     Target,
     Trophy,
+    UsersRound,
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
@@ -20,14 +22,86 @@ type StatsPlayer = Player & {
 };
 
 type SortKey = 'points' | 'goals' | 'assists' | 'games' | 'ppg';
+type PeriodKey = 'all' | 'year' | 'month' | 'custom';
+type AttendancePlayer = Pick<
+    Player,
+    'id' | 'name' | 'jersey_number' | 'photo_url'
+> & {
+    games: number;
+    total_games: number;
+    percentage: number;
+    last_match_at: string | null;
+    days_since: number | null;
+    games_since: number;
+};
 
 const props = defineProps<{
     players: StatsPlayer[];
+    attendance: {
+        total_games: number;
+        players: AttendancePlayer[];
+        missing: AttendancePlayer[];
+    };
+    period: {
+        key: PeriodKey;
+        year: number | null;
+        month: string | null;
+        from: string | null;
+        to: string | null;
+        label: string;
+    };
+    availableYears: number[];
 }>();
 
 const search = ref('');
 const sortKey = ref<SortKey>('points');
 const sortDesc = ref(true);
+const attendanceDescending = ref(true);
+const activeTab = ref<'ranking' | 'attendance'>(
+    new URLSearchParams(window.location.search).get('aba') === 'presenca'
+        ? 'attendance'
+        : 'ranking',
+);
+const periodKey = ref<PeriodKey>(props.period.key);
+const year = ref(props.period.year ? String(props.period.year) : '');
+const month = ref(props.period.month ?? '');
+const from = ref(props.period.from ?? '');
+const to = ref(props.period.to ?? '');
+
+function periodParams() {
+    return {
+        period: periodKey.value,
+        ...(year.value ? { year: year.value } : {}),
+        ...(month.value ? { month: month.value } : {}),
+        ...(from.value ? { from: from.value } : {}),
+        ...(to.value ? { to: to.value } : {}),
+        ...(activeTab.value === 'attendance' ? { aba: 'presenca' } : {}),
+    };
+}
+
+function applyPeriod() {
+    router.get('/estatisticas', periodParams(), {
+        preserveState: true,
+        preserveScroll: true,
+    });
+}
+
+function changeTab(tab: 'ranking' | 'attendance') {
+    activeTab.value = tab;
+    applyPeriod();
+}
+
+function playerUrl(player: StatsPlayer): string {
+    return `/estatisticas/jogadores/${player.id}?${new URLSearchParams(
+        periodParams() as Record<string, string>,
+    ).toString()}`;
+}
+
+function attendancePlayerUrl(player: AttendancePlayer): string {
+    return `/estatisticas/jogadores/${player.id}?${new URLSearchParams(
+        periodParams() as Record<string, string>,
+    ).toString()}`;
+}
 
 function pointsPerGame(player: StatsPlayer): number {
     return player.games > 0 ? player.points / player.games : 0;
@@ -103,6 +177,15 @@ const displayedPlayers = computed(() => {
         return a.name.localeCompare(b.name, 'pt-BR');
     });
 });
+
+const attendancePlayers = computed(() =>
+    [...props.attendance.players].sort((a, b) => {
+        const difference = a.percentage - b.percentage;
+        return difference === 0
+            ? a.name.localeCompare(b.name, 'pt-BR')
+            : difference * (attendanceDescending.value ? -1 : 1);
+    }),
+);
 </script>
 
 <template>
@@ -137,6 +220,51 @@ const displayedPlayers = computed(() => {
             </span>
         </div>
     </div>
+
+    <form
+        class="surface-card mb-5 grid gap-3 rounded-2xl p-3 sm:grid-cols-[auto_1fr_auto] sm:items-end"
+        @submit.prevent="applyPeriod"
+    >
+        <label class="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
+            Período
+            <select v-model="periodKey" class="min-h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+                <option value="all">Tudo</option>
+                <option value="year">Ano (temporada)</option>
+                <option value="month">Mês</option>
+                <option value="custom">Intervalo personalizado</option>
+            </select>
+        </label>
+        <div class="grid gap-2 sm:grid-cols-2">
+            <label v-if="periodKey === 'year'" class="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">Temporada
+                <select v-model="year" required class="min-h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+                    <option value="" disabled>Selecione</option>
+                    <option v-for="availableYear in availableYears" :key="availableYear" :value="availableYear">{{ availableYear }}</option>
+                </select>
+            </label>
+            <label v-if="periodKey === 'month'" class="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">Mês
+                <input v-model="month" required type="month" class="min-h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-white" />
+            </label>
+            <template v-if="periodKey === 'custom'">
+                <label class="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">De
+                    <input v-model="from" required type="date" class="min-h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-white" />
+                </label>
+                <label class="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">Até
+                    <input v-model="to" required type="date" :min="from" class="min-h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-white" />
+                </label>
+            </template>
+        </div>
+        <button type="submit" class="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-[var(--team-primary)] px-4 text-xs font-bold text-white">
+            <CalendarDays class="size-4" /> Filtrar
+        </button>
+    </form>
+
+    <div class="mb-5 flex gap-2 border-b border-slate-200 dark:border-slate-800">
+        <button type="button" class="border-b-2 px-3 py-2 text-sm font-extrabold" :class="activeTab === 'ranking' ? 'border-[var(--team-primary)] text-slate-950 dark:text-white' : 'border-transparent text-slate-500'" @click="changeTab('ranking')">Ranking</button>
+        <button type="button" class="border-b-2 px-3 py-2 text-sm font-extrabold" :class="activeTab === 'attendance' ? 'border-[var(--team-primary)] text-slate-950 dark:text-white' : 'border-transparent text-slate-500'" @click="changeTab('attendance')">Presença</button>
+        <span class="ml-auto py-2 text-xs font-semibold text-slate-500 dark:text-slate-400">{{ period.label }}</span>
+    </div>
+
+    <template v-if="activeTab === 'ranking'">
 
     <div
         v-if="topPoints || topScorer || topAssister"
@@ -372,7 +500,15 @@ const displayedPlayers = computed(() => {
                                     size="size-8 text-xs sm:size-10 sm:text-sm"
                                 />
                                 <div class="min-w-0 flex-1">
+                                    <Link
+                                        v-if="player.id > 0"
+                                        :href="playerUrl(player)"
+                                        class="line-clamp-1 font-extrabold text-slate-950 dark:text-white"
+                                        :title="player.name"
+                                        >{{ player.name }}</Link
+                                    >
                                     <span
+                                        v-else
                                         class="line-clamp-1 font-extrabold text-slate-950 dark:text-white"
                                         :title="player.name"
                                         >{{ player.name }}</span
@@ -432,4 +568,30 @@ const displayedPlayers = computed(() => {
             </p>
         </div>
     </section>
+    </template>
+
+    <template v-else>
+        <section class="surface-card overflow-hidden rounded-2xl">
+            <div class="flex items-center justify-between border-b border-slate-100 p-4 dark:border-slate-800">
+                <div class="flex items-center gap-2"><UsersRound class="size-4 text-[var(--team-primary)]" /><h2 class="font-extrabold text-slate-950 dark:text-white">Frequência</h2></div>
+                <button type="button" class="text-xs font-bold text-slate-500 hover:text-slate-950 dark:hover:text-white" @click="attendanceDescending = !attendanceDescending">% {{ attendanceDescending ? '↓' : '↑' }}</button>
+                <span class="text-xs font-bold text-slate-500">{{ attendance.total_games }} jogo(s)</span>
+            </div>
+            <div v-if="!attendance.players.length" class="p-8 text-center text-sm text-slate-500">Cadastre jogadores para acompanhar a presença.</div>
+            <div v-else class="divide-y divide-slate-100 dark:divide-slate-800">
+                <div v-for="player in attendancePlayers" :key="player.id" class="flex items-center gap-3 p-3 sm:p-4">
+                    <PlayerPhoto :player="player" size="size-10" />
+                    <div class="min-w-0 flex-1"><Link :href="attendancePlayerUrl(player)" class="block truncate font-extrabold text-slate-950 dark:text-white">{{ player.name }}</Link><p class="text-xs text-slate-500">{{ player.games }} de {{ player.total_games }} jogos</p></div>
+                    <strong class="font-display text-xl text-slate-900 tabular-nums dark:text-white">{{ player.percentage.toLocaleString('pt-BR') }}%</strong>
+                </div>
+            </div>
+        </section>
+        <section class="surface-card mt-4 rounded-2xl p-4 sm:p-5">
+            <h2 class="font-extrabold text-slate-950 dark:text-white">Sumidos</h2>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Quem está há mais tempo sem jogar no período selecionado.</p>
+            <div class="mt-3 grid gap-2 sm:grid-cols-2">
+                <div v-for="player in attendance.missing" :key="player.id" class="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/50"><p class="font-bold text-slate-950 dark:text-white">{{ player.name }}</p><p class="mt-1 text-xs text-slate-500 dark:text-slate-400"><template v-if="player.last_match_at">Última: {{ player.last_match_at }} · há {{ player.days_since }} dia(s)</template><template v-else>Nenhuma partida no período</template></p></div>
+            </div>
+        </section>
+    </template>
 </template>

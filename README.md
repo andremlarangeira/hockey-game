@@ -51,6 +51,10 @@ O módulo de **Campeonatos** (`/campeonatos`) permite organizar torneios municip
 
 Em **Meu time** há a opção Claro, Escuro ou Sistema. A escolha vale **por navegador/aparelho**: fica num cookie `appearance` (1 ano) e no `localStorage` daquele navegador, e não é uma configuração compartilhada da conta do time. Cada pessoa ou celular escolhe a sua; limpar os cookies volta para "Sistema". Em "Sistema" o app segue o modo do aparelho e acompanha a troca sem recarregar. O tema é aplicado antes da primeira pintura (classe `dark` no `<html>` vinda do servidor, ou script no `<head>` quando é "Sistema"), sem piscar. As cores do time continuam as mesmas nos dois modos.
 
+## Produção no Laravel Cloud
+
+O checklist de variáveis, rastreamento de erros, backups, armazenamento persistente de fotos e deploy está em [docs/infra-laravel-cloud.md](docs/infra-laravel-cloud.md).
+
 ## Instalação local
 
 Requer PHP 8.3+ (testado com PHP 8.4), Composer, Node.js 22+ e extensões usuais do Laravel: SQLite/PDO, BCMath, Mbstring, OpenSSL, XML e Zip.

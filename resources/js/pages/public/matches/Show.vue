@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import MatchPlayerStatsCard from '@/components/hockey/MatchPlayerStatsCard.vue';
 import MatchTimelineCard from '@/components/hockey/MatchTimelineCard.vue';
+import ScoreShareButton from '@/components/hockey/ScoreShareButton.vue';
 import PublicMatchLayout from '@/layouts/PublicMatchLayout.vue';
 import { readableText } from '@/lib/balancedDraw';
 import { formatClock } from '@/lib/matchClock';
@@ -90,6 +91,10 @@ defineProps<{
             </div>
         </div>
     </section>
+
+    <div class="mt-3 flex justify-center">
+        <ScoreShareButton :match="match" :goals="goals" />
+    </div>
 
     <MatchPlayerStatsCard
         :roster="match.roster"
