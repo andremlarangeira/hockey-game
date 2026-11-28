@@ -18,7 +18,9 @@ defineOptions({
         description: 'Presença, sorteio equilibrado e placar na palma da mão.',
     },
 });
-const form = useForm({ email: '', password: '', remember: false });
+// Marcado por padrão para preservar autenticação via cookie remember em partidas/campeonatos offline longos,
+// sem precisar inflar SESSION_LIFETIME no servidor.
+const form = useForm({ email: '', password: '', remember: true });
 
 function fillDemo() {
     form.email = 'demo@naquadra.test';
@@ -85,6 +87,7 @@ function fillDemo() {
             <input
                 v-model="form.remember"
                 type="checkbox"
+                name="remember"
                 class="size-4 rounded accent-emerald-700"
             />
             Lembrar de mim

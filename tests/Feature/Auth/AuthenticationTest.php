@@ -4,7 +4,9 @@ namespace Tests\Feature\Auth;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class AuthenticationTest extends TestCase
@@ -29,6 +31,26 @@ class AuthenticationTest extends TestCase
 
         $this->assertAuthenticated();
         $response->assertRedirect(route('dashboard', absolute: false));
+    }
+
+    public function test_login_with_remember_sets_remember_cookie_and_token(): void
+    {
+        $user = User::factory()->create(['remember_token' => null]);
+
+        $this->get(route('login'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('auth/Login'));
+
+        $response = $this->post(route('login.store'), [
+            'email' => $user->email,
+            'password' => 'password',
+            'remember' => true,
+        ]);
+
+        $this->assertAuthenticatedAs($user);
+        $response->assertRedirect(route('dashboard', absolute: false));
+        $response->assertCookie(Auth::guard('web')->getRecallerName());
+        $this->assertNotNull($user->fresh()->remember_token);
     }
 
     public function test_users_can_not_authenticate_with_invalid_password()

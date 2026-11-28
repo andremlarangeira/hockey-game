@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 
@@ -74,6 +75,12 @@ class Player extends Model
     public function getPhotoUrlAttribute(): ?string
     {
         return $this->photo_path ? Storage::disk(config('filesystems.media_disk'))->url($this->photo_path) : null;
+    }
+
+    /** @return HasMany<MatchPlayer, $this> */
+    public function appearances(): HasMany
+    {
+        return $this->hasMany(MatchPlayer::class, 'player_id');
     }
 
     /** @return array{goals: int, assists: int, games: int} */

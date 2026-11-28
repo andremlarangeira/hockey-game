@@ -123,6 +123,49 @@ class StoreMatchRequest extends FormRequest
         return $attributes;
     }
 
+    /** @return list<array{user_id: int, player_id: int|null, player_name: string, team: string, present: bool}> */
+    public function matchPlayerAttributes(): array
+    {
+        $team = $this->user();
+        $ownPlayerIds = $team->players()->pluck('id')->map(fn ($id): int => (int) $id)->all();
+        $ownPlayerLookup = array_flip($ownPlayerIds);
+        $roster = $this->roster();
+
+        $attributes = [];
+        $seenPlayerIds = [];
+
+        foreach (['home' => $roster->home->players, 'away' => $roster->away->players] as $side => $players)
+        {
+            foreach ($players as $player)
+            {
+                $rawPlayerId = (int) $player['id'];
+                $playerExists = isset($ownPlayerLookup[$rawPlayerId]);
+                $playerId = $playerExists ? $rawPlayerId : null;
+
+                if ($playerId !== null)
+                {
+                    if (isset($seenPlayerIds[$playerId]))
+                    {
+                        continue;
+                    }
+                    $seenPlayerIds[$playerId] = true;
+                }
+
+                $name = trim((string) $player['name']);
+
+                $attributes[] = [
+                    'user_id' => $team->id,
+                    'player_id' => $playerId,
+                    'player_name' => $name !== '' ? $name : 'Jogador removido',
+                    'team' => $side,
+                    'present' => true,
+                ];
+            }
+        }
+
+        return $attributes;
+    }
+
     /** @return array<int, \Closure(Validator): void> */
     public function after(): array
     {

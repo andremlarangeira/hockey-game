@@ -47,4 +47,10 @@ class HockeyMatch extends Model
     {
         return $this->hasMany(Goal::class, 'match_id');
     }
+
+    /** @return HasMany<MatchPlayer, $this> */
+    public function matchPlayers(): HasMany
+    {
+        return $this->hasMany(MatchPlayer::class, 'match_id');
+    }
 }

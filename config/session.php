@@ -32,6 +32,9 @@ return [
     |
     */
 
+    // Mantemos 120 minutos como padrão de sessão ociosa: a sincronização após jogos offline
+    // longos depende do cookie "remember" do Fortify (ativado por padrão no login), evitando
+    // inflar a tabela de sessões com tempos excessivos.
     'lifetime' => (int) env('SESSION_LIFETIME', 120),
 
     'expire_on_close' => env('SESSION_EXPIRE_ON_CLOSE', false),

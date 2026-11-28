@@ -83,6 +83,7 @@ class MatchController extends Controller
                     'finished_at' => $data['finished_at'] ?? now(),
                 ]);
                 $match->goals()->createMany($request->goalAttributes());
+                $match->matchPlayers()->createMany($request->matchPlayerAttributes());
 
                 return $match;
             });
@@ -135,6 +136,7 @@ class MatchController extends Controller
     {
         DB::transaction(function () use ($match): void {
             $match->goals()->delete();
+            $match->matchPlayers()->delete();
             $match->delete();
         });
 
